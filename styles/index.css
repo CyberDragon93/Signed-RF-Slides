@@ -1,0 +1,4 @@
+/* Make displayed equations carry more visual weight; leave inline math natural. */
+.slidev-layout .katex-display {
+  font-size: 1.12em;
+}
