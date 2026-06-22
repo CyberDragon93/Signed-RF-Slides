@@ -76,13 +76,13 @@ $$
 
 ---
 
-# Marginal Preservation
+# The $\mathtt{Rectify}$ Operator
 
 <MarginalPreservationDemo :height="455" autoplay />
 
 - **Marginal preservation**: 
 $$
-\text{Law}(X_t) = \text{Law}(Z_t)
+\{Z_t\} = \mathtt{Rectify}\{X_t\} \implies\text{Law}(X_t) = \text{Law}(Z_t)
 $$
 
 ---
@@ -110,30 +110,24 @@ This is the standard RF baseline that the paper extends.
 layout: intro
 ---
 
-# RF For Convex Mixtures
-
-Now introduce positive and negative targets, but keep the mixture probabilistic.
+# RF For Mixtures of Distribution
 
 ---
 
 # Convex Mixture Target
 
-For two target distributions $\pi_1^+$ and $\pi_1^-$, define
+<ConvexMixture1D :height="355" autoplay />
+
+- **Convex setting**: sample a branch endpoint, then run the usual RF construction.
 
 $$
-\pi_1^{\text{mix}}
+\pi_1^\alpha
   =
-  (1-w)\pi_1^+ + w\pi_1^-,
-  \qquad w\in[0,1].
+  (1-\alpha)\pi_1^+ + \alpha\pi_1^-,
+  \qquad \alpha\in[0,1].
 $$
 
-Each branch has its own RF marginal and velocity:
-
-$$
-(\pi_t^+, v_t^+),\qquad (\pi_t^-, v_t^-).
-$$
-
-The common source is still $\pi_0$.
+This is still an ordinary probability target: the sign has not appeared yet.
 
 ---
 
@@ -144,19 +138,19 @@ RF marginals and momentum fields are linear in the terminal distribution.
 For the convex mixture:
 
 $$
-\pi_t^{\text{mix}}
+\pi_t^\alpha
  =
- (1-w)\pi_t^+ + w\pi_t^-.
+ (1-\alpha)\pi_t^+ + \alpha\pi_t^-.
 $$
 
 The corresponding flux is
 
 $$
-m_t^{\text{mix}}
+m_t^\alpha
  =
- (1-w)\pi_t^+ v_t^+
+ (1-\alpha)\pi_t^+ v_t^+
  +
- w\pi_t^- v_t^-.
+ \alpha\pi_t^- v_t^-.
 $$
 
 ---
@@ -169,22 +163,22 @@ $$
 v_t^{\text{RF}}(x)
  =
  \frac{
-   (1-w)\pi_t^+(x)v_t^+(x)
+   (1-\alpha)\pi_t^+(x)v_t^+(x)
    +
-   w\pi_t^-(x)v_t^-(x)
+   \alpha\pi_t^-(x)v_t^-(x)
  }{
-   (1-w)\pi_t^+(x)
+   (1-\alpha)\pi_t^+(x)
    +
-   w\pi_t^-(x)
+   \alpha\pi_t^-(x)
  }.
 $$
 
-For $w\in[0,1]$, the denominator is a valid probability marginal.
+For $\alpha\in[0,1]$, the denominator is a valid probability marginal.
 
 Solving the RF ODE recovers
 
 $$
-Z_t \sim \pi_t^{\text{mix}},\qquad Z_1\sim\pi_1^{\text{mix}}.
+Z_t \sim \pi_t^\alpha,\qquad Z_1\sim\pi_1^\alpha.
 $$
 
 ---
