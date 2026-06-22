@@ -11,6 +11,7 @@ const props = defineProps({
 const width = 900
 const xDomain = [-3.35, 3.35]
 const sourceSigma = 0.95
+const sideDensityW = 58
 const targetComponents = [
   { w: 0.54, mu: -1.45, sigma: 0.42 },
   { w: 0.46, mu: 1.55, sigma: 0.52 },
@@ -27,15 +28,15 @@ const layout = computed(() => {
   const topH = Math.max(178, Math.min(214, props.height * 0.46))
   const densityY = topY + topH + 44
   const densityH = Math.max(74, props.height - densityY - 72)
-  const panelW = 382
+  const panelW = 324
   const leftX = 42
-  const rightX = width - leftX - panelW
+  const rightX = width - leftX - sideDensityW - panelW
 
   return {
-    leftTop: { x: leftX, y: topY, w: panelW, h: topH },
+    leftTop: { x: leftX + sideDensityW, y: topY, w: panelW, h: topH },
     rightTop: { x: rightX, y: topY, w: panelW, h: topH },
-    leftDensity: { x: leftX, y: densityY, w: panelW, h: densityH },
-    rightDensity: { x: rightX, y: densityY, w: panelW, h: densityH },
+    leftDensity: { x: leftX, y: densityY, w: panelW + sideDensityW, h: densityH },
+    rightDensity: { x: rightX, y: densityY, w: panelW + sideDensityW, h: densityH },
     slider: { x: 230, y: props.height - 27, w: 440 },
   }
 })
@@ -172,6 +173,14 @@ function marginalPdf(tt, x) {
   })
 }
 
+function sourcePdf(x) {
+  return gaussianPdf(x, 0, sourceSigma)
+}
+
+function targetPdf(x) {
+  return d3.sum(targetComponents, c => c.w * gaussianPdf(x, c.mu, c.sigma))
+}
+
 function analyticVelocity(tt, x) {
   const weighted = targetComponents.map(c => {
     const variance = ((1 - tt) * sourceSigma) ** 2 + (tt * c.sigma) ** 2
@@ -252,6 +261,15 @@ function densityY(panel, density) {
   return panel.y + panel.h - panel.h * clamp(density / maxDensity)
 }
 
+function sourceDensityX(panel, value) {
+  return panel.x - sideDensityW * clamp(sourcePdf(value) / sourcePdf(0))
+}
+
+function targetDensityX(panel, value) {
+  const maxDensity = d3.max(xGrid, x => targetPdf(x)) || 1
+  return panel.x + panel.w + sideDensityW * clamp(targetPdf(value) / maxDensity)
+}
+
 function interp(sample, time) {
   return (1 - time) * sample.x0 + time * sample.x1
 }
@@ -298,6 +316,40 @@ function densityLinePath(panel) {
     .y(x => densityY(panel, marginalPdf(t.value, x)))
     .curve(d3.curveCatmullRom.alpha(0.45))
   return line(xGrid)
+}
+
+function sourceDensityLinePath(panel) {
+  const line = d3.line()
+    .x(x => sourceDensityX(panel, x))
+    .y(x => valueToY(panel, x))
+    .curve(d3.curveCatmullRom.alpha(0.45))
+  return line(xGrid)
+}
+
+function sourceDensityAreaPath(panel) {
+  const area = d3.area()
+    .x0(panel.x)
+    .x1(x => sourceDensityX(panel, x))
+    .y(x => valueToY(panel, x))
+    .curve(d3.curveCatmullRom.alpha(0.45))
+  return area(xGrid)
+}
+
+function targetDensityLinePath(panel) {
+  const line = d3.line()
+    .x(x => targetDensityX(panel, x))
+    .y(x => valueToY(panel, x))
+    .curve(d3.curveCatmullRom.alpha(0.45))
+  return line(xGrid)
+}
+
+function targetDensityAreaPath(panel) {
+  const area = d3.area()
+    .x0(panel.x + panel.w)
+    .x1(x => targetDensityX(panel, x))
+    .y(x => valueToY(panel, x))
+    .curve(d3.curveCatmullRom.alpha(0.45))
+  return area(xGrid)
 }
 
 const histogramBins = computed(() => {
@@ -457,10 +509,10 @@ onUnmounted(() => {
         <line :x1="timeToX(panel, t)" :y1="panel.y + 4" :x2="timeToX(panel, t)" :y2="panel.y + panel.h - 2" stroke="#172B78" stroke-width="1.6" stroke-dasharray="5 5" />
       </g>
 
-      <foreignObject :x="layout.leftTop.x" :y="layout.leftTop.y - 28" :width="layout.leftTop.w" height="25">
+      <foreignObject :x="layout.leftTop.x - sideDensityW" :y="layout.leftTop.y - 28" :width="layout.leftTop.w + sideDensityW" height="25">
         <div xmlns="http://www.w3.org/1999/xhtml" class="mp-panel-title-html" v-html="interpolationTitle"></div>
       </foreignObject>
-      <foreignObject :x="layout.rightTop.x" :y="layout.rightTop.y - 28" :width="layout.rightTop.w" height="25">
+      <foreignObject :x="layout.rightTop.x" :y="layout.rightTop.y - 28" :width="layout.rightTop.w + sideDensityW" height="25">
         <div xmlns="http://www.w3.org/1999/xhtml" class="mp-panel-title-html" v-html="odeTitle"></div>
       </foreignObject>
 
@@ -480,9 +532,9 @@ onUnmounted(() => {
           :key="`ode-bg-${trajectory.id}`"
           :d="odePath(trajectory, layout.rightTop)"
           fill="none"
-          stroke="#0E7490"
+          stroke="#4969E2"
           stroke-width="1.15"
-          stroke-opacity="0.32"
+          stroke-opacity="0.3"
           stroke-linecap="round"
         />
       </g>
@@ -523,9 +575,71 @@ onUnmounted(() => {
           :key="`ode-fg-${trajectory.id}`"
           :d="odePath(trajectory, layout.rightTop)"
           fill="none"
-          stroke="#0E7490"
+          stroke="#172B78"
           stroke-width="2.75"
           stroke-opacity="0.94"
+          stroke-linecap="round"
+        />
+      </g>
+
+      <g>
+        <line
+          :x1="layout.leftTop.x"
+          :y1="layout.leftTop.y"
+          :x2="layout.leftTop.x"
+          :y2="layout.leftTop.y + layout.leftTop.h"
+          stroke="#253A88"
+          stroke-width="1.6"
+          stroke-opacity="0.34"
+        />
+        <path :d="sourceDensityAreaPath(layout.leftTop)" fill="#4969E2" opacity="0.18" />
+        <path
+          :d="sourceDensityLinePath(layout.leftTop)"
+          fill="none"
+          stroke="#FFFFFF"
+          stroke-width="6"
+          stroke-opacity="0.78"
+          stroke-linejoin="round"
+          stroke-linecap="round"
+        />
+        <path
+          :d="sourceDensityLinePath(layout.leftTop)"
+          fill="none"
+          stroke="#253A88"
+          stroke-width="3"
+          stroke-opacity="0.9"
+          stroke-linejoin="round"
+          stroke-linecap="round"
+        />
+      </g>
+
+      <g>
+        <line
+          :x1="layout.rightTop.x + layout.rightTop.w"
+          :y1="layout.rightTop.y"
+          :x2="layout.rightTop.x + layout.rightTop.w"
+          :y2="layout.rightTop.y + layout.rightTop.h"
+          stroke="#253A88"
+          stroke-width="1.6"
+          stroke-opacity="0.34"
+        />
+        <path :d="targetDensityAreaPath(layout.rightTop)" fill="#4969E2" opacity="0.18" />
+        <path
+          :d="targetDensityLinePath(layout.rightTop)"
+          fill="none"
+          stroke="#FFFFFF"
+          stroke-width="6"
+          stroke-opacity="0.78"
+          stroke-linejoin="round"
+          stroke-linecap="round"
+        />
+        <path
+          :d="targetDensityLinePath(layout.rightTop)"
+          fill="none"
+          stroke="#253A88"
+          stroke-width="3"
+          stroke-opacity="0.9"
+          stroke-linejoin="round"
           stroke-linecap="round"
         />
       </g>
@@ -539,7 +653,7 @@ onUnmounted(() => {
         <circle :cx="timeToX(layout.leftTop, t)" :cy="valueToY(layout.leftTop, interp(sample, t))" r="2.25" fill="#172B78" opacity="0.72" />
       </g>
       <g v-for="trajectory in odeTrajectories" :key="`current-right-${trajectory.id}`">
-        <circle :cx="timeToX(layout.rightTop, t)" :cy="valueToY(layout.rightTop, odeAt(trajectory, t))" r="2.25" fill="#0E7490" opacity="0.72" />
+        <circle :cx="timeToX(layout.rightTop, t)" :cy="valueToY(layout.rightTop, odeAt(trajectory, t))" r="2.25" fill="#172B78" opacity="0.72" />
       </g>
 
       <text :x="timeToX(layout.leftTop, t) + 6" :y="layout.leftTop.y + 14" class="mp-time-label">t = {{ tLabel }}</text>
@@ -562,13 +676,13 @@ onUnmounted(() => {
           :width="bar.width"
           :height="bar.height"
           rx="2"
-          fill="#0E7490"
+          fill="#4969E2"
           opacity="0.58"
         />
         <path
           :d="densityLinePath(layout.rightDensity)"
           fill="none"
-          stroke="#164E63"
+          stroke="#253A88"
           stroke-width="1.7"
           stroke-opacity="0.52"
           stroke-dasharray="5 4"
@@ -576,13 +690,13 @@ onUnmounted(() => {
         <line :x1="layout.rightDensity.x" :y1="layout.rightDensity.y + layout.rightDensity.h" :x2="layout.rightDensity.x + layout.rightDensity.w" :y2="layout.rightDensity.y + layout.rightDensity.h" stroke="#253A88" stroke-opacity="0.24" />
       </g>
 
-      <foreignObject :x="layout.leftDensity.x" :y="layout.leftDensity.y - 28" width="180" height="25">
+      <foreignObject :x="layout.leftDensity.x" :y="layout.leftDensity.y - 28" :width="layout.leftDensity.w" height="25">
         <div xmlns="http://www.w3.org/1999/xhtml" class="mp-density-title-html" v-html="marginalXLabel"></div>
       </foreignObject>
-      <foreignObject :x="layout.rightDensity.x" :y="layout.rightDensity.y - 28" width="180" height="25">
+      <foreignObject :x="layout.rightDensity.x" :y="layout.rightDensity.y - 28" :width="layout.rightDensity.w" height="25">
         <div xmlns="http://www.w3.org/1999/xhtml" class="mp-density-title-html" v-html="marginalZLabel"></div>
       </foreignObject>
-      <foreignObject :x="width / 2 - 35" :y="layout.leftDensity.y + layout.leftDensity.h * 0.56 - 38" width="70" height="34">
+      <foreignObject :x="width / 2 - 35" :y="layout.leftDensity.y + layout.leftDensity.h * 0.56 - 50" width="70" height="34">
         <div xmlns="http://www.w3.org/1999/xhtml" class="mp-pi-label" v-html="piLabel"></div>
       </foreignObject>
       <text :x="width / 2" :y="layout.leftDensity.y + layout.leftDensity.h * 0.56" text-anchor="middle" class="mp-equals">=</text>
@@ -660,6 +774,7 @@ onUnmounted(() => {
   font-size: 17px;
   font-weight: 720;
   line-height: 1;
+  text-align: center;
   white-space: nowrap;
 }
 
@@ -672,6 +787,7 @@ onUnmounted(() => {
   font-size: 15px;
   font-weight: 700;
   line-height: 1;
+  text-align: center;
   white-space: nowrap;
 }
 

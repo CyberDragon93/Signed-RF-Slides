@@ -80,7 +80,10 @@ $$
 
 <MarginalPreservationDemo :height="455" autoplay />
 
-The paths are different, but the time-$t$ marginal is the same: $Z_t \sim \pi_t$.
+- **Marginal preservation**: 
+$$
+\text{Law}(X_t) = \text{Law}(Z_t)
+$$
 
 ---
 
