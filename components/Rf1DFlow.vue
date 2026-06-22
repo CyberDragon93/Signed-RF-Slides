@@ -400,8 +400,8 @@ onUnmounted(() => {
           :d="pathFor(pair)"
           fill="none"
           :stroke="mode === 'conditional' ? '#4969E2' : '#253A88'"
-          :stroke-width="mode === 'conditional' ? 0.85 : 1.35"
-          :stroke-opacity="mode === 'conditional' ? 0.05 : couplingLineOpacity(index)"
+          :stroke-width="mode === 'conditional' ? 0.95 : 1.35"
+          :stroke-opacity="mode === 'conditional' ? 0.09 : couplingLineOpacity(index)"
           stroke-linecap="round"
         />
       </g>
@@ -409,12 +409,22 @@ onUnmounted(() => {
       <g v-if="mode === 'conditional'">
         <path
           v-for="pair in highlightedSamples"
-          :key="`highlighted-${pair.id}`"
+          :key="`highlighted-halo-${pair.id}`"
+          :d="pathFor(pair)"
+          fill="none"
+          stroke="#FFFFFF"
+          stroke-width="5.6"
+          stroke-opacity="0.9"
+          stroke-linecap="round"
+        />
+        <path
+          v-for="pair in highlightedSamples"
+          :key="`highlighted-line-${pair.id}`"
           :d="pathFor(pair)"
           fill="none"
           stroke="#172B78"
-          stroke-width="2.25"
-          stroke-opacity="0.78"
+          stroke-width="3"
+          stroke-opacity="0.96"
           stroke-linecap="round"
         />
       </g>

@@ -78,22 +78,9 @@ $$
 
 # Marginal Preservation
 
-The key RF property is marginal preservation:
+<MarginalPreservationDemo :height="455" autoplay />
 
-$$
-Z_0 \sim \pi_0
-\quad\Longrightarrow\quad
-Z_t \sim \pi_t
-\quad\text{for all }t\in[0,1].
-$$
-
-In particular,
-
-$$
-Z_1 \sim \pi_1.
-$$
-
-So RF turns a source distribution into the target distribution through a deterministic ODE.
+The paths are different, but the time-$t$ marginal is the same: $Z_t \sim \pi_t$.
 
 ---
 
