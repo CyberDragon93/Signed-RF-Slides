@@ -55,24 +55,24 @@ $$
 
 ---
 
-# RF Velocity Is A Conditional Average
+# Rectified Flow in a Nutshell
 
-<Rf1DFlow mode="conditional" :height="300" autoplay />
+<Rf1DFlow mode="conditional" :height="340" autoplay />
 
-Rectified Flow defines the velocity field
+- **Causalization**: Convert interpolation into a causal ODE $\dot Z_t = v_t^{\text{RF}}(Z_t)$ by minimizing
 
-$$
-v_t^{\text{RF}}(x)
-  =
-  \mathbb{E}\!\left[X_1-X_0 \mid X_t=x\right].
-$$
+  $$
+  \min_v
+  \int_0^1
+  \mathbb{E}_{(X_0,X_1)}
+  \left[
+    \left\|
+      \dot X_t - v_t(X_t)
+    \right\|^2
+  \right] \mathrm dt,
+  $$
 
-It averages the slopes of all random straight couplings passing through the same state $x$ at time $t$.
-
-$$
-\dot Z_t = v_t^{\text{RF}}(Z_t),
-\qquad Z_0 \sim \pi_0.
-$$
+  where $\dot X_t=X_1-X_0$ is the line direction and the optimum is the conditional average $v_t^{*}(x)=\mathbb{E}[X_1-X_0\mid X_t=x]$.
 
 ---
 

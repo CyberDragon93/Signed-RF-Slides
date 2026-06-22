@@ -9,9 +9,15 @@ const props = defineProps({
 })
 
 const width = 900
+const sourceAxisX = 112
+const targetAxisX = 732
+const panelX = sourceAxisX
+const panelW = targetAxisX - sourceAxisX
 const t = ref(0.18)
 const phase = ref(0)
 const heatmapUrl = ref('')
+const pointerActive = ref(false)
+const hoverProbeX = ref(0)
 let raf = 0
 let start = 0
 
@@ -57,13 +63,13 @@ function makePairs(seed, length) {
 }
 
 const sampleBatches = Array.from({ length: 7 }, (_, i) => makePairs(20260621 + i * 101, 58))
-const conditionalPairs = makePairs(20260711, 54)
+const conditionalPairs = makePairs(20260711, 92)
 
 const yDomain = [-3.35, 3.35]
 const xGrid = d3.range(150).map(i => yDomain[0] + (i / 149) * (yDomain[1] - yDomain[0]))
 
 const y = computed(() => d3.scaleLinear().domain(yDomain).range([props.height - 22, 24]))
-const timeX = d3.scaleLinear().domain([0, 1]).range([142, 704])
+const timeX = d3.scaleLinear().domain([0, 1]).range([sourceAxisX, targetAxisX])
 const densityScale = d3.scaleLinear().domain([0, 0.7]).range([0, 72])
 
 const batchIndex = computed(() => Math.floor(phase.value) % sampleBatches.length)
@@ -124,12 +130,32 @@ function marginalPdf(tt, x) {
   })
 }
 
+function analyticVelocity(tt, x) {
+  const sourceSigma = 0.95
+  const components = [
+    { w: 0.54, mu: -1.45, sigma: 0.42 },
+    { w: 0.46, mu: 1.55, sigma: 0.52 },
+  ]
+  const weighted = components.map(c => {
+    const variance = ((1 - tt) * sourceSigma) ** 2 + (tt * c.sigma) ** 2
+    const mean = tt * c.mu
+    const density = c.w * gaussianPdf(x, mean, Math.sqrt(Math.max(variance, 1e-5)))
+    const posteriorMeanX1 = c.mu + (tt * c.sigma ** 2 / variance) * (x - mean)
+    const posteriorMeanX0 = ((1 - tt) * sourceSigma ** 2 / variance) * (x - mean)
+    return {
+      density,
+      velocity: posteriorMeanX1 - posteriorMeanX0,
+    }
+  })
+  const total = d3.sum(weighted, d => d.density)
+  if (total <= 1e-10) return 0
+  return d3.sum(weighted, d => d.density * d.velocity) / total
+}
+
 function renderMarginalHeatmap() {
   if (typeof document === 'undefined') return
 
-  const panelX = 128
   const panelY = 20
-  const panelW = 592
   const panelH = props.height - 42
   const scale = 2
   const canvas = document.createElement('canvas')
@@ -165,7 +191,7 @@ function renderMarginalHeatmap() {
 
 const sourcePath = computed(() => {
   const line = d3.line()
-    .x(d => 112 - densityScale(sourcePdf(d)))
+    .x(d => sourceAxisX - densityScale(sourcePdf(d)))
     .y(d => y.value(d))
     .curve(d3.curveCatmullRom.alpha(0.6))
   return line(xGrid)
@@ -173,7 +199,7 @@ const sourcePath = computed(() => {
 
 const targetPath = computed(() => {
   const line = d3.line()
-    .x(d => 732 + densityScale(targetPdf(d)))
+    .x(d => targetAxisX + densityScale(targetPdf(d)))
     .y(d => y.value(d))
     .curve(d3.curveCatmullRom.alpha(0.6))
   return line(xGrid)
@@ -193,63 +219,121 @@ function interp(pair, tt) {
   return (1 - tt) * pair.x0 + tt * pair.x1
 }
 
-const probeX = computed(() => 0.42 * Math.sin(2 * Math.PI * (t.value - 0.12)))
+const probeX = computed(() => (
+  pointerActive.value
+    ? hoverProbeX.value
+    : 0.42 * Math.sin(2 * Math.PI * (t.value - 0.12))
+))
 const bandwidth = 0.28
 
 const selected = computed(() => {
   if (props.mode !== 'conditional') return []
-  let hits = activePairs.value
-    .map(p => ({ ...p, xt: interp(p, t.value), v: p.x1 - p.x0 }))
-    .filter(p => Math.abs(p.xt - probeX.value) < bandwidth)
-  if (hits.length < 5) {
-    hits = activePairs.value
-      .map(p => ({ ...p, xt: interp(p, t.value), v: p.x1 - p.x0, dist: Math.abs(interp(p, t.value) - probeX.value) }))
-      .sort((a, b) => a.dist - b.dist)
-      .slice(0, 8)
-  }
-  return hits
+  return activePairs.value
+    .map(p => ({
+      ...p,
+      xt: interp(p, t.value),
+      v: p.x1 - p.x0,
+      dist: Math.abs(interp(p, t.value) - probeX.value),
+    }))
+    .sort((a, b) => a.dist - b.dist)
+    .slice(0, 16)
 })
 
+const highlightedSamples = computed(() => selected.value.slice(0, 16))
+
 const meanVelocity = computed(() => {
-  const hits = selected.value
-  if (!hits.length) return 0
-  return d3.mean(hits, d => d.v) ?? 0
+  return analyticVelocity(t.value, probeX.value)
 })
 
 const meanX = computed(() => {
-  const hits = selected.value
-  if (!hits.length) return probeX.value
-  return d3.mean(hits, d => d.xt) ?? probeX.value
+  return probeX.value
 })
 
 const meanArrow = computed(() => {
-  const dt = 0.105
-  const v = meanVelocity.value
-  const cx = t.value
-  const cy = meanX.value
-  return {
-    x1: timeX(cx - dt),
-    y1: y.value(cy - v * dt),
-    x2: timeX(cx + dt),
-    y2: y.value(cy + v * dt),
-  }
+  return arrowFromVelocity(t.value, meanX.value, meanVelocity.value, 80, 2.0)
 })
 
-function smallArrow(hit) {
-  const dt = 0.055
+function arrowFromVelocity(cx, cy, velocity, length, verticalGain = 1.0) {
+  const dt = 0.07
+  const displayVelocity = velocity * verticalGain
+  const xStart = timeX(cx - dt)
+  const yStart = y.value(cy - displayVelocity * dt)
+  const xEnd = timeX(cx + dt)
+  const yEnd = y.value(cy + displayVelocity * dt)
+  const vx = xEnd - xStart
+  const vy = yEnd - yStart
+  const norm = Math.max(1e-6, Math.sqrt(vx * vx + vy * vy))
+  const ux = vx / norm
+  const uy = vy / norm
+  const centerX = timeX(cx)
+  const centerY = y.value(cy)
   return {
-    x1: timeX(t.value - dt),
-    y1: y.value(hit.xt - hit.v * dt),
-    x2: timeX(t.value + dt),
-    y2: y.value(hit.xt + hit.v * dt),
+    x1: centerX - 0.5 * length * ux,
+    y1: centerY - 0.5 * length * uy,
+    x2: centerX + 0.5 * length * ux,
+    y2: centerY + 0.5 * length * uy,
   }
+}
+
+function arrowHeadPath(arrow, length, widthValue) {
+  const dx = arrow.x2 - arrow.x1
+  const dy = arrow.y2 - arrow.y1
+  const norm = Math.max(1e-6, Math.sqrt(dx * dx + dy * dy))
+  const ux = dx / norm
+  const uy = dy / norm
+  const nx = -uy
+  const ny = ux
+  const bx = arrow.x2 - length * ux
+  const by = arrow.y2 - length * uy
+  const half = widthValue / 2
+  return [
+    `M${arrow.x2},${arrow.y2}`,
+    `L${bx + half * nx},${by + half * ny}`,
+    `L${bx - half * nx},${by - half * ny}`,
+    'Z',
+  ].join(' ')
+}
+
+function arrowShaftEnd(arrow, headLength) {
+  const dx = arrow.x2 - arrow.x1
+  const dy = arrow.y2 - arrow.y1
+  const norm = Math.max(1e-6, Math.sqrt(dx * dx + dy * dy))
+  return {
+    x: arrow.x2 - headLength * dx / norm,
+    y: arrow.y2 - headLength * dy / norm,
+  }
+}
+
+function handlePointerMove(event) {
+  if (props.mode !== 'conditional') return
+
+  const svg = event.currentTarget
+  const rect = svg.getBoundingClientRect()
+  const svgX = (event.clientX - rect.left) * (width / rect.width)
+  const svgY = (event.clientY - rect.top) * (props.height / rect.height)
+  const insidePanel = svgX >= timeX(0)
+    && svgX <= timeX(1)
+    && svgY >= 20
+    && svgY <= props.height - 22
+
+  pointerActive.value = insidePanel
+  if (!insidePanel) return
+
+  t.value = clamp((svgX - timeX(0)) / (timeX(1) - timeX(0)))
+  hoverProbeX.value = clamp(y.value.invert(svgY), yDomain[0], yDomain[1])
+}
+
+function handlePointerLeave() {
+  pointerActive.value = false
 }
 
 function tick(now) {
   if (!start) start = now
   const elapsed = (now - start) / 1000
   phase.value = (elapsed / 9.0) % sampleBatches.length
-  t.value = 0.18 + 0.64 * (0.5 + 0.5 * Math.sin(elapsed * 0.55))
+  if (!pointerActive.value) {
+    t.value = 0.18 + 0.64 * (0.5 + 0.5 * Math.sin(elapsed * 0.55))
+  }
   raf = requestAnimationFrame(tick)
 }
 
@@ -265,40 +349,41 @@ onUnmounted(() => {
 
 <template>
   <div class="rf-flow-wrap">
-    <svg class="rf-flow" :viewBox="`0 0 ${width} ${height}`" role="img">
+    <svg
+      class="rf-flow"
+      :class="{ 'is-interactive': mode === 'conditional' }"
+      :viewBox="`0 0 ${width} ${height}`"
+      role="img"
+      @pointermove="handlePointerMove"
+      @pointerleave="handlePointerLeave"
+    >
       <defs>
         <linearGradient id="rfPanelTint" x1="0" x2="1" y1="0" y2="0">
           <stop offset="0%" stop-color="#4969E2" stop-opacity="0.09" />
           <stop offset="55%" stop-color="#4969E2" stop-opacity="0.045" />
           <stop offset="100%" stop-color="#4969E2" stop-opacity="0.09" />
         </linearGradient>
-        <marker id="rfArrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto" markerUnits="strokeWidth">
-          <path d="M0,0 L8,4 L0,8 Z" fill="#253A88" />
-        </marker>
-        <marker id="rfSmallArrow" markerWidth="7" markerHeight="7" refX="5.5" refY="3.5" orient="auto" markerUnits="strokeWidth">
-          <path d="M0,0 L7,3.5 L0,7 Z" fill="#9AA9EC" />
-        </marker>
       </defs>
 
-      <rect x="128" y="20" width="592" :height="height - 42" fill="#F8F9FE" />
+      <rect :x="panelX" y="20" :width="panelW" :height="height - 42" fill="#F8F9FE" />
       <image
         v-if="heatmapUrl"
-        x="128"
+        :x="panelX"
         y="20"
-        width="592"
+        :width="panelW"
         :height="height - 42"
         :href="heatmapUrl"
         preserveAspectRatio="none"
       />
 
-      <line x1="112" :y1="20" x2="112" :y2="height - 22" stroke="#253A88" stroke-width="1" />
-      <line x1="732" :y1="20" x2="732" :y2="height - 22" stroke="#253A88" stroke-width="1" />
-      <line x1="142" :y1="height - 22" x2="704" :y2="height - 22" stroke="#253A88" stroke-opacity="0.22" />
+      <line :x1="sourceAxisX" :y1="20" :x2="sourceAxisX" :y2="height - 22" stroke="#253A88" stroke-width="1" />
+      <line :x1="targetAxisX" :y1="20" :x2="targetAxisX" :y2="height - 22" stroke="#253A88" stroke-width="1" />
+      <line :x1="timeX(0)" :y1="height - 22" :x2="timeX(1)" :y2="height - 22" stroke="#253A88" stroke-opacity="0.22" />
 
       <path :d="sourcePath" fill="none" stroke="#4969E2" stroke-width="3" />
       <path :d="targetPath" fill="none" stroke="#4969E2" stroke-width="3" />
-      <path :d="`${sourcePath} L112,${height - 22} L112,24 Z`" fill="#4969E2" opacity="0.10" />
-      <path :d="`${targetPath} L732,${height - 22} L732,24 Z`" fill="#4969E2" opacity="0.10" />
+      <path :d="`${sourcePath} L${sourceAxisX},${height - 22} L${sourceAxisX},24 Z`" fill="#4969E2" opacity="0.10" />
+      <path :d="`${targetPath} L${targetAxisX},${height - 22} L${targetAxisX},24 Z`" fill="#4969E2" opacity="0.10" />
 
       <text x="74" y="18" text-anchor="middle" class="math-label">
         <tspan>X</tspan><tspan class="math-sub">0</tspan>
@@ -314,9 +399,23 @@ onUnmounted(() => {
         <path
           :d="pathFor(pair)"
           fill="none"
-          :stroke="mode === 'conditional' && selected.some(s => s.id === pair.id) ? '#4969E2' : mode === 'conditional' ? '#8EA0EA' : '#253A88'"
-          :stroke-width="mode === 'conditional' && selected.some(s => s.id === pair.id) ? 2.2 : mode === 'conditional' ? 0.9 : 1.35"
-          :stroke-opacity="mode === 'conditional' && selected.some(s => s.id === pair.id) ? 0.72 : mode === 'conditional' ? 0.1 : couplingLineOpacity(index)"
+          :stroke="mode === 'conditional' ? '#4969E2' : '#253A88'"
+          :stroke-width="mode === 'conditional' ? 0.85 : 1.35"
+          :stroke-opacity="mode === 'conditional' ? 0.05 : couplingLineOpacity(index)"
+          stroke-linecap="round"
+        />
+      </g>
+
+      <g v-if="mode === 'conditional'">
+        <path
+          v-for="pair in highlightedSamples"
+          :key="`highlighted-${pair.id}`"
+          :d="pathFor(pair)"
+          fill="none"
+          stroke="#172B78"
+          stroke-width="2.25"
+          stroke-opacity="0.78"
+          stroke-linecap="round"
         />
       </g>
 
@@ -324,7 +423,16 @@ onUnmounted(() => {
       </g>
 
       <g v-else>
-        <line :x1="timeX(t)" y1="22" :x2="timeX(t)" :y2="height - 22" stroke="#253A88" stroke-width="1.3" stroke-dasharray="5 4" opacity="0.65" />
+        <line
+          :x1="timeX(t)"
+          y1="22"
+          :x2="timeX(t)"
+          :y2="height - 22"
+          stroke="#253A88"
+          :stroke-width="pointerActive ? 1.8 : 1.35"
+          stroke-dasharray="5 4"
+          :opacity="pointerActive ? 0.86 : 0.65"
+        />
         <rect
           :x="timeX(t) - 26"
           :y="y(probeX + bandwidth)"
@@ -332,45 +440,80 @@ onUnmounted(() => {
           :height="Math.max(10, y(probeX - bandwidth) - y(probeX + bandwidth))"
           rx="8"
           fill="#4969E2"
-          opacity="0.12"
+          :opacity="pointerActive ? 0.18 : 0.12"
           stroke="#4969E2"
-          stroke-opacity="0.42"
+          :stroke-opacity="pointerActive ? 0.58 : 0.42"
         />
-        <circle :cx="timeX(t)" :cy="y(probeX)" r="4.2" fill="white" stroke="#253A88" stroke-width="1.7" />
+        <circle
+          :cx="timeX(t)"
+          :cy="y(probeX)"
+          :r="pointerActive ? 5.1 : 4.2"
+          fill="white"
+          stroke="#253A88"
+          :stroke-width="pointerActive ? 2.1 : 1.7"
+        />
 
-        <g v-for="hit in selected" :key="`arrow-${hit.id}`">
-          <line
-            :x1="smallArrow(hit).x1"
-            :y1="smallArrow(hit).y1"
-            :x2="smallArrow(hit).x2"
-            :y2="smallArrow(hit).y2"
-            stroke="#9AA9EC"
-            stroke-width="1.5"
-            marker-end="url(#rfSmallArrow)"
-            opacity="0.7"
-          />
-        </g>
+        <circle
+          v-for="pair in activePairs"
+          :key="`slice-point-${pair.id}`"
+          :cx="timeX(t)"
+          :cy="y(interp(pair, t))"
+          r="1.8"
+          fill="#253A88"
+          opacity="0.28"
+        />
 
         <line
           :x1="meanArrow.x1"
           :y1="meanArrow.y1"
-          :x2="meanArrow.x2"
-          :y2="meanArrow.y2"
-          stroke="#253A88"
-          stroke-width="3.5"
-          marker-end="url(#rfArrow)"
+          :x2="arrowShaftEnd(meanArrow, 20).x"
+          :y2="arrowShaftEnd(meanArrow, 20).y"
+          stroke="#FFFFFF"
+          stroke-width="11"
+          stroke-linecap="round"
+          opacity="0.94"
         />
-        <text x="424" y="43" text-anchor="middle" class="formula-text">
-          Conditional mean velocity
-        </text>
-        <text x="424" y="65" text-anchor="middle" class="subtle-text">
-          average local slope through the same state
-        </text>
+        <path
+          :d="arrowHeadPath(meanArrow, 20, 20)"
+          fill="#FFFFFF"
+          stroke="#FFFFFF"
+          stroke-width="7"
+          stroke-linejoin="round"
+          opacity="0.95"
+        />
+        <line
+          :x1="meanArrow.x1"
+          :y1="meanArrow.y1"
+          :x2="arrowShaftEnd(meanArrow, 20).x"
+          :y2="arrowShaftEnd(meanArrow, 20).y"
+          stroke="#0E7490"
+          stroke-width="5.4"
+          stroke-linecap="round"
+        />
+        <path
+          :d="arrowHeadPath(meanArrow, 20, 20)"
+          fill="#0E7490"
+          stroke="#164E63"
+          stroke-width="1.2"
+          stroke-linejoin="round"
+        />
       </g>
 
-      <g v-for="(pair, index) in activePairs.slice(0, mode === 'coupling' ? maxCouplingPairs : 28)" :key="`endpoints-${pair.id}`">
-        <circle cx="112" :cy="y(pair.x0)" r="2.6" fill="#253A88" :opacity="mode === 'coupling' ? couplingPointOpacity(index) : 1" />
-        <circle cx="732" :cy="y(pair.x1)" r="2.6" fill="#253A88" :opacity="mode === 'coupling' ? couplingPointOpacity(index) : 1" />
+      <g v-for="(pair, index) in activePairs.slice(0, mode === 'coupling' ? maxCouplingPairs : 72)" :key="`endpoints-${pair.id}`">
+        <circle
+          :cx="sourceAxisX"
+          :cy="y(pair.x0)"
+          :r="mode === 'coupling' ? 2.6 : 2.15"
+          fill="#253A88"
+          :opacity="mode === 'coupling' ? couplingPointOpacity(index) : 0.48"
+        />
+        <circle
+          :cx="targetAxisX"
+          :cy="y(pair.x1)"
+          :r="mode === 'coupling' ? 2.6 : 2.15"
+          fill="#253A88"
+          :opacity="mode === 'coupling' ? couplingPointOpacity(index) : 0.48"
+        />
       </g>
     </svg>
   </div>
@@ -386,6 +529,10 @@ onUnmounted(() => {
   display: block;
   width: 100%;
   height: auto;
+}
+
+.rf-flow.is-interactive {
+  cursor: crosshair;
 }
 
 .panel-label {
