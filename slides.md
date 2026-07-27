@@ -7,6 +7,7 @@ footerMiddle: Signed Rectified Flow
 footerLeft: Qiang Liu
 aspectRatio: 4/3
 lang: en
+routerMode: hash
 fontsize:
   body: 1.07rem
   h1: 2.2rem
