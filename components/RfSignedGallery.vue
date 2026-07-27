@@ -4,7 +4,6 @@ let srfgUidCounter = 0
 </script>
 
 <script setup>
-import katex from 'katex'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import {
   SCHEMA, DENSITY, TWIN, PALETTE,
@@ -19,36 +18,35 @@ const props = defineProps({
 const width = 900
 const uid = `srfg-${srfgUidCounter++}`
 
-function mathHtml(tex) {
-  return katex.renderToString(tex, { throwOnError: false, output: 'html' })
+// ---------------------------------------------------------------- panel specs
+// Six worlds, no captions — the pictures carry the point. Two extra setups
+// beyond the paper ones, chosen for distinct boundary topologies:
+// MODE2: two positive modes, the negative branch sits on one of them — the
+// surviving positive peak becomes an island between two negative zones.
+const MODE2 = {
+  plus: [
+    { w: 0.5, mu: -1.6, vr: 0.35 },
+    { w: 0.5, mu: 1.6, vr: 0.35 },
+  ],
+  minus: [{ w: 1.0, mu: 1.6, vr: 0.45 }],
+  domain: [-3.4, 3.4],
 }
 
-// ---------------------------------------------------------------- panel specs
+// CORE: a narrow negative core carved out of the centre of a broad positive —
+// the zero set is a closed lens and trajectories split around it.
+const CORE = {
+  plus: [{ w: 1.0, mu: 0.0, vr: 1.2 }],
+  minus: [{ w: 1.0, mu: 0.0, vr: 0.15 }],
+  domain: [-3.4, 3.4],
+}
+
 const PANEL_DEFS = [
-  {
-    id: 'density',
-    setup: DENSITY,
-    alpha: 0.85,
-    title: `three-mode ${mathHtml('\\pi^+')}, centred ${mathHtml('\\pi^-')}, ${mathHtml('\\alpha=0.85')}`,
-  },
-  {
-    id: 'schema1',
-    setup: SCHEMA,
-    alpha: 1.0,
-    title: `single vs single, ${mathHtml('\\alpha=1')}`,
-  },
-  {
-    id: 'twin',
-    setup: TWIN,
-    alpha: 0.8,
-    title: `twin negative modes, ${mathHtml('\\alpha=0.8')}`,
-  },
-  {
-    id: 'schema2',
-    setup: SCHEMA,
-    alpha: 2.0,
-    title: `stronger suppression, ${mathHtml('\\alpha=2')}`,
-  },
+  { id: 'schema1', setup: SCHEMA, alpha: 1.0 },
+  { id: 'density', setup: DENSITY, alpha: 0.85 },
+  { id: 'mode2', setup: MODE2, alpha: 1.0 },
+  { id: 'twin', setup: TWIN, alpha: 0.8 },
+  { id: 'core', setup: CORE, alpha: 0.9 },
+  { id: 'schema2', setup: SCHEMA, alpha: 2.0 },
 ]
 
 // ---------------------------------------------------------------- static math
@@ -143,23 +141,24 @@ const panelData = PANEL_DEFS.map(def => ({
 }))
 
 // ---------------------------------------------------------------- layout
-const CARD_W = 410
+const COLS = 3
 const GUT = 14
-const MARGIN_X = (width - (2 * CARD_W + GUT)) / 2
+const CARD_W = 282
+const MARGIN_X = (width - (COLS * CARD_W + (COLS - 1) * GUT)) / 2
 
-const cardH = computed(() => props.height / 2 - 32)
+const cardH = computed(() => (props.height - 14 - GUT - 30) / 2)
 
 const panels = computed(() => {
   const ch = cardH.value
   return panelData.map((p, i) => {
-    const col = i % 2
-    const row = i >> 1
+    const col = i % COLS
+    const row = Math.floor(i / COLS)
     const cx = MARGIN_X + col * (CARD_W + GUT)
-    const cy = 21 + row * (ch + GUT)
-    const plotX = cx + 12
-    const plotW = CARD_W - 24
-    const plotY = cy + 26
-    const plotH = Math.max(40, ch - 42)
+    const cy = 14 + row * (ch + GUT)
+    const plotX = cx + 10
+    const plotW = CARD_W - 20
+    const plotY = cy + 10
+    const plotH = Math.max(40, ch - 20)
     const [lo, hi] = p.setup.domain
     const px = t => plotX + t * plotW
     const py = xv => plotY + ((hi - xv) / (hi - lo)) * plotH
@@ -184,7 +183,6 @@ const panels = computed(() => {
 
     return {
       id: p.id,
-      title: p.title,
       heatmap: p.heatmap,
       traj: p.traj,
       lo,
@@ -198,7 +196,6 @@ const panels = computed(() => {
       plotH,
       branchPaths,
       trajPaths,
-      arrow: { x1: plotX + plotW - 46, x2: plotX + plotW - 20, y: plotY + plotH + 9 },
     }
   })
 })
@@ -294,11 +291,6 @@ onUnmounted(() => {
           :fill="PALETTE.panel" :stroke="PALETTE.panelBorder" :filter="`url(#${uid}-shadow)`"
         />
 
-        <!-- title -->
-        <foreignObject :x="p.cx + 12" :y="p.cy + 5" :width="CARD_W - 24" height="20" pointer-events="none">
-          <div xmlns="http://www.w3.org/1999/xhtml" class="srfg-title" v-html="p.title"></div>
-        </foreignObject>
-
         <!-- (t, x) plot -->
         <rect
           :x="p.plotX" :y="p.plotY" :width="p.plotW" :height="p.plotH"
@@ -351,16 +343,6 @@ onUnmounted(() => {
           :fill="PALETTE.trajMarkerFill" :stroke="PALETTE.trajMarkerEdge" stroke-width="0.8"
         />
 
-        <!-- recessive t arrow, bottom-right -->
-        <line
-          :x1="p.arrow.x1" :y1="p.arrow.y" :x2="p.arrow.x2" :y2="p.arrow.y"
-          stroke="#536073" stroke-width="1" stroke-opacity="0.55"
-        />
-        <path
-          :d="`M${p.arrow.x2},${p.arrow.y - 2.6} L${p.arrow.x2 + 5},${p.arrow.y} L${p.arrow.x2},${p.arrow.y + 2.6} Z`"
-          fill="#536073" fill-opacity="0.55"
-        />
-        <text :x="p.arrow.x2 + 10" :y="p.arrow.y + 3.5" class="srfg-taxis">t</text>
       </g>
 
       <!-- shared play / pause control -->
@@ -390,26 +372,6 @@ onUnmounted(() => {
   display: block;
   width: 100%;
   height: auto;
-}
-
-.srfg-title {
-  color: #202124;
-  font-size: 12px;
-  font-weight: 650;
-  line-height: 1.5;
-  white-space: nowrap;
-}
-
-.srfg-title :deep(.katex) {
-  font-size: 1.05em;
-}
-
-.srfg-taxis {
-  fill: #536073;
-  fill-opacity: 0.8;
-  font-size: 11px;
-  font-style: italic;
-  font-family: KaTeX_Math, "Times New Roman", serif;
 }
 
 .srfg-play {
