@@ -163,11 +163,11 @@ function mathHtml(tex) {
 }
 
 const interpolationTitle = `Interpolation ${mathHtml('X_t=(1-t)X_0+tX_1')}`
-const flowTitle = `Flow ${mathHtml('\\dot Z_t=v_t^\\alpha(Z_t)')}`
+const flowTitle = `Flow ${mathHtml('\\dot Z_t=v_t^\\omega(Z_t)')}`
 const sourceLabel = mathHtml('X_0\\sim\\pi_0')
 const plusLabel = mathHtml('\\pi_1^+')
 const minusLabel = mathHtml('\\pi_1^-')
-const mixLabel = mathHtml('\\pi_1^\\alpha')
+const mixLabel = mathHtml('\\pi_1^\\omega')
 
 function branch(sample) {
   return sample.u < alphaValue.value ? 'minus' : 'plus'
@@ -428,7 +428,7 @@ onUnmounted(() => {
         <line :x1="layout.slider.x" :y1="layout.slider.y" :x2="layout.slider.x + layout.slider.w" :y2="layout.slider.y" stroke="#D6DDF3" stroke-width="8" stroke-linecap="round" />
         <line :x1="layout.slider.x" :y1="layout.slider.y" :x2="layout.slider.x + layout.slider.w * alphaValue" :y2="layout.slider.y" stroke="#4969E2" stroke-width="8" stroke-linecap="round" />
         <circle :cx="layout.slider.x + layout.slider.w * alphaValue" :cy="layout.slider.y" r="10.5" fill="#FFFFFF" stroke="#253A88" stroke-width="2.2" />
-        <text x="624" :y="height - 24" class="cm-slider-text">α = {{ alphaLabel }}</text>
+        <text x="624" :y="height - 24" class="cm-slider-text">ω = {{ alphaLabel }}</text>
         <text x="700" :y="height - 24" class="cm-mass-text">plus {{ plusMass.toFixed(2) }} / minus {{ minusMass.toFixed(2) }}</text>
       </g>
     </svg>

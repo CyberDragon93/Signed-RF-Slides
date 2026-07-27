@@ -1,4 +1,77 @@
-/* Make displayed equations carry more visual weight; leave inline math natural. */
+/* ==========================================================================
+   LaTeX size harmony. The prose typeface IS KaTeX_Main, so math must not be
+   optically rescaled: inline and display math render at exactly the prose
+   size — one voice, no size jumps (KaTeX's default is 1.21em).
+   ========================================================================== */
+.slidev-layout .katex {
+  font-size: 1em;
+}
+
 .slidev-layout .katex-display {
-  font-size: 1.12em;
+  font-size: 1em;
+  margin: 0.85em 0;
+}
+
+/* Interactive figures size their KaTeX labels explicitly against KaTeX's
+   default optical scale — keep it inside the figure wrappers. */
+.slidev-layout [class$="-wrap"] .katex {
+  font-size: 1.21em;
+}
+
+/* ==========================================================================
+   Master overrides: mathematical, minimal, lighter ultramarine.
+   - Primary color aligned with the figure palette (#3250BC / #4969E2)
+     instead of the default dark navy.
+   - Body and headings in KaTeX_Main (Computer Modern), so prose and
+     formulas share one LaTeX-paper voice.
+   ========================================================================== */
+:root[data-color-theme] {
+  --slidev-theme-primary: #3250bc;
+  --slidev-theme-primary-light: #4969e2;
+  --scholarly-text-primary: #303a49;
+}
+
+:root[data-font-theme] {
+  --scholarly-font-serif: 'KaTeX_Main', 'STIX Two Text', 'Georgia', serif;
+  --scholarly-font-body: var(--scholarly-font-serif);
+}
+
+/* One fixed type scale everywhere (body/h1 pinned via headmatter `fontsize`);
+   only the title page gets its one intentional exception. */
+.slidev-layout.cover h1 {
+  font-size: 3rem !important;
+}
+
+/* Minimal footer: no colored band — a paper-like hairline and muted ink. */
+:root {
+  --scholarly-footer-left-bg: transparent;
+  --scholarly-footer-center-bg: transparent;
+  --scholarly-footer-right-bg: transparent;
+  --scholarly-footer-height: 30px;
+}
+
+.beamer-footer {
+  border-top: 1px solid rgba(48, 58, 73, 0.16) !important;
+  background: transparent !important;
+}
+
+.beamer-footer-left,
+.beamer-footer-center,
+.beamer-footer-right {
+  color: rgba(48, 58, 73, 0.52) !important;
+}
+
+.beamer-footer-toolbar {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* Headings in Computer Modern bold: one LaTeX voice for titles, prose, math. */
+.slidev-layout h1,
+.slidev-layout h2,
+.slidev-layout h3,
+.slidev-layout .author-name {
+  font-family: var(--scholarly-font-serif) !important;
+  font-weight: 700;
+  letter-spacing: 0;
 }

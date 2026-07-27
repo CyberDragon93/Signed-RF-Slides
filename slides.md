@@ -7,10 +7,13 @@ footerMiddle: Signed Rectified Flow
 footerLeft: Qiang Liu
 aspectRatio: 4/3
 lang: en
+fontsize:
+  body: 1.07rem
+  h1: 2.2rem
 themeConfig:
   colorTheme: classic-blue
   fontTheme: contemporary
-  colorMode: dark
+  colorMode: light
   outlineToc: true
   outlineTocOpen: false
 ---
@@ -121,77 +124,86 @@ layout: intro
 - **Convex setting**: sample a branch endpoint, then run the usual RF construction.
 
 $$
-\pi_1^\alpha
+\pi_1^\omega
   =
-  (1-\alpha)\pi_1^+ + \alpha\pi_1^-,
-  \qquad \alpha\in[0,1].
+  (1-\omega)\pi_1^+ + \omega\pi_1^-,
+  \qquad \omega\in[0,1].
 $$
 
 This is still an ordinary probability target: the sign has not appeared yet.
 
 ---
 
-# Linearity Of Marginal And Flux
+# Where the Mixture Velocity Comes From
 
-RF marginals and momentum fields are linear in the terminal distribution.
-
-For the convex mixture:
+Same RF recipe, applied to the mixture target — the velocity is still a conditional average:
 
 $$
-\pi_t^\alpha
+v_t^{\omega}(x)
  =
- (1-\alpha)\pi_t^+ + \alpha\pi_t^-.
+ \mathbb{E}\left[X_1-X_0 \mid X_t=x\right],
+\qquad
+X_1\sim(1-\omega)\pi_1^+ + \omega\pi_1^-.
 $$
 
-The corresponding flux is
+$X_1$ comes from one of two branches, so split the average by branch (Bayes):
 
 $$
-m_t^\alpha
+v_t^{\omega}(x)
  =
- (1-\alpha)\pi_t^+ v_t^+
+ \underbrace{\frac{(1-\omega)\,\pi_t^+(x)}{\pi_t^{\omega}(x)}}_{\mathbb{P}(+\,\mid\,X_t=x)}
+ v_t^+(x)
  +
- \alpha\pi_t^- v_t^-.
-$$
-
----
-
-# Mixture Velocity
-
-Divide flux by density:
-
-$$
-v_t^{\text{RF}}(x)
+ \underbrace{\frac{\omega\,\pi_t^-(x)}{\pi_t^{\omega}(x)}}_{\mathbb{P}(-\,\mid\,X_t=x)}
+ v_t^-(x),
+\qquad
+\pi_t^{\omega}
  =
- \frac{
-   (1-\alpha)\pi_t^+(x)v_t^+(x)
-   +
-   \alpha\pi_t^-(x)v_t^-(x)
- }{
-   (1-\alpha)\pi_t^+(x)
-   +
-   \alpha\pi_t^-(x)
- }.
+ (1-\omega)\pi_t^+ + \omega\pi_t^-.
 $$
 
-For $\alpha\in[0,1]$, the denominator is a valid probability marginal.
-
-Solving the RF ODE recovers
-
-$$
-Z_t \sim \pi_t^\alpha,\qquad Z_1\sim\pi_1^\alpha.
-$$
+- A **local vote**: each branch pulls with weight equal to its share of the current density.
+- Nothing new to train — the same $L^2$ objective on mixed data has exactly this optimum.
 
 ---
 
-# The Paper's Turn
+# Marginal Preservation, Inherited
 
-For convex mixtures, everything remains nonnegative.
+<div class="h-20"></div>
 
-The paper then asks:
+Solving the ODE $\dot Z_t = v_t^{\omega}(Z_t)$ from $Z_0\sim\pi_0$ preserves every marginal:
 
-> What happens if the mixture weight is allowed to be negative?
+$$
+Z_t \sim \pi_t^{\omega} \;\;\text{ for all } t\in[0,1],
+\qquad\text{in particular}\qquad
+Z_1 \sim \pi_1^{\omega}.
+$$
 
-This is the step from mixture modeling to negative information.
+For $\omega\in[0,1]$, the marginal $\pi_t^{\omega}$ remains a **nonnegative, normalized density** at every $t$ — the dynamics define a standard probability flow.
+
+<div class="mt-8"></div>
+
+> A natural question: what happens when $\omega$ is allowed to be **negative**?
+
+---
+
+# What Negativity Should Mean
+
+<div class="h-16"></div>
+
+Many generative tasks *promote* a desirable $\pi^+$ while *suppressing* an undesirable $\pi^-$:
+
+- **Conditional generation** — match the target condition, avoid inconsistent outputs
+- **Safety & alignment** — generate value-aligned outputs, exclude harmful ones
+- **Preference learning** — steer toward preferred samples, away from dispreferred ones
+
+The standard tool is sampling-time **guidance**: extrapolate between positive and negative fields.
+But such procedures remain largely *heuristic* — their induced sampling distributions are poorly understood.
+
+<div class="mt-4"></div>
+
+**Goal**: use negativity to encode more than the absence of positive data —
+the target itself should specify **what to avoid**.
 
 ---
 layout: intro
@@ -203,97 +215,81 @@ Take the same RF formula, but extrapolate beyond convexity.
 
 ---
 
-# Signed Target
+# The Signed Target
 
-Set
+<RfSigned1D mode="target" :height="300" autoplay />
 
-$$
-w=-\alpha,\qquad \alpha>0.
-$$
-
-Then the terminal target becomes
+Set $\omega=-\alpha$ with $\alpha>0$. The terminal target becomes
 
 $$
-\pi_1^{\text{sign}}(x)
- =
- (1+\alpha)\pi_1^+(x)
+\pi_1^{\mathtt{sign}}(x)
+ \coloneqq
+ (1+\alpha)\,\pi_1^+(x)
  -
- \alpha \pi_1^-(x).
+ \alpha\,\pi_1^-(x).
 $$
 
-It has total mass one, but it may take negative values.
+Unit total mass — but it need not be nonnegative.
 
 ---
 
-# Signed Marginal
+# Same Linearity, Signed Marginal
 
-By the same linearity,
+<div class="h-20"></div>
+
+By linearity of the RF marginals, for every $t\in[0,1]$,
 
 $$
-\pi_t^{\text{sign}}(x)
+\pi_t^{\mathtt{sign}}(x)
  =
- (1+\alpha)\pi_t^+(x)
+ (1+\alpha)\,\pi_t^+(x)
  -
- \alpha\pi_t^-(x).
+ \alpha\,\pi_t^-(x).
 $$
 
-The positive, zero, and negative regions are
+Partition the space by the sign of $\pi_t^{\mathtt{sign}}$:
 
 $$
-\Omega_t^+ = \{x:\pi_t^{\text{sign}}(x)>0\},
-\quad
-\Omega_t^0 = \{x:\pi_t^{\text{sign}}(x)=0\},
-\quad
-\Omega_t^- = \{x:\pi_t^{\text{sign}}(x)<0\}.
+\Omega_t^+ \coloneqq \{x:\pi_t^{\mathtt{sign}}(x)>0\},
+\qquad
+\Omega_t^0 \coloneqq \{x:\pi_t^{\mathtt{sign}}(x)=0\},
+\qquad
+\Omega_t^- \coloneqq \{x:\pi_t^{\mathtt{sign}}(x)<0\}.
 $$
+
+- At $t=0$ both branches share the source: $\pi_0^{\mathtt{sign}} = (1+\alpha)\,\pi_0-\alpha\,\pi_0 = \pi_0 > 0$.
+- As $t$ grows, negative regions can emerge.
 
 ---
 
-# Signed RF Velocity
+# The Signed RF Velocity
 
-Applying the convex-mixture RF formula with $w=-\alpha$ gives
+<div class="h-16"></div>
+
+Apply the mixture formula with $\omega=-\alpha$ — the signed flux divided by the signed density:
 
 $$
-v_t^{\text{signRF}}(x)
+v_t^{\mathtt{signRF}}(x)
  =
  \frac{
-   (1+\alpha)\pi_t^+(x)v_t^+(x)
+   (1+\alpha)\,\pi_t^+(x)\,v_t^+(x)
    -
-   \alpha\pi_t^-(x)v_t^-(x)
+   \alpha\,\pi_t^-(x)\,v_t^-(x)
  }{
-   (1+\alpha)\pi_t^+(x)
+   (1+\alpha)\,\pi_t^+(x)
    -
-   \alpha\pi_t^-(x)
+   \alpha\,\pi_t^-(x)
  }.
 $$
 
-The denominator is exactly $\pi_t^{\text{sign}}(x)$.
+- The denominator is precisely $\pi_t^{\mathtt{sign}}(x)$: well defined away from the zero set $\Omega_t^0$, **singular on it**.
+- Define Signed RF by the source-initialized ODE
+  $\dot Z_t = v_t^{\mathtt{signRF}}(Z_t)$, $Z_0\sim\pi_0$, and write $\pi_t^{\mathtt{signRF}}$ for the law of $Z_t$.
+- As we will see: sampled trajectories stay in $\Omega_t^+$ — the singular boundary acts as a
+  **repulsive barrier**, so the ODE remains well defined along the realized dynamics.
 
 ---
 
-# The Singularity Is The Boundary
-
-The velocity is defined away from the zero set
-
-$$
-\Omega_t^0=\{x:\pi_t^{\text{sign}}(x)=0\}.
-$$
-
-Starting from
-
-$$
-Z_0\sim\pi_0^{\text{sign}} = (1+\alpha)\pi_0-\alpha\pi_0=\pi_0,
-$$
-
-the sampler follows
-
-$$
-\dot Z_t = v_t^{\text{signRF}}(Z_t).
-$$
-
-The paper's claim is that source-initialized trajectories remain on the positive side and are repelled from the zero set.
-
----
 layout: intro
 ---
 
@@ -303,147 +299,190 @@ The signed density is not itself a probability law, but the ODE trajectory law i
 
 ---
 
-# Valid Law Vs Signed Density
+# Just Run It
 
-Let $\pi_t^{\text{signRF}}$ denote the law of the source-initialized trajectory $Z_t$.
+<RfSigned1D mode="simulate" :height="440" autoplay />
 
-Two facts now coexist:
+<div class="mt-2"></div>
 
-$$
-\pi_t^{\text{signRF}}
-\quad\text{is a valid probability distribution,}
-$$
-
-but
-
-$$
-\pi_t^{\text{sign}}
-\quad\text{may be negative.}
-$$
-
-Therefore the two objects must diverge once negative regions appear.
+Simulate $\dot Z_t = v_t^{\mathtt{signRF}}(Z_t)$ from $Z_0\sim\pi_0$ and record the samples —
+nothing drawn yet but the trajectories and their **empirical density**.
 
 ---
 
-# Region Decomposition
+# Overlay the Signed Marginal
 
-Signed RF partitions the positive and negative geometry into three regions.
+<RfSigned1D mode="overlay" :height="440" autoplay />
+
+<div class="mt-2"></div>
+
+- The magenta curve is the **zero set** $\Omega_t^0 = \{x:\pi_t^{\mathtt{sign}}(x)=0\}$ — trajectories approach it, then bend away.
+- Wherever samples land, the histogram matches $\pi_t^{\mathtt{sign}}$ **exactly**; where $\pi_t^{\mathtt{sign}}<0$, nothing ever lands.
+
+---
+
+# Always the Positive Side
+
+<RfSignedGallery :height="430" />
+
+<div class="mt-2"></div>
+
+Different branch pairs, different $\alpha$ — in every case, source-initialized trajectories remain
+in the positive region $\Omega_t^+$ and never enter $\Omega_t^-$.
+
+---
+
+# Why? Trace the Dynamics Backward
+
+<ChargedParticles1D mode="uniform" :height="430" autoplay />
+
+<div class="mt-2"></div>
+
+Place particles uniformly on the terminal line and integrate the same ODE **backward** toward $t=0$.
+Two fates emerge: some admit backward trajectories all the way to $t=0$ — collectively recovering the
+source $\pi_0$ — while the rest run into the **moving zero set** $\Omega_t^0$ and stop there, meeting in pairs.
+
+---
+
+# The Physical Picture: Charged Particles
+
+<ChargedParticles1D mode="classified" :height="430" autoplay />
+
+<div class="mt-2"></div>
+
+- **Reachable particles** — backward trajectories reach $t=0$; reversed, they are exactly the forward Signed RF samples.
+- **Ghost $+$ and negative $-$ particles** — annihilate in pairs on $\Omega_t^0$; forward in time, the boundary *creates* $\pm$ pairs — **dark particles**, invisible to the source-initialized sampler.
+
+---
+
+# Two Objects, One Flow
+
+<div class="h-28"></div>
+
+By construction, the trajectory law $\pi_t^{\mathtt{signRF}}$ is a **valid probability distribution**.
+
+The signed marginal $\pi_t^{\mathtt{sign}}$ has unit total mass — but **may take negative values**.
+
+Once negative regions emerge, the two can no longer coincide globally.
+
+<div class="mt-6"></div>
+
+> Which part of the signed marginal is realized by the source-initialized flow?
+
+---
+
+# Where the Trajectories Go
+
+<RegionDecomposition :height="300" />
+
+- **Stay positive**: trajectories remain in $\Omega_t^+$, never entering $\Omega_t^-$ — but they occupy only a subset,
+  the **reachable region** $\Omega_t^r \coloneqq \operatorname{supp}(\pi_t^{\mathtt{signRF}})$.
+- **Rectification**: on $\Omega_t^r$, the sampled density coincides *exactly* with the signed marginal:
 
 $$
-\Omega_t^r
+\pi_t^{\mathtt{signRF}}(x)
  =
- \operatorname{supp}(\pi_t^{\text{signRF}})
-\subseteq
-\Omega_t^+
-$$
-
-is the reachable region.
-
-The negative region is
-
-$$
-\Omega_t^-=\{x:\pi_t^{\text{sign}}(x)<0\}.
-$$
-
-The unreached positive part is the ghost region:
-
-$$
-\Omega_t^g = \Omega_t^+ \setminus \Omega_t^r.
+ \pi_t^{\mathtt{sign}}(x)\,\mathbf{1}\{x\in\Omega_t^r\}.
 $$
 
 ---
 
-# Rectifying The Signed Density
+# The Ghost Region
 
-On the reachable region, the sampled density equals the signed density:
+<div class="h-24"></div>
 
-$$
-\pi_t^{\text{signRF}}(x)
- =
-\pi_t^{\text{sign}}(x)\mathbf{1}\{x\in\Omega_t^r\}.
-$$
+The unreached part of the positive region is the **ghost region**:
+$\;\Omega_t^g \coloneqq \Omega_t^+ \setminus \Omega_t^r$.
 
-So Signed RF does not normalize the positive part globally.
-
-It keeps exactly the signed density on the part reachable from the source, and zeros out the rest.
-
----
-
-# Ghost Mass Cancels Negative Mass
-
-Both $\pi_t^{\text{signRF}}$ and $\pi_t^{\text{sign}}$ integrate to one.
-
-Since $\pi_t^{\text{signRF}}=\pi_t^{\text{sign}}$ on $\Omega_t^r$,
+Both $\pi_t^{\mathtt{signRF}}$ and $\pi_t^{\mathtt{sign}}$ carry unit total mass, so
 
 $$
-\int_{\Omega_t^g}\pi_t^{\text{sign}}(x)\,dx
+\int_{\Omega_t^r} \pi_t^{\mathtt{sign}}(x)\,\mathrm{d}x = 1
+\qquad\Longrightarrow\qquad
+\int_{\Omega_t^g} \pi_t^{\mathtt{sign}}(x)\,\mathrm{d}x
 +
-\int_{\Omega_t^-}\pi_t^{\text{sign}}(x)\,dx
+\int_{\Omega_t^-} \pi_t^{\mathtt{sign}}(x)\,\mathrm{d}x
+= 0.
+$$
+
+The positive mass stranded in the ghost region **exactly balances** the negative mass excluded from the sampling law.
+
+---
+
+# Rectify, Literally
+
+<div class="h-24"></div>
+
+Signed RF *rectifies* the signed marginal into a valid probability law:
+it keeps $\pi_t^{\mathtt{sign}}$ on the reachable region and sets it to zero elsewhere.
+
+This is one of the **total-variation-optimal** nonnegative approximations:
+
+$$
+\pi_t^{\mathtt{signRF}}
+\;\in\;
+\arg\min_{\rho\in\mathcal P}\;
+\mathrm{TV}\!\left(\rho,\;\pi_t^{\mathtt{sign}}\right).
+$$
+
+- The location of $\Omega_t^r$ is determined **implicitly by the dynamics** — it lies inside the positive
+  region, separated from $\Omega_t^-$ by the ghost region.
+
+---
+
+# Why the Density Matches
+
+<div class="h-12"></div>
+
+Each branch obeys its continuity equation, $\;\partial_t\pi_t^\pm + \nabla\!\cdot(\pi_t^\pm v_t^\pm)=0$.
+Taking the signed combination,
+
+$$
+\partial_t\pi_t^{\mathtt{sign}}
++
+\nabla\!\cdot\!\left(\pi_t^{\mathtt{sign}}\,v_t^{\mathtt{signRF}}\right)
 =0.
 $$
 
-The ghost region carries leftover positive mass that exactly cancels the rejected negative mass.
+So $\pi_t^{\mathtt{sign}}$ is a **signed** solution of the continuity equation driven by $v_t^{\mathtt{signRF}}$ — but that alone does not make it the law of $Z_t$.
+
+Now restrict it to the reachable region: $\;\bar\pi_t \coloneqq \pi_t^{\mathtt{sign}}\,\mathbf 1\{x\in\Omega_t^r\}$.
+
+- $\Omega_t^r$ is transported by the same flow — its moving boundary carries **no additional flux**
+- Hence $\bar\pi_t$ satisfies the same continuity equation *and* is a valid probability density
+- Under standard regularity, it must coincide with the law of the ODE: $\;\pi_t^{\mathtt{signRF}} = \bar\pi_t$
 
 ---
 
-# Physical Picture
+# Guarantees
 
-Trace the dynamics backward from the terminal signed target.
-
-- positive particles from $\Omega_1^r$ travel back to the source $\pi_0$
-- positive particles from $\Omega_1^g$ hit the moving zero set
-- negative particles from $\Omega_1^-$ also hit the zero set
-
-The zero set acts like an annihilation boundary for ghost and negative mass.
-
-Forward in time, it behaves like a source of paired positive and negative particles that the sampler never sees from $\pi_0$.
-
----
-
-# Continuity Equation
-
-Each branch satisfies the usual RF continuity equation:
+**Nonpenetration** *(Prop.)* — under regularity and a nondegenerate zero set,
+source-initialized trajectories never reach $\Omega_t^0$: for every $t<1$,
 
 $$
-\partial_t\pi_t^\pm + \nabla\cdot(\pi_t^\pm v_t^\pm)=0.
+\pi_t^{\mathtt{signRF}}\!\left(\Omega_t^+\right) = 1.
 $$
 
-By linearity, the signed density satisfies
+The mechanism is a Gaussian-source identity: on the zero set, the signed flux points strictly toward the positive side,
 
 $$
-\partial_t\pi_t^{\text{sign}}
-+
-\nabla\cdot
-\left(
-  \pi_t^{\text{sign}}v_t^{\text{signRF}}
-\right)
-=0.
-$$
-
-On $\Omega_t^r$, the truncated density is a valid probability density transported by the same flow.
-
----
-
-# Main Sampling Guarantee
-
-Under the regularity assumptions in the paper, source-initialized Signed RF trajectories avoid the negative region:
-
-$$
-\Pi_t^{\text{signRF}}
-\left(
-  \{x:\pi_t^{\text{sign}}(x)>0\}
-\right)
-=1,
-\qquad t<1.
-$$
-
-Moreover, if $\Omega_t^r$ is the set reached by the source-initialized flow,
-
-$$
-\Pi_t^{\text{signRF}}(dx)
+\jmath_t^{\mathtt{sign}}
+ \coloneqq
+ (1+\alpha)\,\pi_t^+ v_t^+ - \alpha\,\pi_t^- v_t^-,
+\qquad
+\bigl(\nabla\pi_t^{\mathtt{sign}}\bigr)^{\!\top} \jmath_t^{\mathtt{sign}}
  =
-\pi_t^{\text{sign}}(x)
-\mathbf{1}_{\Omega_t^r}(x)\,dx.
+ \frac{1-t}{t}\,\bigl\|\nabla\pi_t^{\mathtt{sign}}\bigr\|^2 \;>\; 0.
+$$
+
+**Sampling law** *(Thm.)* — signed mass is conserved along the flow map, giving
+
+$$
+\pi_t^{\mathtt{signRF}}(x)
+ =
+ \pi_t^{\mathtt{sign}}(x)\,\mathbf{1}\{x\in\Omega_t^r\},
+\qquad
+\int_{\Omega_t^r}\pi_t^{\mathtt{sign}}(x)\,\mathrm{d}x = 1.
 $$
 
 ---
@@ -456,107 +495,159 @@ The signed velocity becomes an adaptive guidance rule.
 
 ---
 
-# Density-Ratio Guidance
+# Guidance Form
 
-Let
+<div class="h-20"></div>
+
+Define the density ratio and the guidance direction
 
 $$
-r_t(x)=\frac{\pi_t^-(x)}{\pi_t^+(x)},
+r_t(x) \coloneqq \frac{\pi_t^-(x)}{\pi_t^+(x)},
 \qquad
-\Delta v_t(x)=v_t^+(x)-v_t^-(x).
+\Delta v_t(x) \coloneqq v_t^+(x) - v_t^-(x).
 $$
 
-Then
+Wherever $\pi_t^{\mathtt{sign}}(x)\neq 0$, the Signed RF velocity is guidance with a **state-dependent scale**:
 
 $$
-v_t^{\text{signRF}}(x)
+v_t^{\mathtt{signRF}}(x)
  =
-v_t^+(x)
-+
-\lambda_t^\alpha(x)\Delta v_t(x),
-$$
-
-with
-
-$$
-\lambda_t^\alpha(x)
+ v_t^+(x)
+ +
+ \lambda_t^{\alpha}(x)\,\Delta v_t(x),
+\qquad
+\lambda_t^{\alpha}(x)
  =
-\frac{\alpha r_t(x)}
-{(1+\alpha)-\alpha r_t(x)}.
+ \frac{\alpha\, r_t(x)}{(1+\alpha) - \alpha\, r_t(x)}.
 $$
+
+Two ingredients: the branch velocities $v_t^{\pm}$ — and the density ratio $r_t(x)$.
 
 ---
 
-# What Changes From Constant Guidance?
+# An Adaptive Scale, Not a Schedule
 
-The guidance scale is state-dependent:
+<AdaptiveScaleCurve :height="340" autoplay />
 
-$$
-\lambda_t^\alpha(x)
- =
-\frac{\alpha r_t(x)}
-{(1+\alpha)-\alpha r_t(x)}.
-$$
-
-- small $r_t(x)$: weak correction
-- large $r_t(x)$: strong repulsion from $\pi^-$
-- denominator near zero: the signed boundary $\pi_t^{\text{sign}}(x)=0$
-
-This is the paper's bridge from signed measures to practical guidance.
+- $r_t(x)$ small — the state looks positive — guidance nearly vanishes
+- $r_t(x)$ large — the state leans negative — repulsion grows without bound
+- The pole $(1+\alpha)-\alpha\, r_t(x)=0$ **is** the signed boundary $\pi_t^{\mathtt{sign}}(x)=0$
 
 ---
 
-# Estimating The Ratio
+# Constant vs Signed, in 2D
 
-The method section gives two ways to obtain this ratio.
+<div class="flex justify-center mt-2">
+  <img :src="'figures/gaussian_mixture_guidance_sweep_vec.svg'" class="rounded shadow-sm" style="max-width: 92%; max-height: 430px; object-fit: contain;" />
+</div>
 
-Classifier-based:
+<div class="mt-2 text-center" style="font-size: 0.82em; opacity: 0.75;">
+Background: signed target $\pi^{\mathtt{sign}}$ — blue positive, pink negative. Dots: samples; red ×'s mark samples landing where $\pi^{\mathtt{sign}}<0$.
+</div>
+
+<div class="mt-2"></div>
+
+- Constant guidance: weak $\omega$ leaves samples near negative modes; strong $\omega$ over-repels into low-density regions.
+- Signed RF avoids the negative modes **while preserving the positive modes and their coverage**.
+
+---
+
+# Estimating the Ratio I: a Classifier
+
+<div class="h-16"></div>
+
+Train a binary classifier $p_t^{\phi}(y\mid x_t)$ on **balanced** noisy states
+$x_t^+\sim\pi_t^+$ and $x_t^-\sim\pi_t^-$ (both from the standard RF interpolation), with binary cross-entropy:
 
 $$
-r_t(x)
-\approx
-\frac{p_\phi(y=-\mid x)}
-{p_\phi(y=+\mid x)}
+\mathcal{L}(\phi)
+ =
+ -\mathbb{E}_{x_t^+ \sim \pi_t^+}\!\left[\log p_t^\phi(y=+\mid x_t^+)\right]
+ -\mathbb{E}_{x_t^- \sim \pi_t^-}\!\left[\log p_t^\phi(y=-\mid x_t^-)\right].
 $$
 
-under balanced positive and negative noisy states.
-
-Online tracking:
+Under balanced sampling, the Bayes-optimal classifier turns **odds into the ratio**:
 
 $$
-u_t=\log r_t(Z_t)
+\frac{p_t^{*}(y=-\mid x)}{p_t^{*}(y=+\mid x)}
+ =
+ \frac{\pi_t^-(x)}{\pi_t^+(x)}
+ =
+ r_t(x).
 $$
 
-is integrated along the trajectory using branch velocities, scores, and a divergence term.
+One auxiliary network, evaluated once per sampling step.
+
+---
+
+# Estimating the Ratio II: Online Tracking
+
+<div class="h-16"></div>
+
+No auxiliary model: track $u_t \coloneqq \log r_t(Z_t)$ **along each trajectory**, from $u_0 = 0$:
+
+$$
+\dot u_t
+ =
+ \nabla\!\cdot\Delta v_t(Z_t)
+ +
+ \Delta v_t(Z_t)^{\!\top} s_t^-(Z_t)
+ +
+ \lambda_t^{\alpha}(Z_t)\,\Delta v_t(Z_t)^{\!\top}\bigl(s_t^-(Z_t)-s_t^+(Z_t)\bigr),
+$$
+
+where $s_t^{\pm}=\nabla\log\pi_t^{\pm}$ are the branch scores.
+
+- Scores come free from velocities (Gaussian source, Tweedie): $\;s_t^{\pm}(x) = \dfrac{t\,v_t^{\pm}(x)-x}{1-t}$
+- The divergence term: exact when tractable, else Hutchinson's trace estimator
+- Integrate jointly with the Signed RF ODE; recover $r_t(Z_t)=\exp(u_t)$ along the way
 
 ---
 
 # Stabilization
 
-The singular denominator is meaningful mathematically, but numerical samplers use finite steps.
+<div class="h-36"></div>
 
-The paper stabilizes the guidance denominator:
-
-$$
-(1+\alpha)-\alpha r_t(Z_t)
-\quad\leadsto\quad
-\max\{(1+\alpha)-\alpha r_t(Z_t),\epsilon\}.
-$$
-
-Optionally cap the scale:
+The singular denominator is meaningful mathematics — finite Euler steps are not.
 
 $$
-\lambda_t^\alpha \le \lambda_{\max}.
+(1+\alpha)-\alpha\,r_t(Z_t)
+\;\;\leadsto\;\;
+\max\bigl((1+\alpha)-\alpha\,r_t(Z_t),\;\varepsilon\bigr),
+\qquad
+\lambda_t^{\alpha} \;\le\; \lambda_{\max}.
 $$
+
+A simple practical modification — and empirically robust to moderate choices of the cap $\lambda_{\max}$.
+
+---
+
+# What It Does in Practice
+
+<div class="h-10"></div>
+
+| Setting | Negative branch $\pi^-$ | Result |
+|---|---|---|
+| **PointMaze planning** | wall interiors (missing negative data) | removes wall crossings, keeps path diversity |
+| **ImageNet-256 CFG** | unconditional branch | FID 2.38 → **1.82** at 16 NFE; better precision–recall |
+| **Anti-memorization** | empirical training set (analytic flow) | ≈ SPELL-50 protection at FID **2.03** vs 7.41 |
+| **Nudity prevention** | unsafe LoRA branch (SD 3.5-M) | ASR 15.19% → **6.33%**, CLIP/AES preserved |
+| **Concept suppression** | negative prompt branch (Z-Image) | removes identity, keeps pose & composition |
+
+<div class="mt-4"></div>
+
+One framework — the negative branch is whatever you must avoid: a region, a dataset, a concept.
 
 ---
 
 # Core Message
 
-Signed RF turns negative information into distributional semantics.
+<div class="h-16"></div>
 
-- start from standard RF marginal preservation
-- extend convex mixtures by linearity
-- extrapolate to signed mixtures
-- obtain exclusion barriers and ghost regions
-- recover a practical adaptive guidance rule
+Signed RF turns negative information into **distributional semantics**.
+
+- **One extrapolation** — the same RF formula, applied to the signed target $(1+\alpha)\,\pi^+ - \alpha\,\pi^-$
+- **A valid sampler** — the signed density is preserved on the reachable region, zero elsewhere
+- **Exclusion built in** — the zero set is a repulsive barrier; ghost mass balances negative mass
+- **A practical rule** — guidance with state-dependent scale $\lambda_t^{\alpha}(x)$, driven by the ratio $r_t(x)$
+- **Two estimators** — a ratio classifier, or online tracking along the trajectory
