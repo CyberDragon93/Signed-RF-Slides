@@ -31,17 +31,7 @@ themeConfig:
 
 # Signed Rectified Flow
 
-Negativity Controlled Generation
-
----
-layout: intro
----
-
-# Rectified Flow
-
-https://arxiv.org/pdf/2209.03003 
-
-Flow Straight and Fast: Learning to Generate and Transfer Data with Rectified Flow
+Negativity-Controlled Generation
 
 ---
 
@@ -51,13 +41,19 @@ Flow Straight and Fast: Learning to Generate and Transfer Data with Rectified Fl
 
 <div style="height: 1.2rem"></div>
 
-- **Coupling**: Sample a noise-data pair $X_0 \sim \pi_0,\; X_1 \sim \pi_1$.
+- **Coupling**: sample a noise–data pair $X_0 \sim \pi_0,\; X_1 \sim \pi_1$.
 
-- **Interpolation**: Connect each random pair by the straight path
+- **Interpolation**: connect each pair by the straight path
 
 $$
 X_t=(1-t)X_0+tX_1,\qquad t\in[0,1].
 $$
+
+<div class="abs-b mb-10 ml-14 text-sm" style="opacity: 0.55;">
+
+*Flow Straight and Fast* — Liu, Gong, Liu (arXiv 2209.03003)
+
+</div>
 
 ---
 
@@ -65,7 +61,7 @@ $$
 
 <Rf1DFlow mode="conditional" :height="340" autoplay />
 
-- **Causalization**: Convert interpolation into a causal ODE $\dot Z_t = v_t^{\text{RF}}(Z_t)$ by minimizing
+- **Causalization**: turn the interpolation into a causal ODE $\dot Z_t = v_t^{\text{RF}}(Z_t)$ —
 
   $$
   \min_v
@@ -76,9 +72,11 @@ $$
       \dot X_t - v_t(X_t)
     \right\|^2
   \right] \mathrm dt,
+  \qquad
+  \dot X_t = X_1 - X_0.
   $$
 
-  where $\dot X_t=X_1-X_0$ is the line direction and the optimum is the conditional average $v_t^{*}(x)=\mathbb{E}[X_1-X_0\mid X_t=x]$.
+- The optimum is the conditional average: $\;v_t^{\text{RF}}(x)=\mathbb{E}\left[X_1-X_0\mid X_t=x\right]$.
 
 ---
 
@@ -95,6 +93,8 @@ $$
 
 # Training Objective
 
+<div class="h-40"></div>
+
 In practice, the optimal velocity is approximated by a neural network $v_t^\theta$ trained with
 
 $$
@@ -107,16 +107,10 @@ $$
     v_t^\theta(X_t) - (X_1-X_0)
   \right\|^2
 \right]
-dt.
+\mathrm{d}t.
 $$
 
-This is the standard RF baseline that the paper extends.
-
----
-layout: intro
----
-
-# RF For Mixtures of Distribution
+One network, one regression — the baseline everything that follows builds on.
 
 ---
 
@@ -124,7 +118,7 @@ layout: intro
 
 <ConvexMixture1D :height="355" autoplay />
 
-- **Convex setting**: sample a branch endpoint, then run the usual RF construction.
+- **Convex setting**: draw the endpoint from a branch lottery, then run the usual RF construction.
 
 $$
 \pi_1^\omega
@@ -133,11 +127,13 @@ $$
   \qquad \omega\in[0,1].
 $$
 
-This is still an ordinary probability target: the sign has not appeared yet.
+Still an ordinary probability target — no sign in sight yet.
 
 ---
 
 # Where the Mixture Velocity Comes From
+
+<div class="h-8"></div>
 
 Same RF recipe, applied to the mixture target — the velocity is still a conditional average:
 
@@ -186,7 +182,7 @@ For $\omega\in[0,1]$, the marginal $\pi_t^{\omega}$ remains a **nonnegative, nor
 
 <div class="mt-8"></div>
 
-> A natural question: what happens when $\omega$ is allowed to be **negative**?
+> What happens when $\omega$ is allowed to be **negative**?
 
 ---
 
@@ -196,16 +192,16 @@ For $\omega\in[0,1]$, the marginal $\pi_t^{\omega}$ remains a **nonnegative, nor
 
 Many generative tasks *promote* a desirable $\pi^+$ while *suppressing* an undesirable $\pi^-$:
 
-- **Conditional generation** — match the target condition, avoid inconsistent outputs
-- **Safety & alignment** — generate value-aligned outputs, exclude harmful ones
-- **Preference learning** — steer toward preferred samples, away from dispreferred ones
+- **Conditional generation** — match the target condition, avoid inconsistent outputs.
+- **Safety & alignment** — generate value-aligned outputs, exclude harmful ones.
+- **Preference learning** — steer toward preferred samples, away from dispreferred ones.
 
-The standard tool is sampling-time **guidance**: extrapolate between positive and negative fields.
-But such procedures remain largely *heuristic* — their induced sampling distributions are poorly understood.
+The standard tool — sampling-time **guidance**, extrapolating between the two fields —
+remains largely *heuristic*: the induced sampling distribution is poorly understood.
 
 <div class="mt-4"></div>
 
-**Goal**: use negativity to encode more than the absence of positive data —
+**Goal**: negativity should encode more than the absence of positive data —
 the target itself should specify **what to avoid**.
 
 ---
@@ -307,8 +303,7 @@ The signed density is not itself a probability law, but the ODE trajectory law i
 
 <div class="mt-2"></div>
 
-Simulate $\dot Z_t = v_t^{\mathtt{signRF}}(Z_t)$ from $Z_0\sim\pi_0$ and record the samples —
-nothing drawn yet but the trajectories and their **empirical density**.
+Simulate $\dot Z_t = v_t^{\mathtt{signRF}}(Z_t)$ from $Z_0\sim\pi_0$ — just trajectories and their **empirical density**.
 
 ---
 
@@ -318,8 +313,8 @@ nothing drawn yet but the trajectories and their **empirical density**.
 
 <div class="mt-2"></div>
 
-- The magenta curve is the **zero set** $\Omega_t^0 = \{x:\pi_t^{\mathtt{sign}}(x)=0\}$ — trajectories approach it, then bend away.
-- Wherever samples land, the histogram matches $\pi_t^{\mathtt{sign}}$ **exactly**; where $\pi_t^{\mathtt{sign}}<0$, nothing ever lands.
+- The magenta curve is the **zero set** $\Omega_t^0$ — trajectories approach it, then bend away.
+- Wherever samples land, the histogram matches $\pi_t^{\mathtt{sign}}$ **exactly**; where it is negative, nothing lands.
 
 ---
 
@@ -329,8 +324,8 @@ nothing drawn yet but the trajectories and their **empirical density**.
 
 <div class="mt-2"></div>
 
-Different branch pairs, different $\alpha$ — in every case, source-initialized trajectories remain
-in the positive region $\Omega_t^+$ and never enter $\Omega_t^-$.
+Different branches, different $\alpha$ — one rule: source-initialized trajectories stay
+in $\Omega_t^+$ and never enter $\Omega_t^-$.
 
 ---
 
@@ -340,9 +335,9 @@ in the positive region $\Omega_t^+$ and never enter $\Omega_t^-$.
 
 <div class="mt-2"></div>
 
-Place particles uniformly on the terminal line and integrate the same ODE **backward** toward $t=0$.
-Two fates emerge: some admit backward trajectories all the way to $t=0$ — collectively recovering the
-source $\pi_0$ — while the rest run into the **moving zero set** $\Omega_t^0$ and stop there, meeting in pairs.
+Place particles uniformly on the terminal line and integrate the same ODE **backward**.
+Two fates: some reach $t=0$, collectively recovering the source $\pi_0$;
+the rest run into the **moving zero set** $\Omega_t^0$ and stop there, meeting in pairs.
 
 ---
 
@@ -353,7 +348,7 @@ source $\pi_0$ — while the rest run into the **moving zero set** $\Omega_t^0$ 
 <div class="mt-2"></div>
 
 - **Reachable particles** — backward trajectories reach $t=0$; reversed, they are exactly the forward Signed RF samples.
-- **Ghost $+$ and negative $-$ particles** — annihilate in pairs on $\Omega_t^0$; forward in time, the boundary *creates* $\pm$ pairs — **dark particles**, invisible to the source-initialized sampler.
+- **Ghost $+$ and negative $-$ particles** — pairwise annihilation on $\Omega_t^0$; forward in time, the boundary *creates* $\pm$ pairs — **dark particles**, invisible to the source-initialized sampler.
 
 ---
 
@@ -416,7 +411,7 @@ The positive mass stranded in the ghost region **exactly balances** the negative
 <div class="h-24"></div>
 
 Signed RF *rectifies* the signed marginal into a valid probability law:
-it keeps $\pi_t^{\mathtt{sign}}$ on the reachable region and sets it to zero elsewhere.
+keep $\pi_t^{\mathtt{sign}}$ on the reachable region, zero elsewhere.
 
 This is one of the **total-variation-optimal** nonnegative approximations:
 
@@ -448,15 +443,17 @@ $$
 
 So $\pi_t^{\mathtt{sign}}$ is a **signed** solution of the continuity equation driven by $v_t^{\mathtt{signRF}}$ — but that alone does not make it the law of $Z_t$.
 
-Now restrict it to the reachable region: $\;\bar\pi_t \coloneqq \pi_t^{\mathtt{sign}}\,\mathbf 1\{x\in\Omega_t^r\}$.
+Now restrict it to the reachable region: $\;\bar\pi_t(x) \coloneqq \pi_t^{\mathtt{sign}}(x)\,\mathbf 1\{x\in\Omega_t^r\}$.
 
-- $\Omega_t^r$ is transported by the same flow — its moving boundary carries **no additional flux**
-- Hence $\bar\pi_t$ satisfies the same continuity equation *and* is a valid probability density
-- Under standard regularity, it must coincide with the law of the ODE: $\;\pi_t^{\mathtt{signRF}} = \bar\pi_t$
+- $\Omega_t^r$ is transported by the same flow — its moving boundary carries **no additional flux**.
+- Hence $\bar\pi_t$ satisfies the same continuity equation *and* is a valid probability density.
+- Under standard regularity, it must coincide with the law of the ODE: $\;\pi_t^{\mathtt{signRF}} = \bar\pi_t$.
 
 ---
 
 # Guarantees
+
+<div class="h-8"></div>
 
 **Nonpenetration** *(Prop.)* — under regularity and a nondegenerate zero set,
 source-initialized trajectories never reach $\Omega_t^0$: for every $t<1$,
@@ -509,7 +506,7 @@ r_t(x) \coloneqq \frac{\pi_t^-(x)}{\pi_t^+(x)},
 \Delta v_t(x) \coloneqq v_t^+(x) - v_t^-(x).
 $$
 
-Wherever $\pi_t^{\mathtt{sign}}(x)\neq 0$, the Signed RF velocity is guidance with a **state-dependent scale**:
+Wherever $\pi_t^{\mathtt{sign}}(x)\neq 0$, the Signed RF velocity acts as guidance with a **state-dependent scale**:
 
 $$
 v_t^{\mathtt{signRF}}(x)
@@ -523,7 +520,7 @@ v_t^{\mathtt{signRF}}(x)
  \frac{\alpha\, r_t(x)}{(1+\alpha) - \alpha\, r_t(x)}.
 $$
 
-Two ingredients: the branch velocities $v_t^{\pm}$ — and the density ratio $r_t(x)$.
+Two ingredients: the branch velocities $v_t^{\pm}$ and the density ratio $r_t(x)$.
 
 ---
 
@@ -544,13 +541,15 @@ Two ingredients: the branch velocities $v_t^{\pm}$ — and the density ratio $r_
 </div>
 
 <div class="mt-2 text-center" style="font-size: 0.82em; opacity: 0.75;">
+
 Background: signed target $\pi^{\mathtt{sign}}$ — blue positive, pink negative. Dots: samples; red ×'s mark samples landing where $\pi^{\mathtt{sign}}<0$.
+
 </div>
 
 <div class="mt-2"></div>
 
 - Constant guidance: weak $\omega$ leaves samples near negative modes; strong $\omega$ over-repels into low-density regions.
-- Signed RF avoids the negative modes **while preserving the positive modes and their coverage**.
+- Signed RF avoids the negative modes **while keeping the positive modes and coverage**.
 
 ---
 
@@ -600,9 +599,9 @@ $$
 
 where $s_t^{\pm}=\nabla\log\pi_t^{\pm}$ are the branch scores.
 
-- Scores come free from velocities (Gaussian source, Tweedie): $\;s_t^{\pm}(x) = \dfrac{t\,v_t^{\pm}(x)-x}{1-t}$
-- The divergence term: exact when tractable, else Hutchinson's trace estimator
-- Integrate jointly with the Signed RF ODE; recover $r_t(Z_t)=\exp(u_t)$ along the way
+- Scores come for free from the velocities (Gaussian source, Tweedie): $\;s_t^{\pm}(x) = \dfrac{t\,v_t^{\pm}(x)-x}{1-t}$.
+- The divergence term is computed exactly when tractable, else with Hutchinson's trace estimator.
+- Integrate jointly with the Signed RF ODE; recover $r_t(Z_t)=\exp(u_t)$ along the way.
 
 ---
 
@@ -620,7 +619,7 @@ $$
 \lambda_t^{\alpha} \;\le\; \lambda_{\max}.
 $$
 
-A simple practical modification — and empirically robust to moderate choices of the cap $\lambda_{\max}$.
+A simple practical modification, empirically robust to moderate choices of the cap $\lambda_{\max}$.
 
 ---
 
@@ -630,11 +629,11 @@ A simple practical modification — and empirically robust to moderate choices o
 
 | Setting | Negative branch $\pi^-$ | Result |
 |---|---|---|
-| **PointMaze planning** | wall interiors (missing negative data) | removes wall crossings, keeps path diversity |
-| **ImageNet-256 CFG** | unconditional branch | FID 2.38 → **1.82** at 16 NFE; better precision–recall |
-| **Anti-memorization** | empirical training set (analytic flow) | ≈ SPELL-50 protection at FID **2.03** vs 7.41 |
+| **PointMaze planning** | wall interiors (missing negatives) | removes wall crossings, keeps path diversity |
+| **ImageNet-256 CFG** | unconditional branch | FID 2.38 → **1.82** at 16 NFE, higher recall |
+| **Anti-memorization** | training set (analytic flow) | ≈ SPELL-50 protection at FID **2.03** vs 7.41 |
 | **Nudity prevention** | unsafe LoRA branch (SD 3.5-M) | ASR 15.19% → **6.33%**, CLIP/AES preserved |
-| **Concept suppression** | negative prompt branch (Z-Image) | removes identity, keeps pose & composition |
+| **Concept&nbsp;suppression** | negative prompt branch (Z-Image) | removes identity, keeps pose & composition |
 
 <div class="mt-4"></div>
 
@@ -652,4 +651,4 @@ Signed RF turns negative information into **distributional semantics**.
 - **A valid sampler** — the signed density is preserved on the reachable region, zero elsewhere
 - **Exclusion built in** — the zero set is a repulsive barrier; ghost mass balances negative mass
 - **A practical rule** — guidance with state-dependent scale $\lambda_t^{\alpha}(x)$, driven by the ratio $r_t(x)$
-- **Two estimators** — a ratio classifier, or online tracking along the trajectory
+- **Two estimators** — a ratio classifier or online tracking along the trajectory

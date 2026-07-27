@@ -171,7 +171,7 @@ const legendClassifiedHtml = [
   '<span class="cp-key"><span class="cp-chip cp-chip-neg">−</span>&nbsp;negative particle</span>',
   `<span class="cp-key cp-note">created in pairs on ${mathHtml('\\Omega_t^0')} — never transported from ${mathHtml('\\pi_0')}</span>`,
 ].join('')
-const legendUniformHtml = '<span class="cp-key cp-note">backward from t = 1: some reach the source, the rest stop on the moving zero set</span>'
+const legendUniformHtml = '<span class="cp-key cp-note">integrating backward from t = 1</span>'
 const legendHtml = computed(() => (isClassified.value ? legendClassifiedHtml : legendUniformHtml))
 
 // ---- Static paths -----------------------------------------------------------
