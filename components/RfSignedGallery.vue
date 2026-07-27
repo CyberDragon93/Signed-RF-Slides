@@ -5,7 +5,7 @@ let srfgUidCounter = 0
 
 <script setup>
 import katex from 'katex'
-import { computed } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import {
   SCHEMA, DENSITY, TWIN, PALETTE,
   signedDensity, zeroCrossings, quantileSeeds, simulateTrajectories,
@@ -13,6 +13,7 @@ import {
 
 const props = defineProps({
   height: { type: Number, default: 430 },
+  autoplay: { type: Boolean, default: true },
 })
 
 const width = 900
@@ -146,7 +147,7 @@ const CARD_W = 410
 const GUT = 14
 const MARGIN_X = (width - (2 * CARD_W + GUT)) / 2
 
-const cardH = computed(() => props.height / 2 - 28)
+const cardH = computed(() => props.height / 2 - 32)
 
 const panels = computed(() => {
   const ch = cardH.value
@@ -180,16 +181,14 @@ const panels = computed(() => {
       }
       return d
     })
-    const dots = paths.map((arr, j) => ({
-      id: j,
-      cx: px(1),
-      cy: Math.max(plotY, Math.min(plotY + plotH, py(arr[arr.length - 1]))),
-    }))
 
     return {
       id: p.id,
       title: p.title,
       heatmap: p.heatmap,
+      traj: p.traj,
+      lo,
+      hi,
       cx,
       cy,
       ch,
@@ -199,10 +198,73 @@ const panels = computed(() => {
       plotH,
       branchPaths,
       trajPaths,
-      dots,
       arrow: { x1: plotX + plotW - 46, x2: plotX + plotW - 20, y: plotY + plotH + 9 },
     }
   })
+})
+
+// ---------------------------------------------------------------- animation
+// One shared clock sweeps t: 0 -> 1 across all four worlds; trajectories are
+// revealed up to the cursor and the endpoint dots ride them. Loops forever;
+// print/export freezes on the complete t = 1 picture.
+const SWEEP = 6.0
+const HOLD = 1.6
+const CYCLE = SWEEP + HOLD
+const cursor = ref(1)
+const playing = ref(props.autoplay)
+let raf = 0
+let refTs = 0
+let phase0 = SWEEP // hold-first: open on the complete picture
+
+function easeCubicInOut(u) {
+  return u < 0.5 ? 4 * u * u * u : 1 - ((-2 * u + 2) ** 3) / 2
+}
+
+function tick(now) {
+  if (playing.value) {
+    if (!refTs) refTs = now
+    const ph = ((now - refTs) / 1000 + phase0) % CYCLE
+    cursor.value = ph < SWEEP ? easeCubicInOut(ph / SWEEP) : 1
+  } else {
+    refTs = 0
+    phase0 = cursor.value >= 1 ? SWEEP : SWEEP * cursor.value
+  }
+  raf = requestAnimationFrame(tick)
+}
+
+function togglePlay() {
+  playing.value = !playing.value
+}
+
+// Per-frame sweep geometry (cheap: O(panels x 12) interpolation).
+const sweep = computed(() => {
+  const c = cursor.value
+  return panels.value.map((p) => {
+    const dots = p.traj.paths.map((arr, j) => {
+      const n = arr.length
+      const idx = Math.max(0, Math.min(n - 1, Math.round(c * (n - 1))))
+      const yy = p.plotY + ((p.hi - arr[idx]) / (p.hi - p.lo)) * p.plotH
+      return { id: j, cy: Math.max(p.plotY, Math.min(p.plotY + p.plotH, yy)) }
+    })
+    return {
+      id: p.id,
+      cursorX: p.plotX + p.plotW * c,
+      revealW: Math.max(0, p.plotW * c),
+      dots,
+    }
+  })
+})
+
+const playBtn = computed(() => ({ x: MARGIN_X + 12, y: props.height - 14 }))
+
+onMounted(() => {
+  const isPrint = typeof window !== 'undefined' && /print/i.test(window.location.href)
+  if (props.autoplay && !isPrint) raf = requestAnimationFrame(tick)
+  else cursor.value = 1
+})
+
+onUnmounted(() => {
+  if (raf) cancelAnimationFrame(raf)
 })
 </script>
 
@@ -216,9 +278,16 @@ const panels = computed(() => {
         <clipPath v-for="p in panels" :id="`${uid}-clip-${p.id}`" :key="`clip-${p.id}`">
           <rect :x="p.plotX" :y="p.plotY" :width="p.plotW" :height="p.plotH" />
         </clipPath>
+        <!-- reveal clip: trajectories are swept out by the shared time cursor -->
+        <clipPath v-for="(s, i) in sweep" :id="`${uid}-sweep-${s.id}`" :key="`sweep-${s.id}`">
+          <rect
+            :x="panels[i].plotX" :y="panels[i].plotY"
+            :width="s.revealW" :height="panels[i].plotH"
+          />
+        </clipPath>
       </defs>
 
-      <g v-for="p in panels" :key="p.id">
+      <g v-for="(p, i) in panels" :key="p.id">
         <!-- card -->
         <rect
           :x="p.cx" :y="p.cy" :width="CARD_W" :height="p.ch" rx="8"
@@ -253,7 +322,10 @@ const panels = computed(() => {
             stroke-opacity="0.9"
             stroke-linecap="round"
           />
-          <!-- 12 forward trajectories, fully drawn -->
+        </g>
+
+        <!-- 12 forward trajectories, revealed up to the shared cursor -->
+        <g :clip-path="`url(#${uid}-sweep-${p.id})`">
           <path
             v-for="(d, j) in p.trajPaths"
             :key="`t-${j}`"
@@ -264,14 +336,20 @@ const panels = computed(() => {
             stroke-opacity="0.5"
             stroke-linecap="round"
           />
-          <!-- terminal endpoint markers -->
-          <circle
-            v-for="dot in p.dots"
-            :key="`d-${dot.id}`"
-            :cx="dot.cx" :cy="dot.cy" r="2.6"
-            :fill="PALETTE.trajMarkerFill" :stroke="PALETTE.trajMarkerEdge" stroke-width="0.8"
-          />
         </g>
+
+        <!-- moving cursor line + endpoint dots riding the trajectories -->
+        <line
+          v-if="cursor < 0.999"
+          :x1="sweep[i].cursorX" :y1="p.plotY" :x2="sweep[i].cursorX" :y2="p.plotY + p.plotH"
+          :stroke="PALETTE.ink" stroke-width="0.9" stroke-opacity="0.45"
+        />
+        <circle
+          v-for="dot in sweep[i].dots"
+          :key="`d-${dot.id}`"
+          :cx="sweep[i].cursorX" :cy="dot.cy" r="2.6"
+          :fill="PALETTE.trajMarkerFill" :stroke="PALETTE.trajMarkerEdge" stroke-width="0.8"
+        />
 
         <!-- recessive t arrow, bottom-right -->
         <line
@@ -283,6 +361,20 @@ const panels = computed(() => {
           fill="#536073" fill-opacity="0.55"
         />
         <text :x="p.arrow.x2 + 10" :y="p.arrow.y + 3.5" class="srfg-taxis">t</text>
+      </g>
+
+      <!-- shared play / pause control -->
+      <g class="srfg-play" @pointerdown.prevent="togglePlay">
+        <circle :cx="playBtn.x" :cy="playBtn.y" r="10.5" fill="#FFFFFF" stroke="#253A88" stroke-width="1.8" />
+        <g v-if="playing">
+          <rect :x="playBtn.x - 4" :y="playBtn.y - 4.4" width="2.8" height="8.8" rx="1" fill="#253A88" />
+          <rect :x="playBtn.x + 1.4" :y="playBtn.y - 4.4" width="2.8" height="8.8" rx="1" fill="#253A88" />
+        </g>
+        <path
+          v-else
+          :d="`M ${playBtn.x - 3} ${playBtn.y - 4.8} L ${playBtn.x + 5.2} ${playBtn.y} L ${playBtn.x - 3} ${playBtn.y + 4.8} Z`"
+          fill="#253A88"
+        />
       </g>
     </svg>
   </div>
@@ -318,5 +410,9 @@ const panels = computed(() => {
   font-size: 11px;
   font-style: italic;
   font-family: KaTeX_Math, "Times New Roman", serif;
+}
+
+.srfg-play {
+  cursor: pointer;
 }
 </style>
