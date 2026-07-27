@@ -292,7 +292,6 @@ $$
   **repulsive barrier**, so the ODE remains well defined along the realized dynamics.
 
 ---
-
 layout: intro
 ---
 
