@@ -1,13 +1,23 @@
 ---
 theme: scholarly
 title: Signed Rectified Flow
+titleTemplate: '%s — Negativity-Controlled Generation'
 info: |
-  Slides following the method development of "Signed Rectified Flow: Negativity Controlled Generation".
+  Interactive slides for Signed Rectified Flow — extending rectified flow to
+  signed targets that promote one distribution while provably excluding another.
+favicon: 'https://rectifiedflow.github.io/Signed-RF/favicon.png'
+seoMeta:
+  ogTitle: Signed Rectified Flow — Negativity-Controlled Generation
+  ogDescription: Interactive slides. Extend rectified flow to the signed target (1+α)π⁺ − απ⁻ — a provable exclusion barrier around negative regions, and a practical adaptive guidance rule.
+  ogImage: https://rectifiedflow.github.io/Signed-RF/og-image.png
+  ogUrl: https://rectifiedflow.github.io/Signed-RF/
+  twitterCard: summary_large_image
+  twitterTitle: Signed Rectified Flow — Negativity-Controlled Generation
+  twitterDescription: Extend rectified flow to signed targets — exclusion barriers, ghost regions, and adaptive guidance, with live closed-form demos.
+  twitterImage: https://rectifiedflow.github.io/Signed-RF/og-image.png
 footerMiddle: Signed Rectified Flow
-footerLeft: Qiang Liu
 aspectRatio: 4/3
 lang: en
-routerMode: hash
 fontsize:
   body: 1.07rem
   h1: 2.2rem
@@ -22,14 +32,6 @@ themeConfig:
 # Signed Rectified Flow
 
 Negativity Controlled Generation
-
-<div class="author-section mt-12">
-  <div class="author-name text-xl">Qiang Liu</div>
-  <div class="author-institution text-lg mt-2 opacity-80">UT Austin</div>
-  <div class="author-email text-base mt-1 opacity-70">
-    <a href="https://www.cs.utexas.edu/~lqiang/index.html">qiang.liu.research@gmail.com</a>
-  </div>
-</div>
 
 ---
 layout: intro
@@ -539,7 +541,7 @@ Two ingredients: the branch velocities $v_t^{\pm}$ — and the density ratio $r_
 # Constant vs Signed, in 2D
 
 <div class="flex justify-center mt-2">
-  <img :src="'figures/gaussian_mixture_guidance_sweep_vec.svg'" class="rounded shadow-sm" style="max-width: 92%; max-height: 430px; object-fit: contain;" />
+  <BaseImg src="figures/gaussian_mixture_guidance_sweep_vec.svg" class="rounded shadow-sm" style="max-width: 92%; max-height: 430px; object-fit: contain;" />
 </div>
 
 <div class="mt-2 text-center" style="font-size: 0.82em; opacity: 0.75;">
