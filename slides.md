@@ -118,7 +118,7 @@ One network, one regression — the baseline everything that follows builds on.
 
 <ConvexMixture1D :height="355" autoplay />
 
-- **Convex setting**: draw the endpoint from a branch lottery, then run the usual RF construction.
+- **Convex setting**: draw the target $X_1$ from a branch lottery, then run the usual RF construction.
 
 $$
 \pi_1^\omega
