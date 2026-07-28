@@ -42,6 +42,17 @@
   font-size: 3rem !important;
 }
 
+/* Kill em-compounding: markdown wraps loose-list text as <li><p>...</p></li>,
+   so the theme's 1.125em prose bump applied twice (li x p = 1.27x), making
+   bullet text and its inline math ~12.5% larger than paragraphs and display
+   equations. Neutralize the inner factor so ALL prose and math share one size. */
+.slidev-layout.default li p,
+.slidev-layout.center li p,
+.slidev-layout.default li li,
+.slidev-layout.center li li {
+  font-size: 1em;
+}
+
 /* Minimal footer: no colored band — a paper-like hairline and muted ink. */
 :root {
   --scholarly-footer-left-bg: transparent;
