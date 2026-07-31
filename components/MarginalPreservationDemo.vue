@@ -540,7 +540,7 @@ onUnmounted(() => {
           :d="interpolationPath(sample, layout.leftTop)"
           fill="none"
           stroke="#FFFFFF"
-          stroke-width="5.4"
+          stroke-width="3.3"
           stroke-opacity="0.82"
           stroke-linecap="round"
         />
@@ -550,7 +550,7 @@ onUnmounted(() => {
           :d="odePath(trajectory, layout.rightTop)"
           fill="none"
           stroke="#FFFFFF"
-          stroke-width="5.6"
+          stroke-width="3.4"
           stroke-opacity="0.82"
           stroke-linecap="round"
         />
@@ -560,8 +560,8 @@ onUnmounted(() => {
           :d="interpolationPath(sample, layout.leftTop)"
           fill="none"
           stroke="#172B78"
-          stroke-width="2.65"
-          stroke-opacity="0.92"
+          stroke-width="1.6"
+          stroke-opacity="0.9"
           stroke-linecap="round"
         />
         <path
@@ -570,8 +570,8 @@ onUnmounted(() => {
           :d="odePath(trajectory, layout.rightTop)"
           fill="none"
           stroke="#172B78"
-          stroke-width="2.75"
-          stroke-opacity="0.94"
+          stroke-width="1.65"
+          stroke-opacity="0.9"
           stroke-linecap="round"
         />
       </g>
@@ -591,7 +591,7 @@ onUnmounted(() => {
           :d="sourceDensityLinePath(layout.leftTop)"
           fill="none"
           stroke="#FFFFFF"
-          stroke-width="6"
+          stroke-width="4"
           stroke-opacity="0.78"
           stroke-linejoin="round"
           stroke-linecap="round"
@@ -600,7 +600,7 @@ onUnmounted(() => {
           :d="sourceDensityLinePath(layout.leftTop)"
           fill="none"
           stroke="#253A88"
-          stroke-width="3"
+          stroke-width="2.2"
           stroke-opacity="0.9"
           stroke-linejoin="round"
           stroke-linecap="round"
@@ -622,7 +622,7 @@ onUnmounted(() => {
           :d="targetDensityLinePath(layout.rightTop)"
           fill="none"
           stroke="#FFFFFF"
-          stroke-width="6"
+          stroke-width="4"
           stroke-opacity="0.78"
           stroke-linejoin="round"
           stroke-linecap="round"
@@ -631,7 +631,7 @@ onUnmounted(() => {
           :d="targetDensityLinePath(layout.rightTop)"
           fill="none"
           stroke="#253A88"
-          stroke-width="3"
+          stroke-width="2.2"
           stroke-opacity="0.9"
           stroke-linejoin="round"
           stroke-linecap="round"
@@ -656,7 +656,7 @@ onUnmounted(() => {
       <g>
         <rect :x="layout.leftDensity.x" :y="layout.leftDensity.y" :width="layout.leftDensity.w" :height="layout.leftDensity.h" rx="8" fill="#FBFCFF" stroke="#D9E0F6" />
         <path :d="densityAreaPath(layout.leftDensity)" fill="url(#mpDensityFill)" />
-        <path :d="densityLinePath(layout.leftDensity)" fill="none" stroke="#253A88" stroke-width="2.6" />
+        <path :d="densityLinePath(layout.leftDensity)" fill="none" stroke="#253A88" stroke-width="2.1" />
         <line :x1="layout.leftDensity.x" :y1="layout.leftDensity.y + layout.leftDensity.h" :x2="layout.leftDensity.x + layout.leftDensity.w" :y2="layout.leftDensity.y + layout.leftDensity.h" stroke="#253A88" stroke-opacity="0.24" />
       </g>
 

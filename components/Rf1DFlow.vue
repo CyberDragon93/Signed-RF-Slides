@@ -380,8 +380,8 @@ onUnmounted(() => {
       <line :x1="targetAxisX" :y1="20" :x2="targetAxisX" :y2="height - 22" stroke="#253A88" stroke-width="1" />
       <line :x1="timeX(0)" :y1="height - 22" :x2="timeX(1)" :y2="height - 22" stroke="#253A88" stroke-opacity="0.22" />
 
-      <path :d="sourcePath" fill="none" stroke="#4969E2" stroke-width="3" />
-      <path :d="targetPath" fill="none" stroke="#4969E2" stroke-width="3" />
+      <path :d="sourcePath" fill="none" stroke="#4969E2" stroke-width="2.2" />
+      <path :d="targetPath" fill="none" stroke="#4969E2" stroke-width="2.2" />
       <path :d="`${sourcePath} L${sourceAxisX},${height - 22} L${sourceAxisX},24 Z`" fill="#4969E2" opacity="0.10" />
       <path :d="`${targetPath} L${targetAxisX},${height - 22} L${targetAxisX},24 Z`" fill="#4969E2" opacity="0.10" />
 
@@ -413,7 +413,7 @@ onUnmounted(() => {
           :d="pathFor(pair)"
           fill="none"
           stroke="#FFFFFF"
-          stroke-width="5.6"
+          stroke-width="3.4"
           stroke-opacity="0.9"
           stroke-linecap="round"
         />
@@ -423,8 +423,8 @@ onUnmounted(() => {
           :d="pathFor(pair)"
           fill="none"
           stroke="#172B78"
-          stroke-width="3"
-          stroke-opacity="0.96"
+          stroke-width="1.7"
+          stroke-opacity="0.9"
           stroke-linecap="round"
         />
       </g>
@@ -479,7 +479,7 @@ onUnmounted(() => {
           :x2="arrowShaftEnd(meanArrow, 20).x"
           :y2="arrowShaftEnd(meanArrow, 20).y"
           stroke="#FFFFFF"
-          stroke-width="11"
+          stroke-width="8.5"
           stroke-linecap="round"
           opacity="0.94"
         />
@@ -487,7 +487,7 @@ onUnmounted(() => {
           :d="arrowHeadPath(meanArrow, 20, 20)"
           fill="#FFFFFF"
           stroke="#FFFFFF"
-          stroke-width="7"
+          stroke-width="5"
           stroke-linejoin="round"
           opacity="0.95"
         />
@@ -497,7 +497,7 @@ onUnmounted(() => {
           :x2="arrowShaftEnd(meanArrow, 20).x"
           :y2="arrowShaftEnd(meanArrow, 20).y"
           stroke="#0E7490"
-          stroke-width="5.4"
+          stroke-width="4"
           stroke-linecap="round"
         />
         <path
