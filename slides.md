@@ -17,6 +17,7 @@ seoMeta:
   twitterImage: https://rectifiedflow.github.io/Signed-RF/og-image.png
 footerMiddle: Signed Rectified Flow
 aspectRatio: 4/3
+colorSchema: light
 lang: en
 fontsize:
   body: 1.07rem
@@ -131,40 +132,32 @@ Still an ordinary probability target — no sign in sight yet.
 
 ---
 
-# Where the Mixture Velocity Comes From
+# RF Velocity as a Weighted Vote
 
-<div class="h-8"></div>
+<div class="h-16"></div>
 
-First rewrite the RF velocity itself. Conditioned on $X_t=x$ the slope is $X_1-X_0=\frac{X_1-x}{1-t}$,
-and for a Gaussian source the conditional average is an explicit **weighted vote of directions toward the data**:
-
-$$
-v_t^{\text{RF}}(x)
- =
- \mathbb{E}\!\left[\frac{X_1-X_t}{1-t}\,\middle|\;X_t=x\right]
- =
- \frac{\overbrace{\mathbb{E}_{X_1\sim\pi_1}\!\left[\,w_t(X_1,x)\,\frac{X_1-x}{1-t}\right]}^{\textstyle\propto\;\text{flux }\;\pi_t(x)\,v_t^{\text{RF}}(x)}}
-      {\underbrace{\mathbb{E}_{X_1\sim\pi_1}\!\left[\,w_t(X_1,x)\right]}_{\textstyle\propto\;\text{density }\;\pi_t(x)}}\,,
-\qquad
-w_t(X_1,x)=\rho\!\left(\frac{x-tX_1}{1-t}\right).
-$$
-
-The Gaussian weight $\rho(z)\propto e^{-\lVert z\rVert^2/2}$ scores how likely $X_1$'s straight path passes through $x$.
-Both entries are plain averages over the data — **linear in the target** $\pi_1$; the mixture splits branch by branch:
+Let the source $\pi_0$ have density $p_0$. Each endpoint $X_1\sim\pi_1$ votes for the direction $(X_1-x)/(1-t)$:
 
 $$
-v_t^{\omega}(x)
- =
- \frac{(1-\omega)\,\pi_t^+(x)\,v_t^+(x) + \omega\,\pi_t^-(x)\,v_t^-(x)}
-      {(1-\omega)\,\pi_t^+(x) + \omega\,\pi_t^-(x)},
-\qquad
-\pi_t^{\omega}
- =
- (1-\omega)\pi_t^+ + \omega\pi_t^-.
+v_t^{\mathrm{RF}}(x)
+=
+\frac{\mathbb{E}_{X_1\sim\pi_1}\!\left[w_t(X_1,x)\,(X_1-x)/(1-t)\right]}
+     {\mathbb{E}_{X_1\sim\pi_1}\!\left[w_t(X_1,x)\right]}.
 $$
 
-- **Flux over density**, linear top and bottom — the form that extends beyond convexity.
-- Nothing new to train — the same $L^2$ objective on mixed data has exactly this optimum.
+<div class="mt-9"></div>
+
+The coefficient comes directly from the source density:
+
+$$
+w_t(X_1,x)
+\coloneqq
+p_0\!\left(\frac{x-tX_1}{1-t}\right).
+$$
+
+<div class="mt-9"></div>
+
+> For a mixture target, expectation is linear in $\pi_1$: the numerator and denominator each split branch by branch. This is the form that extends beyond convexity.
 
 ---
 
