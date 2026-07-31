@@ -240,40 +240,13 @@ Unit total mass — but it need not be nonnegative.
 
 ---
 
-# Same Linearity, Signed Marginal
-
-<div class="h-20"></div>
-
-By linearity of the RF marginals, for every $t\in[0,1]$,
-
-$$
-\pi_t^{\mathtt{sign}}(x)
- =
- (1+\alpha)\,\pi_t^+(x)
- -
- \alpha\,\pi_t^-(x).
-$$
-
-Partition the space by the sign of $\pi_t^{\mathtt{sign}}$:
-
-$$
-\Omega_t^+ \coloneqq \{x:\pi_t^{\mathtt{sign}}(x)>0\},
-\qquad
-\Omega_t^0 \coloneqq \{x:\pi_t^{\mathtt{sign}}(x)=0\},
-\qquad
-\Omega_t^- \coloneqq \{x:\pi_t^{\mathtt{sign}}(x)<0\}.
-$$
-
-- At $t=0$ both branches share the source: $\pi_0^{\mathtt{sign}} = (1+\alpha)\,\pi_0-\alpha\,\pi_0 = \pi_0 > 0$.
-- As $t$ grows, negative regions can emerge.
-
----
-
 # The Signed RF Velocity
 
-<div class="h-16"></div>
+<div class="h-10"></div>
 
-Apply the mixture formula with $\omega=-\alpha$ — the signed flux divided by the signed density:
+Everything is linear in the target. Set $\omega=-\alpha$: the marginal stays signed,
+$\pi_t^{\mathtt{sign}} = (1+\alpha)\,\pi_t^+ - \alpha\,\pi_t^-$ for every $t\in[0,1]$,
+and the mixture velocity becomes **the signed flux over the signed density**:
 
 $$
 v_t^{\mathtt{signRF}}(x)
@@ -283,17 +256,15 @@ v_t^{\mathtt{signRF}}(x)
    -
    \alpha\,\pi_t^-(x)\,v_t^-(x)
  }{
-   (1+\alpha)\,\pi_t^+(x)
+   \underbrace{(1+\alpha)\,\pi_t^+(x)
    -
-   \alpha\,\pi_t^-(x)
+   \alpha\,\pi_t^-(x)}_{\textstyle \pi_t^{\mathtt{sign}}(x)}
  }.
 $$
 
-- The denominator is precisely $\pi_t^{\mathtt{sign}}(x)$: well defined away from the zero set $\Omega_t^0$, **singular on it**.
-- Define Signed RF by the source-initialized ODE
-  $\dot Z_t = v_t^{\mathtt{signRF}}(Z_t)$, $Z_0\sim\pi_0$, and write $\pi_t^{\mathtt{signRF}}$ for the law of $Z_t$.
-- As we will see: sampled trajectories stay in $\Omega_t^+$ — the singular boundary acts as a
-  **repulsive barrier**, so the ODE remains well defined along the realized dynamics.
+- Well defined away from the **zero set** $\Omega_t^0 \coloneqq \{x:\pi_t^{\mathtt{sign}}(x)=0\}$ — singular on it.
+- Sample with the source-initialized ODE $\dot Z_t = v_t^{\mathtt{signRF}}(Z_t)$, $Z_0\sim\pi_0$, and write
+  $\pi_t^{\mathtt{signRF}}$ for the law of $Z_t$ — a safe start, since $\pi_0^{\mathtt{sign}}=(1+\alpha)\,\pi_0-\alpha\,\pi_0=\pi_0>0$.
 
 ---
 layout: intro
@@ -332,8 +303,9 @@ Simulate $\dot Z_t = v_t^{\mathtt{signRF}}(Z_t)$ from $Z_0\sim\pi_0$ — just tr
 
 <div class="mt-2"></div>
 
-Different branches, different $\alpha$ — one rule: source-initialized trajectories stay
-in $\Omega_t^+$ and never enter $\Omega_t^-$.
+Different branches, different $\alpha$ — one rule: source-initialized trajectories stay in the
+positive region $\Omega_t^+ \coloneqq \{\pi_t^{\mathtt{sign}}>0\}$ and never enter the negative region
+$\Omega_t^- \coloneqq \{\pi_t^{\mathtt{sign}}<0\}$.
 
 ---
 
