@@ -135,33 +135,32 @@ Still an ordinary probability target — no sign in sight yet.
 
 <div class="h-8"></div>
 
-Same RF recipe, applied to the mixture target — the velocity is still a conditional average:
+First rewrite the RF velocity itself — a conditional average is a **ratio of two expectations**:
+
+$$
+v_t^{\text{RF}}(x)
+ =
+ \mathbb{E}\left[X_1-X_0 \mid X_t=x\right]
+ =
+ \frac{\overbrace{\mathbb{E}\left[(X_1-X_0)\,\delta(X_t-x)\right]}^{\textstyle\text{flux }\;\pi_t(x)\,v_t^{\text{RF}}(x)}}
+      {\underbrace{\mathbb{E}\left[\delta(X_t-x)\right]}_{\textstyle\text{density }\;\pi_t(x)}}.
+$$
+
+Both are plain averages over the pair $(X_0,X_1)$ — **linear in the target** $\pi_1$.
+Feed in the mixture target, and numerator and denominator split branch by branch:
 
 $$
 v_t^{\omega}(x)
  =
- \mathbb{E}\left[X_1-X_0 \mid X_t=x\right],
-\qquad
-X_1\sim(1-\omega)\pi_1^+ + \omega\pi_1^-.
-$$
-
-$X_1$ comes from one of two branches, so split the average by branch (Bayes):
-
-$$
-v_t^{\omega}(x)
- =
- \underbrace{\frac{(1-\omega)\,\pi_t^+(x)}{\pi_t^{\omega}(x)}}_{\mathbb{P}(+\,\mid\,X_t=x)}
- v_t^+(x)
- +
- \underbrace{\frac{\omega\,\pi_t^-(x)}{\pi_t^{\omega}(x)}}_{\mathbb{P}(-\,\mid\,X_t=x)}
- v_t^-(x),
+ \frac{(1-\omega)\,\pi_t^+(x)\,v_t^+(x) + \omega\,\pi_t^-(x)\,v_t^-(x)}
+      {(1-\omega)\,\pi_t^+(x) + \omega\,\pi_t^-(x)},
 \qquad
 \pi_t^{\omega}
  =
  (1-\omega)\pi_t^+ + \omega\pi_t^-.
 $$
 
-- A **local vote**: each branch pulls with weight equal to its share of the current density.
+- **Flux over density**, linear top and bottom — the form that extends beyond convexity.
 - Nothing new to train — the same $L^2$ objective on mixed data has exactly this optimum.
 
 ---
