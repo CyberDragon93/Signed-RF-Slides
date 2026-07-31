@@ -425,6 +425,18 @@ function computeParticles(alpha) {
   step()
 }
 
+// Deterministic truncation edge of the sampled law at time t — the reachable
+// region's boundary from the closed-form curves. It moves smoothly in t, so
+// anchoring the histogram grid on it stays stable frame to frame (the max
+// sample would re-seat the grid every frame and jitter).
+function stripEdge(t) {
+  const hi = SCHEMA.domain[1]
+  const zb = interpPts(zeroPts.value, t)
+  const gb = interpPts(ghostPts.value, t)
+  const zbv = Number.isFinite(zb) ? zb : hi
+  return Number.isFinite(gb) ? Math.min(gb, zbv) : zbv
+}
+
 const histBars = computed(() => {
   const pd = particles.value
   if (!pd) return []
@@ -432,7 +444,7 @@ const histBars = computed(() => {
   const idx = Math.max(0, Math.min(last, Math.round(tCur.value * last)))
   const values = []
   for (const p of pd.paths) values.push(p[idx])
-  const bins = histogramDensity(values, 56, SCHEMA.domain)
+  const bins = histogramDensity(values, 56, SCHEMA.domain, stripEdge(tCur.value))
   const { k, baseX } = stripScale.value
   const ys = yE.value
   const out = []
@@ -530,7 +542,7 @@ const empOutlinePath = computed(() => {
   const idx = Math.max(0, Math.min(last, Math.round(tCur.value * last)))
   const values = []
   for (const p of pd.paths) values.push(p[idx])
-  const bins = histogramDensity(values, 56, SCHEMA.domain)
+  const bins = histogramDensity(values, 56, SCHEMA.domain, stripEdge(tCur.value))
   let d = bins.map(b => b.density)
   for (let pass = 0; pass < 2; pass += 1) {
     const nd = d.slice()
