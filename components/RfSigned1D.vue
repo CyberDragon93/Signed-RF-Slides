@@ -58,6 +58,10 @@ function mathHtml(tex) {
 // The density world defaults to the paper's alpha = 0.85.
 const ALPHA_INIT = props.mode === 'target' || WORLD === DENSITY ? 0.85 : 1.0
 const alphaLive = ref(ALPHA_INIT)
+// Eased copy of alpha for the cheap per-frame analytic curves (strip ink
+// curve, scale): detent switches morph smoothly instead of jumping, at the
+// cost of a few thousand gaussian evals per frame during the ~200 ms ease.
+const alphaAnim = ref(ALPHA_INIT)
 const committedAlpha = ref(WORLD === DENSITY ? 0.85 : 1.0)
 const tCur = ref(1.0)
 const alphaManual = ref(false)
@@ -344,7 +348,7 @@ const srcShapes = computed(() => {
 
 // ---- right strip: signed density at cursor t + particle histogram ----
 const stripScale = computed(() => {
-  const a = committedAlpha.value
+  const a = isTargetMode.value ? committedAlpha.value : alphaAnim.value
   const [lo, hi] = WORLD.domain
   let maxPos = 1e-9
   let maxNeg = 0
@@ -669,7 +673,7 @@ const empOutlinePath = computed(() => {
 const overlayStrip = computed(() => {
   if (!isOverlay.value) return { line: '', neg: '' }
   const t = tCur.value
-  const a = committedAlpha.value
+  const a = alphaAnim.value
   const [lo, hi] = WORLD.domain
   const { k, baseX } = stripScale.value
   const ys = yE.value
@@ -847,7 +851,14 @@ function easeInv(v) {
 }
 
 function tick(now) {
-  if (!isTargetMode.value) updateHist(0.2)
+  if (!isTargetMode.value) {
+    updateHist(0.2)
+    const target = alphaLive.value
+    const cur = alphaAnim.value
+    if (cur !== target) {
+      alphaAnim.value = Math.abs(target - cur) < 1e-3 ? target : cur + (target - cur) * 0.16
+    }
+  }
   if (props.mode === 'target') {
     if (!start) start = now
     const elapsed = (now - start) / 1000
@@ -973,18 +984,25 @@ onUnmounted(() => {
 
         <!-- center (t, x) panel -->
         <rect :x="EV_CX0" :y="EV_PY0" :width="EV_CX1 - EV_CX0" :height="evPh" fill="#FFFFFF" :stroke="PALETTE.grid" stroke-width="1" />
-        <image
-          v-if="centerHeatUrl"
-          :x="EV_CX0" :y="EV_PY0" :width="EV_CX1 - EV_CX0" :height="evPh"
-          :href="centerHeatUrl" preserveAspectRatio="none"
-        />
+        <Transition name="srf-xfade">
+          <image
+            v-if="centerHeatUrl"
+            :key="centerHeatUrl"
+            :x="EV_CX0" :y="EV_PY0" :width="EV_CX1 - EV_CX0" :height="evPh"
+            :href="centerHeatUrl" preserveAspectRatio="none"
+          />
+        </Transition>
 
         <g v-if="isEvolution || isOverlay" :clip-path="`url(#${uid}-clipPanel)`">
-          <path
-            v-for="(bd, bi) in zeroBranchPaths"
-            :key="`zb-${bi}`"
-            :d="bd" fill="none" :stroke="PALETTE.negative" stroke-width="1.6" stroke-opacity="0.9" stroke-linecap="round"
-          />
+          <Transition name="srf-xfade">
+            <g :key="`zbg-${committedAlpha}`">
+              <path
+                v-for="(bd, bi) in zeroBranchPaths"
+                :key="`zb-${bi}`"
+                :d="bd" fill="none" :stroke="PALETTE.negative" stroke-width="1.6" stroke-opacity="0.9" stroke-linecap="round"
+              />
+            </g>
+          </Transition>
           <path v-if="isEvolution" :d="ghostBoundaryPath" fill="none" :stroke="PALETTE.buffer" stroke-width="1.5" stroke-opacity="0.95" stroke-linecap="round" />
         </g>
 
@@ -1005,16 +1023,20 @@ onUnmounted(() => {
 
         <!-- 17 quantile trajectories, clipped at cursor -->
         <g :clip-path="`url(#${uid}-clipCursor)`">
-          <path
-            v-for="(d, i) in trajPaths"
-            :key="`traj-${i}`"
-            :d="d"
-            fill="none"
-            :stroke="PALETTE.traj"
-            stroke-width="0.9"
-            stroke-opacity="0.5"
-            stroke-linecap="round"
-          />
+          <Transition name="srf-xfade">
+            <g :key="`trajg-${committedAlpha}`">
+              <path
+                v-for="(d, i) in trajPaths"
+                :key="`traj-${i}`"
+                :d="d"
+                fill="none"
+                :stroke="PALETTE.traj"
+                stroke-width="0.9"
+                stroke-opacity="0.5"
+                stroke-linecap="round"
+              />
+            </g>
+          </Transition>
         </g>
         <g :clip-path="`url(#${uid}-clipPanel)`">
           <g v-for="dot in trajDots" :key="`dot-${dot.id}`">
@@ -1291,6 +1313,18 @@ onUnmounted(() => {
 
 .srf-slider {
   cursor: pointer;
+}
+
+/* Detent switches crossfade the cached artifacts (heat, boundaries,
+   trajectories) instead of hard-swapping them. */
+.srf-xfade-enter-active,
+.srf-xfade-leave-active {
+  transition: opacity 0.24s ease;
+}
+
+.srf-xfade-enter-from,
+.srf-xfade-leave-to {
+  opacity: 0;
 }
 
 .srf-slider-text {

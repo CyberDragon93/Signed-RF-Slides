@@ -351,38 +351,49 @@ onUnmounted(() => {
           :x="p.plotX" :y="p.plotY" :width="p.plotW" :height="p.plotH"
           fill="#FFFFFF" :stroke="PALETTE.grid" stroke-width="1"
         />
-        <image
-          v-if="p.heatmap"
-          :x="p.plotX" :y="p.plotY" :width="p.plotW" :height="p.plotH"
-          :href="p.heatmap" preserveAspectRatio="none"
-        />
+        <Transition name="srfg-xfade">
+          <image
+            v-if="p.heatmap"
+            :key="p.heatmap"
+            :x="p.plotX" :y="p.plotY" :width="p.plotW" :height="p.plotH"
+            :href="p.heatmap" preserveAspectRatio="none"
+          />
+        </Transition>
 
         <g :clip-path="`url(#${uid}-clip-${p.id})`">
           <!-- zero-boundary branches -->
-          <path
-            v-for="(d, j) in p.branchPaths"
-            :key="`b-${j}`"
-            :d="d"
-            fill="none"
-            :stroke="PALETTE.negative"
-            stroke-width="1.3"
-            stroke-opacity="0.9"
-            stroke-linecap="round"
-          />
+          <Transition name="srfg-xfade">
+            <g :key="`bg-${alphaSel}`">
+              <path
+                v-for="(d, j) in p.branchPaths"
+                :key="`b-${j}`"
+                :d="d"
+                fill="none"
+                :stroke="PALETTE.negative"
+                stroke-width="1.3"
+                stroke-opacity="0.9"
+                stroke-linecap="round"
+              />
+            </g>
+          </Transition>
         </g>
 
         <!-- 12 forward trajectories, revealed up to the shared cursor -->
         <g :clip-path="`url(#${uid}-sweep-${p.id})`">
-          <path
-            v-for="(d, j) in p.trajPaths"
-            :key="`t-${j}`"
-            :d="d"
-            fill="none"
-            :stroke="PALETTE.traj"
-            stroke-width="0.85"
-            stroke-opacity="0.5"
-            stroke-linecap="round"
-          />
+          <Transition name="srfg-xfade">
+            <g :key="`tg-${alphaSel}`">
+              <path
+                v-for="(d, j) in p.trajPaths"
+                :key="`t-${j}`"
+                :d="d"
+                fill="none"
+                :stroke="PALETTE.traj"
+                stroke-width="0.85"
+                stroke-opacity="0.5"
+                stroke-linecap="round"
+              />
+            </g>
+          </Transition>
         </g>
 
         <!-- moving cursor line + endpoint dots riding the trajectories -->
@@ -457,6 +468,16 @@ onUnmounted(() => {
 .srfg-play,
 .srfg-slider {
   cursor: pointer;
+}
+
+.srfg-xfade-enter-active,
+.srfg-xfade-leave-active {
+  transition: opacity 0.24s ease;
+}
+
+.srfg-xfade-enter-from,
+.srfg-xfade-leave-to {
+  opacity: 0;
 }
 
 .srfg-slider-text {

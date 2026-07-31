@@ -167,7 +167,7 @@ export function signedVelocity(x, t, alpha, setup) {
 // ---- Alpha detents ---------------------------------------------------------
 // Shared ladder for the interactive signed-weight sliders: a wide span with
 // snapping, so every level's geometry can be computed once and cached.
-export const ALPHA_DETENTS = [0, 0.5, 1, 2, 5, 10]
+export const ALPHA_DETENTS = [0, 0.25, 0.5, 1, 2, 4]
 
 export function snapAlphaDetent(v) {
   let best = ALPHA_DETENTS[0]
