@@ -299,30 +299,21 @@ export function pairTrajectories(pairTimes, alpha, setup, eps = 1e-4) {
 
 // ---- Histogram ------------------------------------------------------------
 
-export function histogramDensity(values, nBins, domain, edge = domain[1]) {
+export function histogramDensity(values, nBins, domain) {
   const [lo, hi] = domain
   const w = (hi - lo) / nBins
-  if (values.length === 0) return []
-  // The sampled law is truncated at the reachable-region edge. Anchor the bin
-  // grid on that cutoff (`edge`, scanning from the negative side toward the
-  // positive side) so it falls exactly on a bin boundary instead of mid-bin —
-  // a half-filled boundary bin reads as a shifted histogram. The caller passes
-  // the closed-form boundary, which moves smoothly in t; anchoring on the max
-  // sample instead would re-seat the whole grid every frame and jitter.
-  if (edge > hi || !Number.isFinite(edge)) edge = hi
-  const nDown = Math.max(1, Math.ceil((edge - lo) / w))
-  const counts = new Float64Array(nDown)
+  const counts = new Float64Array(nBins)
   let inside = 0
   for (const v of values) {
-    const b = Math.floor((edge - v) / w)
-    if (b >= 0 && b < nDown) {
+    const b = Math.floor((v - lo) / w)
+    if (b >= 0 && b < nBins) {
       counts[b] += 1
       inside += 1
     }
   }
   const bins = []
-  for (let b = 0; b < nDown; b++) {
-    bins.push({ x0: edge - (b + 1) * w, x1: edge - b * w, density: inside > 0 ? counts[b] / (inside * w) : 0 })
+  for (let b = 0; b < nBins; b++) {
+    bins.push({ x0: lo + b * w, x1: lo + (b + 1) * w, density: inside > 0 ? counts[b] / (inside * w) : 0 })
   }
   return bins
 }
