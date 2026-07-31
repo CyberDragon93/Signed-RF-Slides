@@ -425,28 +425,53 @@ function computeParticles(alpha) {
   step()
 }
 
-const histBars = computed(() => {
+// Temporal smoothing: raw per-frame bins flicker as samples hop between the
+// fine bins. Blend the displayed densities toward the current target with a
+// plain EMA (~150 ms settle) — no animation machinery, just calmer bars.
+const HIST_BINS = 64
+const histDisp = new Float64Array(HIST_BINS)
+const histTick = ref(0)
+
+function updateHist(blend) {
   const pd = particles.value
-  if (!pd) return []
+  if (!pd) return
   const last = pd.times.length - 1
   const idx = Math.max(0, Math.min(last, Math.round(tCur.value * last)))
   const values = []
   for (const p of pd.paths) values.push(p[idx])
-  const bins = histogramDensity(values, 64, SCHEMA.domain)
+  const bins = histogramDensity(values, HIST_BINS, SCHEMA.domain)
+  let changed = false
+  for (let b = 0; b < HIST_BINS; b += 1) {
+    const target = bins[b].density
+    let next = histDisp[b] + blend * (target - histDisp[b])
+    if (Math.abs(next - target) < 1e-4) next = target
+    if (next !== histDisp[b]) {
+      histDisp[b] = next
+      changed = true
+    }
+  }
+  if (changed) histTick.value += 1
+}
+
+const histBars = computed(() => {
+  void histTick.value
+  if (!particles.value) return []
+  const [lo, hi] = SCHEMA.domain
+  const w = (hi - lo) / HIST_BINS
   const { k, baseX } = stripScale.value
   const ys = yE.value
   const out = []
-  for (let b = 0; b < bins.length; b += 1) {
-    const bin = bins[b]
-    if (bin.density <= 0) continue
-    const yTop = ys(bin.x1)
-    const yBot = ys(bin.x0)
+  for (let b = 0; b < HIST_BINS; b += 1) {
+    const density = histDisp[b]
+    if (density <= 1e-3) continue
+    const yTop = ys(lo + (b + 1) * w)
+    const yBot = ys(lo + b * w)
     const h = (yBot - yTop) * 0.82
     out.push({
       id: b,
       x: baseX,
       y: (yTop + yBot) / 2 - h / 2,
-      w: Math.min(k * bin.density, EV_STRIP_W - 8),
+      w: Math.min(k * density, EV_STRIP_W - 8),
       h,
     })
   }
@@ -524,14 +549,9 @@ const centerHeatUrl = computed(() => {
 // ---- smoothed empirical outline at cursor t (mode "simulate" only) ----
 const empOutlinePath = computed(() => {
   if (!isSimulate.value) return ''
-  const pd = particles.value
-  if (!pd) return ''
-  const last = pd.times.length - 1
-  const idx = Math.max(0, Math.min(last, Math.round(tCur.value * last)))
-  const values = []
-  for (const p of pd.paths) values.push(p[idx])
-  const bins = histogramDensity(values, 64, SCHEMA.domain)
-  let d = bins.map(b => b.density)
+  void histTick.value
+  if (!particles.value) return ''
+  let d = Array.from(histDisp)
   for (let pass = 0; pass < 2; pass += 1) {
     const nd = d.slice()
     for (let i = 0; i < d.length; i += 1) {
@@ -545,11 +565,13 @@ const empOutlinePath = computed(() => {
     }
     d = nd
   }
+  const [lo, hi] = SCHEMA.domain
+  const w = (hi - lo) / HIST_BINS
   const { k, baseX } = stripScale.value
   const ys = yE.value
   let path = ''
-  for (let i = 0; i < bins.length; i += 1) {
-    const xm = 0.5 * (bins[i].x0 + bins[i].x1)
+  for (let i = 0; i < HIST_BINS; i += 1) {
+    const xm = lo + (i + 0.5) * w
     path += (path ? 'L' : 'M') + (baseX + k * d[i]).toFixed(1) + ',' + ys(xm).toFixed(1)
   }
   return path
@@ -737,6 +759,7 @@ function easeInv(v) {
 }
 
 function tick(now) {
+  if (!isTargetMode.value) updateHist(0.2)
   if (props.mode === 'target') {
     if (!start) start = now
     const elapsed = (now - start) / 1000
@@ -768,6 +791,11 @@ function togglePlay() {
 watch(committedAlpha, (a) => {
   if (!isTargetMode.value) computeParticles(a)
 })
+
+// Snap (no blend) whenever the ensemble itself refreshes: on load and on
+// alpha changes the old shape is stale, and in print mode no tick runs —
+// exports must show the exact final histogram.
+watch(particles, () => updateHist(1))
 
 onMounted(() => {
   if (!isTargetMode.value) computeParticles(committedAlpha.value)
