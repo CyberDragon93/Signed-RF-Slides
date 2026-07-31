@@ -366,6 +366,39 @@ const stripShapes = computed(() => {
   }
 })
 
+// ---- simulate: terminal branch targets as fixed dashed references ----
+// "Just Run It" shows raw dynamics only; these silhouettes are the one piece
+// of context it needs — what pi_1^+ and pi_1^- actually are in this world.
+const branchRefs = computed(() => {
+  if (!isSimulate.value) return null
+  const { k, baseX } = stripScale.value
+  const ys = yE.value
+  const fPlus = x => branchPdf(x, 1, SCHEMA.plus)
+  const fMinus = x => branchPdf(x, 1, SCHEMA.minus)
+  const line = f => d3.line().x(x => baseX + k * f(x)).y(x => ys(x))(evGrid)
+  const area = f => d3.area().x0(baseX).x1(x => baseX + k * f(x)).y(x => ys(x))(evGrid)
+  let muPlus = 0
+  let muMinus = 0
+  let bestP = -1
+  let bestM = -1
+  for (const x of evGrid) {
+    const p = fPlus(x)
+    const m = fMinus(x)
+    if (p > bestP) { bestP = p; muPlus = x }
+    if (m > bestM) { bestM = m; muMinus = x }
+  }
+  return {
+    plus: line(fPlus),
+    plusArea: area(fPlus),
+    minus: line(fMinus),
+    minusArea: area(fMinus),
+    labelPlus: { x: EV_STRIP_X + EV_STRIP_W - 46, y: ys(muPlus) - 13 },
+    labelMinus: { x: EV_STRIP_X + EV_STRIP_W - 46, y: ys(muMinus) - 13 },
+  }
+})
+const refLabelPlus = mathHtml('\\pi_1^+')
+const refLabelMinus = mathHtml('\\pi_1^-')
+
 // ---- histogram particles (feed the right strip only; paths never drawn) ----
 const particles = ref(null)
 let particleJob = 0
@@ -945,6 +978,12 @@ onUnmounted(() => {
             :stroke="PALETTE.textMuted" stroke-width="0.9" stroke-opacity="0.45"
           />
           <path v-if="isOverlay" :d="overlayStrip.neg" :fill="PALETTE.negative" opacity="0.16" />
+          <template v-if="branchRefs">
+            <path :d="branchRefs.plusArea" :fill="PALETTE.sampling" opacity="0.07" />
+            <path :d="branchRefs.plus" fill="none" :stroke="PALETTE.sampling" stroke-width="1.3" stroke-dasharray="3 2.2" stroke-opacity="0.8" />
+            <path :d="branchRefs.minusArea" :fill="PALETTE.negative" opacity="0.07" />
+            <path :d="branchRefs.minus" fill="none" :stroke="PALETTE.negative" stroke-width="1.3" stroke-dasharray="3 2.2" stroke-opacity="0.8" />
+          </template>
         </template>
         <rect
           v-for="bar in histBars"
@@ -974,6 +1013,24 @@ onUnmounted(() => {
             :d="overlayStrip.line" fill="none"
             :stroke="PALETTE.ink" stroke-width="1.8" stroke-linecap="round"
           />
+          <template v-if="branchRefs">
+            <foreignObject :x="branchRefs.labelPlus.x" :y="branchRefs.labelPlus.y" width="44" height="27" pointer-events="none">
+              <div
+                xmlns="http://www.w3.org/1999/xhtml"
+                class="srf-zone"
+                :style="{ color: PALETTE.samplingDark, borderColor: PALETTE.samplingDark }"
+                v-html="refLabelPlus"
+              ></div>
+            </foreignObject>
+            <foreignObject :x="branchRefs.labelMinus.x" :y="branchRefs.labelMinus.y" width="44" height="27" pointer-events="none">
+              <div
+                xmlns="http://www.w3.org/1999/xhtml"
+                class="srf-zone"
+                :style="{ color: PALETTE.negativeDark, borderColor: PALETTE.negativeDark }"
+                v-html="refLabelMinus"
+              ></div>
+            </foreignObject>
+          </template>
         </template>
 
         <!-- recessive time axis labels -->

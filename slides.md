@@ -282,7 +282,8 @@ The signed density is not itself a probability law, but the ODE trajectory law i
 
 <div class="mt-2"></div>
 
-Simulate $\dot Z_t = v_t^{\mathtt{signRF}}(Z_t)$ from $Z_0\sim\pi_0$ — just trajectories and their **empirical density**.
+Simulate $\dot Z_t = v_t^{\mathtt{signRF}}(Z_t)$ from $Z_0\sim\pi_0$ — just trajectories and their **empirical density**,
+shown against the two ingredients $\pi_1^+$ and $\pi_1^-$ (dashed).
 
 ---
 
