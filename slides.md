@@ -335,12 +335,13 @@ the rest run into the **moving zero set** $\Omega_t^0$ and stop there, meeting i
 
 # The Physical Picture: Charged Particles
 
-<ChargedParticles1D mode="classified" :height="430" autoplay />
+<RfPairEmission :height="430" autoplay />
 
 <div class="mt-2"></div>
 
-- **Reachable particles** — backward trajectories reach $t=0$; reversed, they are exactly the forward Signed RF samples.
-- **Ghost $+$ and negative $-$ particles** — pairwise annihilation on $\Omega_t^0$; forward in time, the boundary *creates* $\pm$ pairs — **dark particles**, invisible to the source-initialized sampler.
+- **Reachable particles** — transported from $\pi_0$ by the flow: exactly the Signed RF samples.
+- **Ghost $+$ and negative $-$ particles** — the boundary $\Omega_t^0$ *creates* $\pm$ pairs that fly forward —
+  **dark particles**, invisible to the source-initialized sampler. Run backward, they annihilate in pairs where they were born.
 
 ---
 

@@ -14,8 +14,8 @@ import {
   DENSITY,
   PALETTE,
   gaussianPdf,
+  reachFrontier,
   signedDensity,
-  simulateAdaptive,
   simulateBackward,
   zeroBranches,
   zeroCrossings,
@@ -68,27 +68,12 @@ function mathHtml(tex) {
 // Verified against theory: the enclosed gap carries zero net signed mass
 // (signedCdf equal at both ends), forward samples never land inside it, and
 // backward fates match it 26/26.
-function computeBoundaries() {
-  let lo = 0.01
-  let hi = 1
-  for (let i = 0; i < 60; i += 1) {
-    const m = 0.5 * (lo + hi)
-    if (zeroCrossings(m, ALPHA, WORLD).length) hi = m
-    else lo = m
+if (!boundaryCache) {
+  boundaryCache = {
+    zeroLines: zeroBranches(ALPHA, WORLD, 160),
+    frontier: reachFrontier(ALPHA, WORLD),
   }
-  const t0 = Math.min(hi + 2e-3, 1)
-  const roots = zeroCrossings(t0, ALPHA, WORLD)
-  const eps = 1e-4
-  const frontier = roots.length
-    ? {
-        tTip: t0,
-        left: simulateAdaptive(roots[0] - eps, t0, ALPHA, WORLD),
-        right: simulateAdaptive(roots[roots.length - 1] + eps, t0, ALPHA, WORLD),
-      }
-    : null
-  return { zeroLines: zeroBranches(ALPHA, WORLD, 160), frontier }
 }
-if (!boundaryCache) boundaryCache = computeBoundaries()
 const { zeroLines, frontier } = boundaryCache
 
 // Interpolate x(t) on a frontier curve ({ts, xs}, ts increasing).

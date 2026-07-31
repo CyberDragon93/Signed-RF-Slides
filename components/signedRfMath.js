@@ -371,6 +371,29 @@ export function simulateAdaptive(xStart, tStart, alpha, setup, opts = {}) {
   return { ts, xs }
 }
 
+// Reach/ghost frontier: the pair of limit trajectories hugging the negative
+// wedge from outside, seeded just off the two newborn roots at the wedge tip
+// and pushed forward with the adaptive integrator. The enclosed gap carries
+// zero net signed mass and is exactly the unreachable region.
+export function reachFrontier(alpha, setup) {
+  let lo = 0.01
+  let hi = 1
+  for (let i = 0; i < 60; i += 1) {
+    const m = 0.5 * (lo + hi)
+    if (zeroCrossings(m, alpha, setup).length) hi = m
+    else lo = m
+  }
+  const t0 = Math.min(hi + 2e-3, 1)
+  const roots = zeroCrossings(t0, alpha, setup)
+  if (!roots.length) return null
+  const eps = 1e-4
+  return {
+    tTip: t0,
+    left: simulateAdaptive(roots[0] - eps, t0, alpha, setup),
+    right: simulateAdaptive(roots[roots.length - 1] + eps, t0, alpha, setup),
+  }
+}
+
 // Pair-production trajectories: seeds at boundary +/- eps (schema.py).
 export function pairTrajectories(pairTimes, alpha, setup, eps = 1e-4) {
   const out = []
