@@ -220,6 +220,94 @@ export function boundaryCurves(alpha, setup, nT = 220, t0 = 0.01, t1 = 1.0) {
   return { ts, zero, ghost }
 }
 
+// ALL zero-boundary branches: roots of pi_t^sign = 0 per time step, grouped
+// into continuous polylines by nearest-continuation (jump threshold in x);
+// a root with no continuation starts a new polyline. Multi-root worlds
+// (e.g. DENSITY's middle wedge) yield several branches.
+export function zeroBranches(alpha, setup, nT = 140, jumpTol = 0.35) {
+  const done = []
+  let active = []
+  for (let k = 0; k < nT; k += 1) {
+    const t = 0.01 + (k / (nT - 1)) * (1.0 - 0.01)
+    const roots = zeroCrossings(t, alpha, setup)
+    const used = new Array(roots.length).fill(false)
+    const next = []
+    for (const line of active) {
+      let best = -1
+      let bestD = jumpTol
+      for (let i = 0; i < roots.length; i += 1) {
+        if (used[i]) continue
+        const d = Math.abs(roots[i] - line.last)
+        if (d < bestD) {
+          bestD = d
+          best = i
+        }
+      }
+      if (best >= 0) {
+        used[best] = true
+        line.pts.push([t, roots[best]])
+        line.last = roots[best]
+        next.push(line)
+      } else {
+        done.push(line.pts)
+      }
+    }
+    for (let i = 0; i < roots.length; i += 1) {
+      if (!used[i]) next.push({ pts: [[t, roots[i]]], last: roots[i] })
+    }
+    active = next
+  }
+  for (const line of active) done.push(line.pts)
+  const out = done.filter(pts => pts.length >= 2)
+
+  // Close wedge apexes: two branches born (or dying) at the same time step
+  // share a fork point. Its exact time is computable — bisect the birth/death
+  // of roots inside the pair's x-bracket — and join both branches there, so
+  // the drawn wedge has no blank at the fork.
+  const dt = (1.0 - 0.01) / (nT - 1)
+  const tipBetween = (tKnown, tUnknown, xa, xb) => {
+    let tHas = tKnown
+    let tNone = tUnknown
+    for (let i = 0; i < 30; i += 1) {
+      const tm = 0.5 * (tHas + tNone)
+      const roots = zeroCrossings(tm, alpha, setup).filter(r => r >= xa && r <= xb)
+      if (roots.length) tHas = tm
+      else tNone = tm
+    }
+    const roots = zeroCrossings(tHas, alpha, setup).filter(r => r >= xa && r <= xb)
+    return roots.length ? [tHas, 0.5 * (roots[0] + roots[roots.length - 1])] : null
+  }
+  for (let i = 0; i < out.length; i += 1) {
+    for (let j = i + 1; j < out.length; j += 1) {
+      const A = out[i]
+      const B = out[j]
+      // shared birth
+      if (Math.abs(A[0][0] - B[0][0]) < 1e-9 && A[0][0] > 0.011 && Math.abs(A[0][1] - B[0][1]) <= 4 * jumpTol) {
+        const xa = Math.min(A[0][1], B[0][1]) - 0.25
+        const xb = Math.max(A[0][1], B[0][1]) + 0.25
+        const tip = tipBetween(A[0][0], Math.max(0.005, A[0][0] - dt), xa, xb)
+        if (tip) {
+          A.unshift([tip[0], tip[1]])
+          B.unshift([tip[0], tip[1]])
+        }
+      }
+      // shared death
+      const aE = A[A.length - 1]
+      const bE = B[B.length - 1]
+      if (Math.abs(aE[0] - bE[0]) < 1e-9 && aE[0] < 0.999 && Math.abs(aE[1] - bE[1]) <= 4 * jumpTol) {
+        const xa = Math.min(aE[1], bE[1]) - 0.25
+        const xb = Math.max(aE[1], bE[1]) + 0.25
+        const tip = tipBetween(aE[0], Math.min(1, aE[0] + dt), xa, xb)
+        if (tip) {
+          A.push([tip[0], tip[1]])
+          B.push([tip[0], tip[1]])
+        }
+      }
+    }
+  }
+  return out
+}
+
 // ---- Integrators ----------------------------------------------------------
 
 // RK4 with fixed dt from t=0 to t=1 (schema.py: 17 quantile-seeded particles).

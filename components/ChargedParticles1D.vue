@@ -3,6 +3,7 @@
 // the backward ensemble (both modes visualize the SAME honest trajectories).
 let cpUidCounter = 0
 let ensembleCache = null
+let boundaryCache = null
 </script>
 
 <script setup>
@@ -10,12 +11,14 @@ import * as d3 from 'd3'
 import katex from 'katex'
 import { computed, onMounted, onUnmounted, ref, shallowRef } from 'vue'
 import {
+  DENSITY,
   PALETTE,
-  SCHEMA,
-  boundaryCurves,
   gaussianPdf,
   signedDensity,
+  simulateAdaptive,
   simulateBackward,
+  zeroBranches,
+  zeroCrossings,
 } from './signedRfMath.js'
 
 const props = defineProps({
@@ -24,10 +27,12 @@ const props = defineProps({
   autoplay: { type: Boolean, default: true },
 })
 
-// ---- Fixed setup (schema.py): alpha = 1, single-Gaussian branches ----------
+// ---- Fixed setup: the paper's density world (paper_1d_density.py) ----------
+// Three-mode pi+ split by a single middle pi-, at the paper's alpha = 0.85.
 const width = 900
-const ALPHA = 1.0
-const domain = SCHEMA.domain
+const WORLD = DENSITY
+const ALPHA = DENSITY.alpha
+const domain = WORLD.domain
 const uid = `cp1d-${cpUidCounter++}`
 const panelX = 104
 const panelW = 756
@@ -55,24 +60,53 @@ function mathHtml(tex) {
   return katex.renderToString(tex, { throwOnError: false, output: 'html' })
 }
 
-// ---- Exact boundaries (closed-form roots, as in schema.py) -----------------
-const bounds = boundaryCurves(ALPHA, SCHEMA, 160)
-
-// Linear interpolation of a boundary array over the uniform bounds.ts grid.
-function boundaryAt(arr, t) {
-  const ts = bounds.ts
-  const n = ts.length
-  if (t < ts[0] || t > ts[n - 1]) return NaN
-  const f = ((t - ts[0]) / (ts[n - 1] - ts[0])) * (n - 1)
-  const k = Math.min(n - 2, Math.floor(f))
-  const a = arr[k]
-  const b = arr[k + 1]
-  if (!Number.isFinite(a) || !Number.isFinite(b)) return NaN
-  return a + (f - k) * (b - a)
+// ---- Exact boundaries (closed-form roots) -----------------------------------
+// Zero set: ALL branches — the middle wedge has two edges.
+// Reach/ghost frontier: the pair of limit trajectories hugging the wedge from
+// outside, seeded just off the two newborn roots at the wedge tip and pushed
+// forward with the adaptive integrator (the pairTrajectories construction).
+// Verified against theory: the enclosed gap carries zero net signed mass
+// (signedCdf equal at both ends), forward samples never land inside it, and
+// backward fates match it 26/26.
+function computeBoundaries() {
+  let lo = 0.01
+  let hi = 1
+  for (let i = 0; i < 60; i += 1) {
+    const m = 0.5 * (lo + hi)
+    if (zeroCrossings(m, ALPHA, WORLD).length) hi = m
+    else lo = m
+  }
+  const t0 = Math.min(hi + 2e-3, 1)
+  const roots = zeroCrossings(t0, ALPHA, WORLD)
+  const eps = 1e-4
+  const frontier = roots.length
+    ? {
+        tTip: t0,
+        left: simulateAdaptive(roots[0] - eps, t0, ALPHA, WORLD),
+        right: simulateAdaptive(roots[roots.length - 1] + eps, t0, ALPHA, WORLD),
+      }
+    : null
+  return { zeroLines: zeroBranches(ALPHA, WORLD, 160), frontier }
 }
+if (!boundaryCache) boundaryCache = computeBoundaries()
+const { zeroLines, frontier } = boundaryCache
 
-const zeroPts = Array.from(bounds.ts, (t, i) => ({ t, x: bounds.zero[i] }))
-const ghostPts = Array.from(bounds.ts, (t, i) => ({ t, x: bounds.ghost[i] }))
+// Interpolate x(t) on a frontier curve ({ts, xs}, ts increasing).
+function frontAt(curve, t) {
+  const { ts, xs } = curve
+  const n = ts.length
+  if (t < ts[0]) return NaN
+  if (t >= ts[n - 1]) return xs[n - 1]
+  let lo = 0
+  let hi = n - 1
+  while (hi - lo > 1) {
+    const m = (lo + hi) >> 1
+    if (ts[m] <= t) lo = m
+    else hi = m
+  }
+  const span = ts[hi] - ts[lo]
+  return span > 0 ? xs[lo] + ((t - ts[lo]) / span) * (xs[hi] - xs[lo]) : xs[lo]
+}
 
 // ---- Backward ensemble: 26 uniformly spaced terminal seeds -----------------
 // Each is the exact Signed RF ODE integrated backward from t ~ 0.999 (adaptive
@@ -83,7 +117,7 @@ function buildEnsemble() {
   const trajs = []
   for (let i = 0; i < N_SEEDS; i += 1) {
     const x1 = SEED_LO + (i / (N_SEEDS - 1)) * (SEED_HI - SEED_LO)
-    const r = simulateBackward(x1, ALPHA, SCHEMA)
+    const r = simulateBackward(x1, ALPHA, WORLD)
     const n = r.ts.length
     trajs.push({
       id: i,
@@ -175,12 +209,27 @@ const legendUniformHtml = '<span class="cp-key cp-note">integrating backward fro
 const legendHtml = computed(() => (isClassified.value ? legendClassifiedHtml : legendUniformHtml))
 
 // ---- Static paths -----------------------------------------------------------
-const boundaryLine = computed(() => d3.line()
-  .x(d => tX(d.t))
-  .y(d => yScale.value(d.x))
-  .defined(d => Number.isFinite(d.x)))
-const zeroBoundaryPath = computed(() => boundaryLine.value(zeroPts))
-const ghostBoundaryPath = computed(() => boundaryLine.value(ghostPts))
+const zeroBranchPaths = computed(() => {
+  const ys = yScale.value
+  return zeroLines.map((line) => {
+    let d = ''
+    for (const [t, xv] of line) d += (d ? 'L' : 'M') + tX(t).toFixed(1) + ',' + ys(xv).toFixed(1)
+    return d
+  })
+})
+
+const frontierPaths = computed(() => {
+  if (!frontier) return []
+  const ys = yScale.value
+  return [frontier.left, frontier.right].map((c) => {
+    const n = c.ts.length
+    const stride = Math.max(1, Math.floor(n / 260))
+    let d = ''
+    for (let i = 0; i < n; i += stride) d += (d ? 'L' : 'M') + tX(c.ts[i]).toFixed(1) + ',' + ys(c.xs[i]).toFixed(1)
+    d += 'L' + tX(c.ts[n - 1]).toFixed(1) + ',' + ys(c.xs[n - 1]).toFixed(1)
+    return d
+  })
+})
 
 function trajPathD(tr, ys) {
   const n = tr.ts.length
@@ -335,14 +384,20 @@ const callouts = computed(() => {
 const curveLabels = computed(() => {
   const ys = yScale.value
   const out = []
-  const zx = boundaryAt(bounds.zero, 0.16)
-  if (Number.isFinite(zx)) {
-    out.push({ key: 'zero', x: tX(0.16) - 152, y: ys(zx) - 12, cls: 'cp-label-zero', html: zeroChipHtml })
-  }
-  if (isClassified.value) {
-    const gx = boundaryAt(bounds.ghost, 0.56)
-    if (Number.isFinite(gx)) {
-      out.push({ key: 'ghost', x: tX(0.56) + 10, y: ys(gx) + 4, cls: 'cp-label-ghost', html: ghostChipHtml })
+  // Zero-set chip: just left of the wedge tip, where the fork is born.
+  if (frontier) {
+    const tz = frontier.tTip
+    const zr = zeroCrossings(Math.min(tz + 5e-3, 1), ALPHA, WORLD)
+    if (zr.length) {
+      const xTip = 0.5 * (zr[0] + zr[zr.length - 1])
+      out.push({ key: 'zero', x: tX(tz) - 152, y: ys(xTip) - 12, cls: 'cp-label-zero', html: zeroChipHtml })
+    }
+    if (isClassified.value) {
+      const tg = 0.8
+      const gx = frontAt(frontier.right, tg)
+      if (Number.isFinite(gx)) {
+        out.push({ key: 'ghost', x: tX(tg) + 8, y: ys(gx) - 24, cls: 'cp-label-ghost', html: ghostChipHtml })
+      }
     }
   }
   return out
@@ -377,16 +432,16 @@ function renderHeatmap() {
   if (!ctx) return
 
   const vals = new Float64Array(W * H)
-  const zeroCol = new Float64Array(W)
-  const ghostCol = new Float64Array(W)
+  const gapLo = new Float64Array(W)
+  const gapHi = new Float64Array(W)
   let maxAbs = 1e-12
   for (let px = 0; px < W; px += 1) {
     const t = px / (W - 1)
-    zeroCol[px] = boundaryAt(bounds.zero, t)
-    ghostCol[px] = boundaryAt(bounds.ghost, t)
+    gapLo[px] = frontier ? frontAt(frontier.left, t) : NaN
+    gapHi[px] = frontier ? frontAt(frontier.right, t) : NaN
     for (let py = 0; py < H; py += 1) {
       const x = domain[1] - (py / (H - 1)) * (domain[1] - domain[0])
-      const v = signedDensity(x, t, ALPHA, SCHEMA)
+      const v = signedDensity(x, t, ALPHA, WORLD)
       vals[py * W + px] = v
       const av = Math.abs(v)
       if (av > maxAbs) maxAbs = av
@@ -405,19 +460,15 @@ function renderHeatmap() {
       let c
       let aScale = 1
       if (classified) {
-        const zb = zeroCol[px]
-        const gb = ghostCol[px]
-        if (Number.isFinite(zb)) {
-          if (x >= zb) {
-            c = cNeg
-          } else if (Number.isFinite(gb) && x >= gb) {
-            c = cGhost
-            aScale = 0.45
-          } else {
-            c = cReach
-          }
+        // Negative wherever the signed density dips below zero; ghost is the
+        // rest of the unreachable gap between the two frontier trajectories.
+        if (v < 0) {
+          c = cNeg
+        } else if (Number.isFinite(gapLo[px]) && x >= gapLo[px] && x <= gapHi[px]) {
+          c = cGhost
+          aScale = 0.45
         } else {
-          c = v < 0 ? cNeg : cReach
+          c = cReach
         }
       } else {
         c = v < 0 ? cNeg : cReach
@@ -645,12 +696,19 @@ onUnmounted(() => {
         />
 
         <!-- Boundary curves -->
+        <template v-if="isClassified">
+          <path
+            v-for="(fd, fi) in frontierPaths"
+            :key="`fp-${fi}`"
+            :d="fd" fill="none"
+            stroke="#9A9A9A" stroke-width="1.5" stroke-opacity="0.95"
+          />
+        </template>
         <path
-          v-if="isClassified"
-          :d="ghostBoundaryPath" fill="none"
-          stroke="#9A9A9A" stroke-width="1.5" stroke-opacity="0.95"
+          v-for="(zd, zi) in zeroBranchPaths"
+          :key="`zp-${zi}`"
+          :d="zd" fill="none" stroke="#E34A92" stroke-width="1.6" stroke-opacity="0.9"
         />
-        <path :d="zeroBoundaryPath" fill="none" stroke="#E34A92" stroke-width="1.6" stroke-opacity="0.9" />
 
         <!-- Swept-out part of the honest backward trajectories -->
         <g :clip-path="`url(#${uid}-swept)`">

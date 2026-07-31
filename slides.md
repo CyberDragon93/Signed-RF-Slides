@@ -310,6 +310,17 @@ $\Omega_t^- \coloneqq \{\pi_t^{\mathtt{sign}}<0\}$.
 
 ---
 
+# The Working Example
+
+<RfSigned1D mode="overlay" world="density" :height="440" autoplay />
+
+<div class="mt-2"></div>
+
+From here on, one world — the paper's setting: a three-mode $\pi_1^+$ with $\pi_1^-$ sitting in the middle.
+Trajectories fork around the negative wedge, and the histogram still matches $\pi_t^{\mathtt{sign}}$ on both sides.
+
+---
+
 # Why? Trace the Dynamics Backward
 
 <ChargedParticles1D mode="uniform" :height="430" autoplay />
@@ -619,6 +630,171 @@ A simple practical modification, empirically robust to moderate choices of the c
 <div class="mt-4"></div>
 
 One framework — the negative branch is whatever you must avoid: a region, a dataset, a concept.
+
+---
+
+# KL-Regularized Flow RL Is Exponential Tilting
+
+<div class="h-10"></div>
+
+For a frozen base endpoint $\pi_{\mathrm{base}}$, Flow RL solves
+
+$$
+\max_{\pi}\;
+\mathbb E_{X_1\sim\pi}[r(X_1)]
+-
+\beta\,\mathrm{KL}\!\left(\pi\,\middle\|\,\pi_{\mathrm{base}}\right).
+$$
+
+Its closed-form target is
+
+$$
+\pi^\star(x_1)
+=
+\frac{
+\pi_{\mathrm{base}}(x_1)\exp\!\left(r(x_1)/\beta\right)
+}{
+\mathbb E_{\pi_{\mathrm{base}}}\!\left[\exp\!\left(r(X_1)/\beta\right)\right]
+}.
+$$
+
+Flow RL is therefore distribution matching toward a **positive exponential tilt** of the base endpoint.
+
+---
+
+# The Tilt Is an Exact Weighted RF Loss
+
+For this exponential tilt, use the terminal weight
+
+$$
+w_R(X_1)\coloneqq \exp\!\left(r(X_1)/\beta\right)>0.
+$$
+
+Draw $X_1\sim\pi_{\mathrm{base}}$, $X_0\sim\pi_0$, and set
+$X_t=(1-t)X_0+tX_1$, $\Delta X\coloneqq X_1-X_0$. Then train with
+
+$$
+\mathcal L_{w_R}(\theta)
+=
+\mathbb E\!\left[
+w_R(X_1)
+\left\|v_t^\theta(X_t)-\Delta X\right\|^2
+\right].
+$$
+
+Because $w_R$ depends only on $X_1$, it leaves the source marginal unchanged and replaces the endpoint by
+
+$$
+\pi^{w_R}(x_1)
+=
+\frac{w_R(x_1)\pi_{\mathrm{base}}(x_1)}
+{\mathbb E_{\pi_{\mathrm{base}}}[w_R(X_1)]}
+=
+\pi^\star(x_1).
+$$
+
+At the population optimum, one positive weighted RF loss learns the exact Flow-RL tilt.
+
+---
+
+# Generalize the Terminal Weight
+
+<div class="h-4"></div>
+
+The population construction depends only on the terminal weight. Let $w(X_1)$ be real-valued with
+
+$$
+Z_w\coloneqq\mathbb E_{\pi_{\mathrm{base}}}[w(X_1)]>0,
+\qquad
+\pi_1^w(x_1)\coloneqq
+\frac{w(x_1)\pi_{\mathrm{base}}(x_1)}{Z_w}.
+$$
+
+The corresponding RF field is
+
+$$
+v_t^w(x)
+=
+\frac{
+\mathbb E\!\left[w(X_1)(X_1-X_0)\mid X_t=x\right]
+}{
+\mathbb E\!\left[w(X_1)\mid X_t=x\right]
+},
+$$
+
+wherever the denominator is nonzero.
+
+- If $w\ge 0$, this is an ordinary probability tilt.
+- If $w$ changes sign, $\pi_1^w$ is a signed endpoint and the same ratio is exactly the **Signed RF field**, now written with one terminal weight.
+
+---
+
+# Negative Weights Need Two Regressions
+
+**What fails is the training objective, not the signed target.** At fixed $(x,t)$, the quadratic coefficient of the direct weighted MSE is
+
+$$
+m_t^\star(x)\coloneqq\mathbb E\!\left[w(X_1)\mid X_t=x\right].
+$$
+
+Where $m_t^\star(x)<0$, that objective is **unbounded below**. Instead, regress the numerator and denominator with two ordinary MSEs:
+
+$$
+\begin{aligned}
+\mathcal L_g
+&=\mathbb E\!\left[\left\|g_t(X_t)-w(X_1)(X_1-X_0)\right\|^2\right],\\[2pt]
+\mathcal L_m
+&=\mathbb E\!\left[\left(m_t(X_t)-w(X_1)\right)^2\right].
+\end{aligned}
+$$
+
+At the population optimum,
+
+$$
+g_t^\star(x)=\mathbb E\!\left[w(X_1)(X_1-X_0)\mid X_t=x\right],
+\qquad
+m_t^\star(x)=\mathbb E\!\left[w(X_1)\mid X_t=x\right],
+\qquad
+v_t^w(x)=\frac{g_t^\star(x)}{m_t^\star(x)}.
+$$
+
+This is Signed RF in trainable loss form: two nonnegative regressions followed by a ratio. The field remains singular where $m_t^\star=0$.
+
+---
+
+# Why Use a Signed Reward Weight?
+
+<div class="h-4"></div>
+
+The terminal weight is a design choice. For example, choose
+
+$$
+w(x_1)=f\!\left(r(x_1)\right),
+\qquad
+Z_w=\mathbb E_{\pi_{\mathrm{base}}}[w(X_1)]>0,
+$$
+
+Choose $f$ to cross zero at the desired reward threshold; for example, map negative reward to negative weight:
+
+$$
+r(x_1)<0
+\quad\Longrightarrow\quad
+w(x_1)=f\!\left(r(x_1)\right)<0.
+$$
+
+Then $\pi_1^w(x_1)=w(x_1)\pi_{\mathrm{base}}(x_1)/Z_w$ is negative on
+$\mathcal N_w\coloneqq\{x_1:w(x_1)<0\}$. Under the same assumptions as the Signed RF guarantee,
+
+$$
+\mathbb P\!\left(Z_1\in\mathcal N_w\right)=0.
+$$
+
+- Different choices of $f$ encode different reward-based exclusion regions.
+- The exponential Flow-RL weight $e^{r/\beta}$ is strictly positive, so it can only downweight low- or negative-reward regions; a signed weight can make them theoretically unsampled.
+
+<div class="mt-3 text-center" style="font-size: 0.78em; opacity: 0.68;">
+The guarantee follows the sign of $w$: avoiding a negative-reward region requires mapping that region to negative weight.
+</div>
 
 ---
 

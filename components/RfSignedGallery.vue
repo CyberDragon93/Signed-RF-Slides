@@ -7,7 +7,7 @@ let srfgUidCounter = 0
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import {
   SCHEMA, DENSITY, TWIN, PALETTE,
-  signedDensity, zeroCrossings, quantileSeeds, simulateTrajectories,
+  signedDensity, zeroBranches, quantileSeeds, simulateTrajectories,
 } from './signedRfMath.js'
 
 const props = defineProps({
@@ -91,46 +91,6 @@ function renderPanelHeatmap(alpha, setup) {
   }
   ctx.putImageData(image, 0, 0)
   return canvas.toDataURL('image/png')
-}
-
-// ALL zero-boundary branches: roots of pi_t^sign = 0 per time step, grouped
-// into continuous polylines by nearest-continuation (jump threshold in x);
-// a root with no continuation starts a new polyline. TWIN yields two branches.
-function zeroBranches(alpha, setup, nT = 140, jumpTol = 0.35) {
-  const done = []
-  let active = []
-  for (let k = 0; k < nT; k += 1) {
-    const t = 0.01 + (k / (nT - 1)) * (1.0 - 0.01)
-    const roots = zeroCrossings(t, alpha, setup)
-    const used = new Array(roots.length).fill(false)
-    const next = []
-    for (const line of active) {
-      let best = -1
-      let bestD = jumpTol
-      for (let i = 0; i < roots.length; i += 1) {
-        if (used[i]) continue
-        const d = Math.abs(roots[i] - line.last)
-        if (d < bestD) {
-          bestD = d
-          best = i
-        }
-      }
-      if (best >= 0) {
-        used[best] = true
-        line.pts.push([t, roots[best]])
-        line.last = roots[best]
-        next.push(line)
-      } else {
-        done.push(line.pts)
-      }
-    }
-    for (let i = 0; i < roots.length; i += 1) {
-      if (!used[i]) next.push({ pts: [[t, roots[i]]], last: roots[i] })
-    }
-    active = next
-  }
-  for (const line of active) done.push(line.pts)
-  return done.filter(pts => pts.length >= 2)
 }
 
 const panelData = PANEL_DEFS.map(def => ({

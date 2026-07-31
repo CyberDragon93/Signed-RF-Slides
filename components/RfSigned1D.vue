@@ -9,15 +9,20 @@ import katex from 'katex'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import {
   SCHEMA, DENSITY, PALETTE, lcg, randn, gaussianPdf, branchPdf,
-  signedDensity, boundaryCurves, quantileSeeds, simulateTrajectories,
+  signedDensity, boundaryCurves, zeroBranches, quantileSeeds, simulateTrajectories,
   pairTrajectories, histogramDensity,
 } from './signedRfMath.js'
 
 const props = defineProps({
   mode: { type: String, default: 'evolution' },
+  // 'schema' (one-sided negative) or 'density' — the paper's toy setting:
+  // three-mode pi+ split by a single pi- in the middle (paper_1d_density.py).
+  world: { type: String, default: 'schema' },
   height: { type: Number, default: 430 },
   autoplay: { type: Boolean, default: true },
 })
+
+const WORLD = props.world === 'density' ? DENSITY : SCHEMA
 
 const width = 900
 const uid = `srf1d-${srfUidCounter++}`
@@ -37,8 +42,10 @@ function mathHtml(tex) {
 }
 
 // ---------------------------------------------------------------- shared UI state
-const alphaLive = ref(props.mode === 'target' ? 0.85 : 1.0)
-const committedAlpha = ref(1.0)
+// The density world defaults to the paper's alpha = 0.85.
+const ALPHA_INIT = props.mode === 'target' || WORLD === DENSITY ? 0.85 : 1.0
+const alphaLive = ref(ALPHA_INIT)
+const committedAlpha = ref(WORLD === DENSITY ? 0.85 : 1.0)
 const tCur = ref(1.0)
 const alphaManual = ref(false)
 const tManual = ref(false)
@@ -115,7 +122,7 @@ const EV_ALPHA_HI = 2.0
 
 const evPy1 = computed(() => props.height - 72)
 const evPh = computed(() => evPy1.value - EV_PY0)
-const yE = computed(() => d3.scaleLinear().domain(SCHEMA.domain).range([evPy1.value, EV_PY0]))
+const yE = computed(() => d3.scaleLinear().domain(WORLD.domain).range([evPy1.value, EV_PY0]))
 function tX(t) { return EV_CX0 + (EV_CX1 - EV_CX0) * t }
 
 const evTSlider = computed(() => ({ x: 150, y: props.height - 30, w: 185 }))
@@ -149,7 +156,7 @@ function interpPts(pts, t) {
   return span > 0 ? xs[lo] + (xs[hi] - xs[lo]) * (t - ts[lo]) / span : xs[lo]
 }
 
-const boundaries = computed(() => boundaryCurves(committedAlpha.value, SCHEMA, 160))
+const boundaries = computed(() => boundaryCurves(committedAlpha.value, WORLD, 160))
 const zeroPts = computed(() => finitePts(boundaries.value.ts, boundaries.value.zero))
 const ghostPts = computed(() => finitePts(boundaries.value.ts, boundaries.value.ghost))
 
@@ -165,7 +172,18 @@ function boundaryPath(pts) {
 const zeroBoundaryPath = computed(() => boundaryPath(zeroPts.value))
 const ghostBoundaryPath = computed(() => boundaryPath(ghostPts.value))
 
-const quantTraj = computed(() => simulateTrajectories(quantileSeeds(17), committedAlpha.value, SCHEMA, 480))
+// ALL zero-set branches in screen space — multi-root worlds (DENSITY's middle
+// wedge) draw every edge, not just the first root per time step.
+const zeroBranchPaths = computed(() => {
+  const ys = yE.value
+  return zeroBranches(committedAlpha.value, WORLD, 140).map((line) => {
+    let d = ''
+    for (const [t, xv] of line) d += (d ? 'L' : 'M') + tX(t).toFixed(1) + ',' + ys(xv).toFixed(1)
+    return d
+  })
+})
+
+const quantTraj = computed(() => simulateTrajectories(quantileSeeds(17), committedAlpha.value, WORLD, 480))
 
 function evTrajPath(times, arr, stride) {
   const ys = yE.value
@@ -210,7 +228,7 @@ function evArrPath(ts, xs) {
 }
 
 const pairShapes = computed(() => (
-  pairTrajectories([0.3, 0.62], committedAlpha.value, SCHEMA).map((p, i) => ({
+  pairTrajectories([0.3, 0.62], committedAlpha.value, WORLD).map((p, i) => ({
     id: i,
     t: p.t,
     cx: tX(p.t),
@@ -227,7 +245,7 @@ function renderHeatmap(alpha, zPts, gPts) {
   if (typeof document === 'undefined') return ''
   const W = 300
   const H = 220
-  const [lo, hi] = SCHEMA.domain
+  const [lo, hi] = WORLD.domain
   const vals = new Float64Array(W * H)
   const rowX = new Float64Array(H)
   const zbCol = new Float64Array(W)
@@ -242,7 +260,7 @@ function renderHeatmap(alpha, zPts, gPts) {
     const x = hi - (r / (H - 1)) * (hi - lo)
     rowX[r] = x
     for (let c = 0; c < W; c += 1) {
-      const s = signedDensity(x, c / (W - 1), alpha, SCHEMA)
+      const s = signedDensity(x, c / (W - 1), alpha, WORLD)
       vals[r * W + c] = s
       const av = Math.abs(s)
       if (av > maxAbs) maxAbs = av
@@ -288,7 +306,7 @@ function renderHeatmap(alpha, zPts, gPts) {
 }
 
 // ---- left strip: source density N(0,1) sideways ----
-const evGrid = d3.range(0, 141).map(i => SCHEMA.domain[0] + (i / 140) * (SCHEMA.domain[1] - SCHEMA.domain[0]))
+const evGrid = d3.range(0, 141).map(i => WORLD.domain[0] + (i / 140) * (WORLD.domain[1] - WORLD.domain[0]))
 
 const srcShapes = computed(() => {
   const ys = yE.value
@@ -301,13 +319,13 @@ const srcShapes = computed(() => {
 // ---- right strip: signed density at cursor t + particle histogram ----
 const stripScale = computed(() => {
   const a = committedAlpha.value
-  const [lo, hi] = SCHEMA.domain
+  const [lo, hi] = WORLD.domain
   let maxPos = 1e-9
   let maxNeg = 0
   for (let i = 0; i <= 24; i += 1) {
     const t = i / 24
     for (let j = 0; j <= 120; j += 1) {
-      const s = signedDensity(lo + (j / 120) * (hi - lo), t, a, SCHEMA)
+      const s = signedDensity(lo + (j / 120) * (hi - lo), t, a, WORLD)
       if (s > maxPos) maxPos = s
       if (-s > maxNeg) maxNeg = -s
     }
@@ -328,7 +346,7 @@ function zoneOf(x, s, zb, gb) {
 const stripShapes = computed(() => {
   const t = tCur.value
   const a = committedAlpha.value
-  const [lo, hi] = SCHEMA.domain
+  const [lo, hi] = WORLD.domain
   const zb = interpPts(zeroPts.value, t)
   const gb = interpPts(ghostPts.value, t)
   const { k, baseX } = stripScale.value
@@ -336,7 +354,7 @@ const stripShapes = computed(() => {
   const pts = []
   for (let i = 0; i <= 150; i += 1) {
     const x = lo + (i / 150) * (hi - lo)
-    const s = signedDensity(x, t, a, SCHEMA)
+    const s = signedDensity(x, t, a, WORLD)
     pts.push({ x, s, zone: zoneOf(x, s, zb, gb) })
   }
   const lineFor = zone => d3.line()
@@ -373,8 +391,8 @@ const branchRefs = computed(() => {
   if (!isSimulate.value) return null
   const { k, baseX } = stripScale.value
   const ys = yE.value
-  const fPlus = x => branchPdf(x, 1, SCHEMA.plus)
-  const fMinus = x => branchPdf(x, 1, SCHEMA.minus)
+  const fPlus = x => branchPdf(x, 1, WORLD.plus)
+  const fMinus = x => branchPdf(x, 1, WORLD.minus)
   const line = f => d3.line().x(x => baseX + k * f(x)).y(x => ys(x))(evGrid)
   const area = f => d3.area().x0(baseX).x1(x => baseX + k * f(x)).y(x => ys(x))(evGrid)
   let muPlus = 0
@@ -415,7 +433,7 @@ function computeParticles(alpha) {
   const step = () => {
     if (job !== particleJob) return
     const end = Math.min(i + 80, seeds.length)
-    const res = simulateTrajectories(seeds.slice(i, end), alpha, SCHEMA, 320)
+    const res = simulateTrajectories(seeds.slice(i, end), alpha, WORLD, 320)
     times = res.times
     for (const p of res.paths) paths.push(p)
     i = end
@@ -439,7 +457,7 @@ function updateHist(blend) {
   const idx = Math.max(0, Math.min(last, Math.round(tCur.value * last)))
   const values = []
   for (const p of pd.paths) values.push(p[idx])
-  const bins = histogramDensity(values, HIST_BINS, SCHEMA.domain)
+  const bins = histogramDensity(values, HIST_BINS, WORLD.domain)
   let changed = false
   for (let b = 0; b < HIST_BINS; b += 1) {
     const target = bins[b].density
@@ -456,7 +474,7 @@ function updateHist(blend) {
 const histBars = computed(() => {
   void histTick.value
   if (!particles.value) return []
-  const [lo, hi] = SCHEMA.domain
+  const [lo, hi] = WORLD.domain
   const w = (hi - lo) / HIST_BINS
   const { k, baseX } = stripScale.value
   const ys = yE.value
@@ -494,7 +512,7 @@ function renderEmpiricalHeat(pd) {
   if (typeof document === 'undefined') return ''
   const W = 220 // time columns
   const H = 110 // x bins
-  const [lo, hi] = SCHEMA.domain
+  const [lo, hi] = WORLD.domain
   const last = pd.times.length - 1
   const dens = new Float64Array(W * H)
   for (let c = 0; c < W; c += 1) {
@@ -565,7 +583,7 @@ const empOutlinePath = computed(() => {
     }
     d = nd
   }
-  const [lo, hi] = SCHEMA.domain
+  const [lo, hi] = WORLD.domain
   const w = (hi - lo) / HIST_BINS
   const { k, baseX } = stripScale.value
   const ys = yE.value
@@ -583,13 +601,13 @@ const overlayStrip = computed(() => {
   if (!isOverlay.value) return { line: '', neg: '' }
   const t = tCur.value
   const a = committedAlpha.value
-  const [lo, hi] = SCHEMA.domain
+  const [lo, hi] = WORLD.domain
   const { k, baseX } = stripScale.value
   const ys = yE.value
   const pts = []
   for (let i = 0; i <= 150; i += 1) {
     const x = lo + (i / 150) * (hi - lo)
-    pts.push({ x, s: signedDensity(x, t, a, SCHEMA) })
+    pts.push({ x, s: signedDensity(x, t, a, WORLD) })
   }
   return {
     line: d3.line().x(d => baseX + k * d.s).y(d => ys(d.x))(pts),
@@ -600,8 +618,8 @@ const overlayStrip = computed(() => {
 // plain recessive baseline for the empirical strip
 const stripBaseSeg = computed(() => ({
   x: stripScale.value.baseX,
-  y1: yE.value(SCHEMA.domain[0]),
-  y2: yE.value(SCHEMA.domain[1]),
+  y1: yE.value(WORLD.domain[0]),
+  y2: yE.value(WORLD.domain[1]),
 }))
 
 // ---- overlay chip near the start of the zero-set boundary ----
@@ -624,7 +642,7 @@ const zoneNHtml = mathHtml('\\Omega_t^{-}')
 
 const zoneLabels = computed(() => {
   const ys = yE.value
-  const [lo, hi] = SCHEMA.domain
+  const [lo, hi] = WORLD.domain
   const tq = 0.85
   const zbRaw = interpPts(zeroPts.value, tq)
   const gbRaw = interpPts(ghostPts.value, tq)
@@ -913,7 +931,11 @@ onUnmounted(() => {
         />
 
         <g v-if="isEvolution || isOverlay" :clip-path="`url(#${uid}-clipPanel)`">
-          <path :d="zeroBoundaryPath" fill="none" :stroke="PALETTE.negative" stroke-width="1.6" stroke-opacity="0.9" stroke-linecap="round" />
+          <path
+            v-for="(bd, bi) in zeroBranchPaths"
+            :key="`zb-${bi}`"
+            :d="bd" fill="none" :stroke="PALETTE.negative" stroke-width="1.6" stroke-opacity="0.9" stroke-linecap="round"
+          />
           <path v-if="isEvolution" :d="ghostBoundaryPath" fill="none" :stroke="PALETTE.buffer" stroke-width="1.5" stroke-opacity="0.95" stroke-linecap="round" />
         </g>
 
