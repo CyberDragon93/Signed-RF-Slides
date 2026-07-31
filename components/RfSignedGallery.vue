@@ -1,13 +1,26 @@
 <script>
 // Module-scope instance counter for unique SVG defs ids (deterministic, no randomness).
 let srfgUidCounter = 0
+
+// Per-(panel, alpha) render cache: every detent's heatmap, boundary branches
+// and trajectories are deterministic — compute once, reuse across drags and
+// remounts. Prewarmed in the background after mount.
+const srfgMemo = new Map()
+function srfgMemoGet(key, fn) {
+  if (!srfgMemo.has(key)) srfgMemo.set(key, fn())
+  return srfgMemo.get(key)
+}
+let srfgPrewarmed = false
 </script>
 
 <script setup>
+import katex from 'katex'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
+import RfFigLabel from './RfFigLabel.vue'
 import {
   SCHEMA, DENSITY, TWIN, PALETTE,
   signedDensity, zeroBranches, quantileSeeds, simulateTrajectories,
+  ALPHA_DETENTS, alphaDetentFrac,
 } from './signedRfMath.js'
 
 const props = defineProps({
@@ -40,13 +53,26 @@ const CORE = {
   domain: [-3.4, 3.4],
 }
 
+// SKEW: asymmetric two-mode positive with the negative overlapping the
+// smaller mode's flank — a one-sided wedge that eats the minor mode first.
+const SKEW = {
+  plus: [
+    { w: 0.65, mu: -1.2, vr: 0.5 },
+    { w: 0.35, mu: 1.4, vr: 0.35 },
+  ],
+  minus: [{ w: 1.0, mu: 0.6, vr: 0.5 }],
+  domain: [-3.4, 3.4],
+}
+
+// Six distinct worlds under ONE shared signed weight — the slider sweeps all
+// panels together, so the same alpha reads across every topology at once.
 const PANEL_DEFS = [
-  { id: 'schema1', setup: SCHEMA, alpha: 1.0 },
-  { id: 'density', setup: DENSITY, alpha: 0.85 },
-  { id: 'mode2', setup: MODE2, alpha: 1.0 },
-  { id: 'twin', setup: TWIN, alpha: 0.8 },
-  { id: 'core', setup: CORE, alpha: 0.9 },
-  { id: 'schema2', setup: SCHEMA, alpha: 2.0 },
+  { id: 'schema1', setup: SCHEMA },
+  { id: 'density', setup: DENSITY },
+  { id: 'mode2', setup: MODE2 },
+  { id: 'twin', setup: TWIN },
+  { id: 'core', setup: CORE },
+  { id: 'skew', setup: SKEW },
 ]
 
 // ---------------------------------------------------------------- static math
@@ -93,12 +119,17 @@ function renderPanelHeatmap(alpha, setup) {
   return canvas.toDataURL('image/png')
 }
 
-const panelData = PANEL_DEFS.map(def => ({
-  ...def,
-  heatmap: renderPanelHeatmap(def.alpha, def.setup),
-  branches: zeroBranches(def.alpha, def.setup, 140),
-  traj: simulateTrajectories(quantileSeeds(12), def.alpha, def.setup, 320),
-}))
+const alphaSel = ref(1.0)
+
+function panelSlice(def, a) {
+  return srfgMemoGet(`${def.id}|${a}`, () => ({
+    heatmap: renderPanelHeatmap(a, def.setup),
+    branches: zeroBranches(a, def.setup, 140),
+    traj: simulateTrajectories(quantileSeeds(12), a, def.setup, 320),
+  }))
+}
+
+const panelData = computed(() => PANEL_DEFS.map(def => ({ ...def, ...panelSlice(def, alphaSel.value) })))
 
 // ---------------------------------------------------------------- layout
 const COLS = 3
@@ -110,7 +141,7 @@ const cardH = computed(() => (props.height - 14 - GUT - 30) / 2)
 
 const panels = computed(() => {
   const ch = cardH.value
-  return panelData.map((p, i) => {
+  return panelData.value.map((p, i) => {
     const col = i % COLS
     const row = Math.floor(i / COLS)
     const cx = MARGIN_X + col * (CARD_W + GUT)
@@ -214,10 +245,67 @@ const sweep = computed(() => {
 
 const playBtn = computed(() => ({ x: MARGIN_X + 12, y: props.height - 14 }))
 
+// ---------------------------------------------------------------- alpha slider
+const aSlider = computed(() => ({ x: MARGIN_X + 330, y: props.height - 14, w: 220 }))
+const dragging = ref(false)
+
+function mathHtml(tex) {
+  return katex.renderToString(tex, { throwOnError: false, output: 'html' })
+}
+const alphaReadout = computed(() => mathHtml(`\\alpha = ${alphaSel.value.toFixed(1)}`))
+
+function svgX(event) {
+  const svg = event.currentTarget.ownerSVGElement || event.currentTarget
+  const rect = svg.getBoundingClientRect()
+  return (event.clientX - rect.left) * (width / rect.width)
+}
+
+function setAlphaFromX(x) {
+  const sl = aSlider.value
+  const frac = Math.max(0, Math.min(1, (x - sl.x) / sl.w))
+  const det = ALPHA_DETENTS[Math.round(frac * (ALPHA_DETENTS.length - 1))]
+  if (det !== alphaSel.value) alphaSel.value = det
+}
+
+function handleAlphaDown(event) {
+  dragging.value = true
+  setAlphaFromX(svgX(event))
+}
+
+function handlePointerMove(event) {
+  if (dragging.value) setAlphaFromX(svgX(event))
+}
+
+function handlePointerUp() {
+  dragging.value = false
+}
+
+// Warm every detent for every panel in the background so first drags are
+// instant too (once per module; shared across instances).
+function prewarmDetents() {
+  if (typeof window === 'undefined' || srfgPrewarmed) return
+  srfgPrewarmed = true
+  const queue = []
+  for (const a of [...ALPHA_DETENTS].sort((x, y) => Math.abs(x - alphaSel.value) - Math.abs(y - alphaSel.value))) {
+    for (const def of PANEL_DEFS) queue.push([def, a])
+  }
+  const next = () => {
+    const item = queue.shift()
+    if (!item) return
+    panelSlice(item[0], item[1])
+    setTimeout(next, 90)
+  }
+  setTimeout(next, 2500)
+}
+
 onMounted(() => {
   const isPrint = typeof window !== 'undefined' && /print/i.test(window.location.href)
-  if (props.autoplay && !isPrint) raf = requestAnimationFrame(tick)
-  else cursor.value = 1
+  if (props.autoplay && !isPrint) {
+    raf = requestAnimationFrame(tick)
+    prewarmDetents()
+  } else {
+    cursor.value = 1
+  }
 })
 
 onUnmounted(() => {
@@ -227,7 +315,14 @@ onUnmounted(() => {
 
 <template>
   <div class="srfg-wrap">
-    <svg class="srfg-svg" :viewBox="`0 0 ${width} ${height}`" role="img">
+    <svg
+      class="srfg-svg"
+      :viewBox="`0 0 ${width} ${height}`"
+      role="img"
+      @pointermove="handlePointerMove"
+      @pointerup="handlePointerUp"
+      @pointerleave="handlePointerUp"
+    >
       <defs>
         <filter :id="`${uid}-shadow`" x="-10%" y="-10%" width="120%" height="125%">
           <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#1B2A4A" flood-opacity="0.12" />
@@ -318,12 +413,37 @@ onUnmounted(() => {
           fill="#253A88"
         />
       </g>
+
+      <!-- shared signed-weight detent slider: one alpha across all six worlds -->
+      <g class="srfg-slider" @pointerdown.prevent="handleAlphaDown">
+        <text :x="aSlider.x - 12" :y="aSlider.y + 4" text-anchor="end" class="srfg-slider-text">signed weight</text>
+        <line :x1="aSlider.x" :y1="aSlider.y" :x2="aSlider.x + aSlider.w" :y2="aSlider.y" stroke="#D6DDF3" stroke-width="8" stroke-linecap="round" />
+        <circle
+          v-for="d in ALPHA_DETENTS"
+          :key="`det-${d}`"
+          :cx="aSlider.x + aSlider.w * alphaDetentFrac(d)" :cy="aSlider.y"
+          r="1.7" fill="#FFFFFF" fill-opacity="0.9"
+        />
+        <line
+          :x1="aSlider.x" :y1="aSlider.y"
+          :x2="aSlider.x + aSlider.w * alphaDetentFrac(alphaSel)" :y2="aSlider.y"
+          :stroke="PALETTE.sampling" stroke-width="8" stroke-linecap="round"
+        />
+        <circle
+          :cx="aSlider.x + aSlider.w * alphaDetentFrac(alphaSel)" :cy="aSlider.y"
+          r="9.5" fill="#FFFFFF" :stroke="PALETTE.samplingDark" stroke-width="2"
+        />
+      </g>
     </svg>
+    <RfFigLabel :x="aSlider.x + aSlider.w + 16" :y="aSlider.y - 12" :w="100" :vb-h="height">
+      <div class="srfg-readout" v-html="alphaReadout"></div>
+    </RfFigLabel>
   </div>
 </template>
 
 <style scoped>
 .srfg-wrap {
+  position: relative;
   width: 100%;
   margin-top: 0.1rem;
 }
@@ -334,7 +454,22 @@ onUnmounted(() => {
   height: auto;
 }
 
-.srfg-play {
+.srfg-play,
+.srfg-slider {
   cursor: pointer;
+}
+
+.srfg-slider-text {
+  fill: #536073;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.srfg-readout {
+  color: #253a88;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.9;
+  white-space: nowrap;
 }
 </style>

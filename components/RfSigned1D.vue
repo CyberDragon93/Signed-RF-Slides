@@ -23,6 +23,7 @@ import {
   SCHEMA, DENSITY, PALETTE, lcg, randn, gaussianPdf, branchPdf,
   signedDensity, boundaryCurves, zeroBranches, quantileSeeds, simulateTrajectories,
   pairTrajectories, histogramDensity,
+  ALPHA_DETENTS, alphaDetentFrac,
 } from './signedRfMath.js'
 
 const props = defineProps({
@@ -129,8 +130,6 @@ const EV_CX1 = 700
 const EV_SRC_BASE = 100
 const EV_STRIP_X = 706
 const EV_STRIP_W = 158
-const EV_ALPHA_LO = 0.2
-const EV_ALPHA_HI = 2.0
 
 const evPy1 = computed(() => props.height - 72)
 const evPh = computed(() => evPy1.value - EV_PY0)
@@ -168,17 +167,9 @@ function interpPts(pts, t) {
   return span > 0 ? xs[lo] + (xs[hi] - xs[lo]) * (t - ts[lo]) / span : xs[lo]
 }
 
-// The signed-weight slider snaps to fixed detents: each level's geometry is
-// computed once and cached, so scrubbing alpha stays fluid instead of
-// re-deriving the whole world per pixel of drag.
-const ALPHA_DETENTS = [0.25, 0.5, 0.85, 1.0, 1.25, 1.5, 1.75, 2.0]
-function snapAlpha(v) {
-  let best = ALPHA_DETENTS[0]
-  for (const d of ALPHA_DETENTS) {
-    if (Math.abs(d - v) < Math.abs(best - v)) best = d
-  }
-  return best
-}
+// The signed-weight slider snaps to the shared detent ladder: each level's
+// geometry is computed once and cached, so scrubbing alpha stays fluid
+// instead of re-deriving the whole world per pixel of drag.
 const worldKey = props.world === 'density' ? 'd' : 's'
 
 const boundaries = computed(() => srfMemoGet(
@@ -784,8 +775,8 @@ function setAlphaFromX(x) {
     // Snap to the detent ladder and commit immediately: each level is cached
     // after its first computation, so crossing detents swaps data in place.
     const s = evASlider.value
-    const raw = EV_ALPHA_LO + (EV_ALPHA_HI - EV_ALPHA_LO) * clamp((x - s.x) / s.w)
-    const det = snapAlpha(raw)
+    const frac = clamp((x - s.x) / s.w)
+    const det = ALPHA_DETENTS[Math.round(frac * (ALPHA_DETENTS.length - 1))]
     if (det !== alphaLive.value) {
       alphaLive.value = det
       alphaCommit()
@@ -1125,22 +1116,22 @@ onUnmounted(() => {
           <line :x1="evTSlider.x" :y1="evTSlider.y" :x2="evTSlider.x + evTSlider.w * clamp(tCur)" :y2="evTSlider.y" :stroke="PALETTE.sampling" stroke-width="8" stroke-linecap="round" />
           <circle :cx="evTSlider.x + evTSlider.w * clamp(tCur)" :cy="evTSlider.y" r="10.5" fill="#FFFFFF" :stroke="PALETTE.samplingDark" stroke-width="2.2" />
         </g>
-        <g v-if="!isSimulate" class="srf-slider" @pointerdown.prevent="handleAlphaDown">
+        <g class="srf-slider" @pointerdown.prevent="handleAlphaDown">
           <text :x="evASlider.x - 12" :y="evASlider.y + 4" text-anchor="end" class="srf-slider-text">signed weight</text>
           <line :x1="evASlider.x" :y1="evASlider.y" :x2="evASlider.x + evASlider.w" :y2="evASlider.y" stroke="#D6DDF3" stroke-width="8" stroke-linecap="round" />
           <circle
             v-for="d in ALPHA_DETENTS"
             :key="`det-${d}`"
-            :cx="evASlider.x + evASlider.w * clamp((d - EV_ALPHA_LO) / (EV_ALPHA_HI - EV_ALPHA_LO))" :cy="evASlider.y"
+            :cx="evASlider.x + evASlider.w * alphaDetentFrac(d)" :cy="evASlider.y"
             r="1.7" fill="#FFFFFF" fill-opacity="0.9"
           />
           <line
             :x1="evASlider.x" :y1="evASlider.y"
-            :x2="evASlider.x + evASlider.w * clamp((alphaLive - EV_ALPHA_LO) / (EV_ALPHA_HI - EV_ALPHA_LO))" :y2="evASlider.y"
+            :x2="evASlider.x + evASlider.w * alphaDetentFrac(alphaLive)" :y2="evASlider.y"
             :stroke="PALETTE.sampling" stroke-width="8" stroke-linecap="round"
           />
           <circle
-            :cx="evASlider.x + evASlider.w * clamp((alphaLive - EV_ALPHA_LO) / (EV_ALPHA_HI - EV_ALPHA_LO))" :cy="evASlider.y"
+            :cx="evASlider.x + evASlider.w * alphaDetentFrac(alphaLive)" :cy="evASlider.y"
             r="10.5" fill="#FFFFFF" :stroke="PALETTE.samplingDark" stroke-width="2.2"
           />
         </g>
@@ -1221,7 +1212,7 @@ onUnmounted(() => {
       <RfFigLabel :x="evTSlider.x + evTSlider.w + 16" :y="evTSlider.y - 13" :w="86" :vb-h="height">
         <div class="srf-readout" v-html="tReadout"></div>
       </RfFigLabel>
-      <RfFigLabel v-if="!isSimulate" :x="evASlider.x + evASlider.w + 16" :y="evASlider.y - 13" :w="110" :vb-h="height">
+      <RfFigLabel :x="evASlider.x + evASlider.w + 16" :y="evASlider.y - 13" :w="110" :vb-h="height">
         <div class="srf-readout" v-html="alphaReadout"></div>
       </RfFigLabel>
     </template>

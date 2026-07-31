@@ -164,6 +164,33 @@ export function signedVelocity(x, t, alpha, setup) {
   return Math.max(-V_CLIP, Math.min(V_CLIP, v))
 }
 
+// ---- Alpha detents ---------------------------------------------------------
+// Shared ladder for the interactive signed-weight sliders: a wide span with
+// snapping, so every level's geometry can be computed once and cached.
+export const ALPHA_DETENTS = [0, 0.5, 1, 2, 5, 10]
+
+export function snapAlphaDetent(v) {
+  let best = ALPHA_DETENTS[0]
+  for (const d of ALPHA_DETENTS) {
+    if (Math.abs(d - v) < Math.abs(best - v)) best = d
+  }
+  return best
+}
+
+// Piecewise-linear position of alpha on the detent track: detents sit at
+// equal spacing regardless of their numeric gaps (0.5 -> 1 spans as much
+// track as 5 -> 10), and off-ladder values land between their neighbours.
+export function alphaDetentFrac(a) {
+  const n = ALPHA_DETENTS.length
+  if (a <= ALPHA_DETENTS[0]) return 0
+  for (let i = 1; i < n; i += 1) {
+    if (a <= ALPHA_DETENTS[i]) {
+      return (i - 1 + (a - ALPHA_DETENTS[i - 1]) / (ALPHA_DETENTS[i] - ALPHA_DETENTS[i - 1])) / (n - 1)
+    }
+  }
+  return 1
+}
+
 // ---- Boundaries ----------------------------------------------------------
 
 // All sign-change roots of pi_t^sign(x) = 0 along x at one time t.
