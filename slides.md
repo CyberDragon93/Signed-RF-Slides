@@ -135,19 +135,22 @@ Still an ordinary probability target — no sign in sight yet.
 
 <div class="h-8"></div>
 
-First rewrite the RF velocity itself — a conditional average is a **ratio of two expectations**:
+First rewrite the RF velocity itself. Conditioned on $X_t=x$ the slope is $X_1-X_0=\frac{X_1-x}{1-t}$,
+and for a Gaussian source the conditional average is an explicit **weighted vote of directions toward the data**:
 
 $$
 v_t^{\text{RF}}(x)
  =
- \mathbb{E}\left[X_1-X_0 \mid X_t=x\right]
+ \mathbb{E}\!\left[\frac{X_1-X_t}{1-t}\,\middle|\;X_t=x\right]
  =
- \frac{\overbrace{\mathbb{E}\left[(X_1-X_0)\,\delta(X_t-x)\right]}^{\textstyle\text{flux }\;\pi_t(x)\,v_t^{\text{RF}}(x)}}
-      {\underbrace{\mathbb{E}\left[\delta(X_t-x)\right]}_{\textstyle\text{density }\;\pi_t(x)}}.
+ \frac{\overbrace{\mathbb{E}_{X_1\sim\pi_1}\!\left[\,w_t(X_1,x)\,\frac{X_1-x}{1-t}\right]}^{\textstyle\propto\;\text{flux }\;\pi_t(x)\,v_t^{\text{RF}}(x)}}
+      {\underbrace{\mathbb{E}_{X_1\sim\pi_1}\!\left[\,w_t(X_1,x)\right]}_{\textstyle\propto\;\text{density }\;\pi_t(x)}}\,,
+\qquad
+w_t(X_1,x)=\rho\!\left(\frac{x-tX_1}{1-t}\right).
 $$
 
-Both are plain averages over the pair $(X_0,X_1)$ — **linear in the target** $\pi_1$.
-Feed in the mixture target, and numerator and denominator split branch by branch:
+The Gaussian weight $\rho(z)\propto e^{-\lVert z\rVert^2/2}$ scores how likely $X_1$'s straight path passes through $x$.
+Both entries are plain averages over the data — **linear in the target** $\pi_1$; the mixture splits branch by branch:
 
 $$
 v_t^{\omega}(x)
