@@ -122,7 +122,7 @@ One network, one regression — the baseline everything that follows builds on.
 - **Convex setting**: draw the target $X_1$ from a branch lottery, then run the usual RF construction.
 
 $$
-\pi_1^\omega
+\pi_1^{\mathtt{mix}}
   =
   (1-\omega)\pi_1^+ + \omega\pi_1^-,
   \qquad \omega\in[0,1].
@@ -132,72 +132,85 @@ Still an ordinary probability target — no sign in sight yet.
 
 ---
 
-# RF Velocity as a Weighted Vote
+# RF Velocity Under a Mixture Target
 
-<div class="h-16"></div>
+<div class="h-4"></div>
 
-Let the source $\pi_0$ have density $p_0$. Each endpoint $X_1\sim\pi_1$ votes for the direction $(X_1-x)/(1-t)$:
+From $X_t=(1-t)X_0+tX_1$,
+
+$$
+v_t^{\mathrm{RF}}(x)
+=\mathbb{E}\!\left[X_1-X_0\mid X_t=x\right]
+=\mathbb{E}\!\left[\frac{X_1-X_t}{1-t}\,\middle|\,X_t=x\right].
+$$
+
+Define the source coefficient $w_t(X_1,x)\coloneqq\pi_0\!\left((x-tX_1)/(1-t)\right)$.
+
+Then
 
 $$
 v_t^{\mathrm{RF}}(x)
 =
-\frac{\mathbb{E}_{X_1\sim\pi_1}\!\left[w_t(X_1,x)\,(X_1-x)/(1-t)\right]}
-     {\mathbb{E}_{X_1\sim\pi_1}\!\left[w_t(X_1,x)\right]}.
+\frac{\mathbb{E}_{\pi_1}\!\left[w_t(X_1,x)\,(X_1-x)/(1-t)\right]}
+     {\mathbb{E}_{\pi_1}\!\left[w_t(X_1,x)\right]}.
 $$
 
-<div class="mt-9"></div>
-
-The coefficient comes directly from the source density:
+For a mixture $\pi_1^{\mathtt{mix}}=(1-\omega)\pi_1^+ + \omega\pi_1^-$,
 
 $$
-w_t(X_1,x)
-\coloneqq
-p_0\!\left(\frac{x-tX_1}{1-t}\right).
+v_t^{\mathtt{mix}}(x)
+=
+\frac{
+(1-\omega)\,\mathbb{E}_{\pi_1^+}\!\left[w_t\,(X_1-x)/(1-t)\right]
++\omega\,\mathbb{E}_{\pi_1^-}\!\left[w_t\,(X_1-x)/(1-t)\right]
+}{
+(1-\omega)\,\mathbb{E}_{\pi_1^+}\!\left[w_t\right]
++\omega\,\mathbb{E}_{\pi_1^-}\!\left[w_t\right]
+}.
 $$
 
-<div class="mt-9"></div>
 
-> For a mixture target, expectation is linear in $\pi_1$: the numerator and denominator each split branch by branch. This is the form that extends beyond convexity.
+Let $(\pi_t^\pm,v_t^\pm)$ denote the RF marginal and velocity induced by $\pi_1^\pm$. Since $\mathbb{E}_{\pi_1^\pm}[w_t]=(1-t)^d\pi_t^\pm(x)$,
+
+$$
+v_t^{\mathtt{mix}}(x)
+=
+\frac{(1-\omega)\pi_t^+(x)v_t^+(x)+\omega\pi_t^-(x)v_t^-(x)}
+     {(1-\omega)\pi_t^+(x)+\omega\pi_t^-(x)}.
+$$
 
 ---
 
-# Marginal Preservation, Inherited
+# Pool Two RF Populations
 
-<div class="h-20"></div>
+<div class="h-12"></div>
 
-Solving the ODE $\dot Z_t = v_t^{\omega}(Z_t)$ from $Z_0\sim\pi_0$ preserves every marginal:
+Imagine a large batch of particles:
+
+- a fraction $1-\omega$ follows the $+$ branch;
+- a fraction $\omega$ follows the $-$ branch.
+
+At time $t$, the two groups have histograms $\pi_t^+$ and $\pi_t^-$. Pooling them gives
 
 $$
-Z_t \sim \pi_t^{\omega} \;\;\text{ for all } t\in[0,1],
-\qquad\text{in particular}\qquad
-Z_1 \sim \pi_1^{\omega}.
+\pi_t^{\mathtt{mix}}
+=
+(1-\omega)\pi_t^+ + \omega\pi_t^-.
 $$
 
-For $\omega\in[0,1]$, the marginal $\pi_t^{\omega}$ remains a **nonnegative, normalized density** at every $t$ — the dynamics define a standard probability flow.
+The velocity from the previous slide is exactly their **local mass-weighted average**: where more $+$ particles are present it is closer to $v_t^+$, and where more $-$ particles are present it is closer to $v_t^-$.
 
-<div class="mt-8"></div>
+So one ODE driven by $v_t^{\mathtt{mix}}$ moves the pooled cloud exactly as the two groups move together:
 
-> What happens when $\omega$ is allowed to be **negative**?
+$$
+Z_0\sim\pi_0
+\quad\Longrightarrow\quad
+Z_t\sim\pi_t^{\mathtt{mix}},
+\qquad
+Z_1\sim\pi_1^{\mathtt{mix}}.
+$$
 
----
-
-# What Negativity Should Mean
-
-<div class="h-16"></div>
-
-Many generative tasks *promote* a desirable $\pi^+$ while *suppressing* an undesirable $\pi^-$:
-
-- **Conditional generation** — match the target condition, avoid inconsistent outputs.
-- **Safety & alignment** — generate value-aligned outputs, exclude harmful ones.
-- **Preference learning** — steer toward preferred samples, away from dispreferred ones.
-
-The standard tool — sampling-time **guidance**, extrapolating between the two fields —
-remains largely *heuristic*: the induced sampling distribution is poorly understood.
-
-<div class="mt-4"></div>
-
-**Goal**: negativity should encode more than the absence of positive data —
-the target itself should specify **what to avoid**.
+For $\omega\in[0,1]$, this is an ordinary probability flow. What changes when $\omega<0$?
 
 ---
 layout: intro
@@ -211,7 +224,7 @@ Take the same RF formula, but extrapolate beyond convexity.
 
 # The Signed Target
 
-<RfSigned1D mode="target" :height="300" autoplay />
+<RfSignedEquation :height="320" autoplay />
 
 Set $\omega=-\alpha$ with $\alpha>0$. The terminal target becomes
 
