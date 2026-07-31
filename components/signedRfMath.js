@@ -302,18 +302,30 @@ export function pairTrajectories(pairTimes, alpha, setup, eps = 1e-4) {
 export function histogramDensity(values, nBins, domain) {
   const [lo, hi] = domain
   const w = (hi - lo) / nBins
-  const counts = new Float64Array(nBins)
+  if (values.length === 0) return []
+  // The sampled law is truncated at the reachable-region edge. Scanning from
+  // the negative side (high x) toward the positive side, the first sample
+  // marks that cutoff — anchor the bin grid on it, so the edge falls exactly
+  // on a bin boundary instead of mid-bin (which smears the shoulder and makes
+  // the histogram look shifted against the true density).
+  let edge = -Infinity
+  for (const v of values) {
+    if (v > edge) edge = v
+  }
+  if (edge > hi) edge = hi
+  const nDown = Math.max(1, Math.ceil((edge - lo) / w))
+  const counts = new Float64Array(nDown)
   let inside = 0
   for (const v of values) {
-    const b = Math.floor((v - lo) / w)
-    if (b >= 0 && b < nBins) {
+    const b = Math.floor((edge - v) / w)
+    if (b >= 0 && b < nDown) {
       counts[b] += 1
       inside += 1
     }
   }
   const bins = []
-  for (let b = 0; b < nBins; b++) {
-    bins.push({ x0: lo + b * w, x1: lo + (b + 1) * w, density: inside > 0 ? counts[b] / (inside * w) : 0 })
+  for (let b = 0; b < nDown; b++) {
+    bins.push({ x0: edge - (b + 1) * w, x1: edge - b * w, density: inside > 0 ? counts[b] / (inside * w) : 0 })
   }
   return bins
 }
