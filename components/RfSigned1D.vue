@@ -1,6 +1,17 @@
 <script>
 // Module-scope instance counter for unique SVG defs ids (deterministic, no randomness).
 let srfUidCounter = 0
+
+// Everything drawn for a given (world, alpha) is deterministic, so cache it
+// across drags, instances and pages: switching back to a visited detent is
+// then instant instead of re-running boundary root-finding, 400 RK4
+// trajectories and a canvas heat render.
+const srfMemo = new Map()
+function srfMemoGet(key, fn) {
+  if (!srfMemo.has(key)) srfMemo.set(key, fn())
+  return srfMemo.get(key)
+}
+const srfPrewarmed = new Set()
 </script>
 
 <script setup>
@@ -157,7 +168,23 @@ function interpPts(pts, t) {
   return span > 0 ? xs[lo] + (xs[hi] - xs[lo]) * (t - ts[lo]) / span : xs[lo]
 }
 
-const boundaries = computed(() => boundaryCurves(committedAlpha.value, WORLD, 160))
+// The signed-weight slider snaps to fixed detents: each level's geometry is
+// computed once and cached, so scrubbing alpha stays fluid instead of
+// re-deriving the whole world per pixel of drag.
+const ALPHA_DETENTS = [0.25, 0.5, 0.85, 1.0, 1.25, 1.5, 1.75, 2.0]
+function snapAlpha(v) {
+  let best = ALPHA_DETENTS[0]
+  for (const d of ALPHA_DETENTS) {
+    if (Math.abs(d - v) < Math.abs(best - v)) best = d
+  }
+  return best
+}
+const worldKey = props.world === 'density' ? 'd' : 's'
+
+const boundaries = computed(() => srfMemoGet(
+  `b|${worldKey}|${committedAlpha.value}`,
+  () => boundaryCurves(committedAlpha.value, WORLD, 160),
+))
 const zeroPts = computed(() => finitePts(boundaries.value.ts, boundaries.value.zero))
 const ghostPts = computed(() => finitePts(boundaries.value.ts, boundaries.value.ghost))
 
@@ -177,14 +204,21 @@ const ghostBoundaryPath = computed(() => boundaryPath(ghostPts.value))
 // wedge) draw every edge, not just the first root per time step.
 const zeroBranchPaths = computed(() => {
   const ys = yE.value
-  return zeroBranches(committedAlpha.value, WORLD, 140).map((line) => {
+  const branches = srfMemoGet(
+    `zb|${worldKey}|${committedAlpha.value}`,
+    () => zeroBranches(committedAlpha.value, WORLD, 140),
+  )
+  return branches.map((line) => {
     let d = ''
     for (const [t, xv] of line) d += (d ? 'L' : 'M') + tX(t).toFixed(1) + ',' + ys(xv).toFixed(1)
     return d
   })
 })
 
-const quantTraj = computed(() => simulateTrajectories(quantileSeeds(17), committedAlpha.value, WORLD, 480))
+const quantTraj = computed(() => srfMemoGet(
+  `qt|${worldKey}|${committedAlpha.value}`,
+  () => simulateTrajectories(quantileSeeds(17), committedAlpha.value, WORLD, 480),
+))
 
 function evTrajPath(times, arr, stride) {
   const ys = yE.value
@@ -422,9 +456,15 @@ const refLabelMinus = mathHtml('\\pi_1^-')
 const particles = ref(null)
 let particleJob = 0
 
-function computeParticles(alpha) {
-  if (typeof window === 'undefined') return
-  const job = ++particleJob
+// Chunked 400-path ensemble; results are cached per (world, alpha) so a
+// revisited detent resolves synchronously. `cancelled` lets the view job
+// abandon stale work; prewarm jobs always run to completion.
+function buildParticles(alpha, cancelled, done) {
+  const key = `pt|${worldKey}|${alpha}`
+  if (srfMemo.has(key)) {
+    done(srfMemo.get(key))
+    return
+  }
   const rand = lcg(97)
   const seeds = []
   for (let i = 0; i < 400; i += 1) seeds.push(randn(rand))
@@ -432,16 +472,52 @@ function computeParticles(alpha) {
   let times = null
   let i = 0
   const step = () => {
-    if (job !== particleJob) return
+    if (cancelled()) return
     const end = Math.min(i + 80, seeds.length)
     const res = simulateTrajectories(seeds.slice(i, end), alpha, WORLD, 320)
     times = res.times
     for (const p of res.paths) paths.push(p)
     i = end
-    if (i < seeds.length) setTimeout(step, 0)
-    else particles.value = { times, paths }
+    if (i < seeds.length) {
+      setTimeout(step, 0)
+    } else {
+      const pd = { times, paths, alpha }
+      srfMemo.set(key, pd)
+      done(pd)
+    }
   }
   step()
+}
+
+function computeParticles(alpha) {
+  if (typeof window === 'undefined') return
+  const job = ++particleJob
+  buildParticles(alpha, () => job !== particleJob, (pd) => {
+    particles.value = pd
+  })
+}
+
+// Warm the remaining detents in the background (once per world, shared by all
+// instances): after this, every slider position switches instantly.
+function prewarmDetents() {
+  if (typeof window === 'undefined' || srfPrewarmed.has(worldKey)) return
+  srfPrewarmed.add(worldKey)
+  const current = committedAlpha.value
+  const queue = [...ALPHA_DETENTS]
+    .filter(a => a !== current)
+    .sort((a, b) => Math.abs(a - current) - Math.abs(b - current))
+  const next = () => {
+    const a = queue.shift()
+    if (a === undefined) return
+    srfMemoGet(`b|${worldKey}|${a}`, () => boundaryCurves(a, WORLD, 160))
+    srfMemoGet(`zb|${worldKey}|${a}`, () => zeroBranches(a, WORLD, 140))
+    srfMemoGet(`qt|${worldKey}|${a}`, () => simulateTrajectories(quantileSeeds(17), a, WORLD, 480))
+    buildParticles(a, () => false, (pd) => {
+      srfMemoGet(`heat|${worldKey}|${a}`, () => renderEmpiricalHeat(pd))
+      setTimeout(next, 120)
+    })
+  }
+  setTimeout(next, 2500)
 }
 
 // Temporal smoothing: raw per-frame bins flicker as samples hop between the
@@ -506,7 +582,8 @@ const histBars = computed(() => {
 const empiricalHeatUrl = computed(() => {
   if (!isEmpirical.value) return ''
   const pd = particles.value
-  return pd ? renderEmpiricalHeat(pd) : ''
+  if (!pd) return ''
+  return srfMemoGet(`heat|${worldKey}|${pd.alpha}`, () => renderEmpiricalHeat(pd))
 })
 
 function renderEmpiricalHeat(pd) {
@@ -699,19 +776,20 @@ function alphaCommit() {
   if (committedAlpha.value !== alphaLive.value) committedAlpha.value = alphaLive.value
 }
 
-function scheduleAlphaCommit() {
-  if (commitTimer) clearTimeout(commitTimer)
-  commitTimer = setTimeout(alphaCommit, 200)
-}
-
 function setAlphaFromX(x) {
   if (isTargetMode.value) {
     const s = tgSlider.value
     alphaLive.value = TG_ALPHA_LO + (TG_ALPHA_HI - TG_ALPHA_LO) * clamp((x - s.x) / s.w)
   } else {
+    // Snap to the detent ladder and commit immediately: each level is cached
+    // after its first computation, so crossing detents swaps data in place.
     const s = evASlider.value
-    alphaLive.value = EV_ALPHA_LO + (EV_ALPHA_HI - EV_ALPHA_LO) * clamp((x - s.x) / s.w)
-    scheduleAlphaCommit()
+    const raw = EV_ALPHA_LO + (EV_ALPHA_HI - EV_ALPHA_LO) * clamp((x - s.x) / s.w)
+    const det = snapAlpha(raw)
+    if (det !== alphaLive.value) {
+      alphaLive.value = det
+      alphaCommit()
+    }
   }
 }
 
@@ -818,6 +896,8 @@ watch(particles, () => updateHist(1))
 
 onMounted(() => {
   if (!isTargetMode.value) computeParticles(committedAlpha.value)
+  const isPrintCtx = typeof window !== 'undefined' && /print/i.test(window.location.href)
+  if (isEmpirical.value && !isPrintCtx) prewarmDetents()
   // In Slidev's print/export context, freeze on the complete t=1 picture so
   // screenshots are deterministic; animate only in the live deck.
   const isPrint = typeof window !== 'undefined' && /print/i.test(window.location.href)
@@ -1048,6 +1128,12 @@ onUnmounted(() => {
         <g v-if="!isSimulate" class="srf-slider" @pointerdown.prevent="handleAlphaDown">
           <text :x="evASlider.x - 12" :y="evASlider.y + 4" text-anchor="end" class="srf-slider-text">signed weight</text>
           <line :x1="evASlider.x" :y1="evASlider.y" :x2="evASlider.x + evASlider.w" :y2="evASlider.y" stroke="#D6DDF3" stroke-width="8" stroke-linecap="round" />
+          <circle
+            v-for="d in ALPHA_DETENTS"
+            :key="`det-${d}`"
+            :cx="evASlider.x + evASlider.w * clamp((d - EV_ALPHA_LO) / (EV_ALPHA_HI - EV_ALPHA_LO))" :cy="evASlider.y"
+            r="1.7" fill="#FFFFFF" fill-opacity="0.9"
+          />
           <line
             :x1="evASlider.x" :y1="evASlider.y"
             :x2="evASlider.x + evASlider.w * clamp((alphaLive - EV_ALPHA_LO) / (EV_ALPHA_HI - EV_ALPHA_LO))" :y2="evASlider.y"
