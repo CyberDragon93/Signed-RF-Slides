@@ -7,6 +7,7 @@ let steqUidCounter = 0
 import * as d3 from 'd3'
 import katex from 'katex'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
+import RfFigLabel from './RfFigLabel.vue'
 import { DENSITY, PALETTE, branchPdf } from './signedRfMath.js'
 
 const props = defineProps({
@@ -167,11 +168,6 @@ onUnmounted(() => {
         </filter>
       </defs>
 
-      <!-- panel labels -->
-      <foreignObject v-for="(lb, i) in labels" :key="`lb-${i}`" :x="panelX[i]" y="4" :width="PANEL_W" height="28" pointer-events="none">
-        <div xmlns="http://www.w3.org/1999/xhtml" class="steq-label" :style="{ color: lb.color }" v-html="lb.html"></div>
-      </foreignObject>
-
       <!-- panels -->
       <g v-for="(px, i) in panelX" :key="`panel-${i}`">
         <rect
@@ -187,14 +183,6 @@ onUnmounted(() => {
           <text :x="xScales[i](tk)" :y="y1 + 15" text-anchor="middle" class="steq-tick">{{ tk }}</text>
         </g>
       </g>
-
-      <!-- operators between panels -->
-      <foreignObject :x="opX[0] - 20" :y="opMid - 20" width="40" height="40" pointer-events="none">
-        <div xmlns="http://www.w3.org/1999/xhtml" class="steq-op" v-html="opMinusHtml"></div>
-      </foreignObject>
-      <foreignObject :x="opX[1] - 20" :y="opMid - 20" width="40" height="40" pointer-events="none">
-        <div xmlns="http://www.w3.org/1999/xhtml" class="steq-op" v-html="opEqHtml"></div>
-      </foreignObject>
 
       <!-- panel 1: scaled positive branch -->
       <path :d="shapes.plusFill" :fill="PALETTE.sampling" opacity="0.2" />
@@ -225,16 +213,28 @@ onUnmounted(() => {
           :cx="slider.x + slider.w * clamp((alphaLive - ALPHA_LO) / (ALPHA_HI - ALPHA_LO))" :cy="slider.y"
           r="10.5" fill="#FFFFFF" :stroke="PALETTE.samplingDark" stroke-width="2.2"
         />
-        <foreignObject :x="slider.x + slider.w + 18" :y="slider.y - 13" width="110" height="26" pointer-events="none">
-          <div xmlns="http://www.w3.org/1999/xhtml" class="steq-readout" v-html="alphaReadout"></div>
-        </foreignObject>
       </g>
     </svg>
+
+    <!-- HTML label overlays (moved out of the SVG; see RfFigLabel.vue) -->
+    <RfFigLabel v-for="(lb, i) in labels" :key="`lb-${i}`" :x="panelX[i]" :y="4" :w="PANEL_W" :vb-h="height">
+      <div class="steq-label" :style="{ color: lb.color }" v-html="lb.html"></div>
+    </RfFigLabel>
+    <RfFigLabel :x="opX[0] - 20" :y="opMid - 20" :w="40" :vb-h="height">
+      <div class="steq-op" v-html="opMinusHtml"></div>
+    </RfFigLabel>
+    <RfFigLabel :x="opX[1] - 20" :y="opMid - 20" :w="40" :vb-h="height">
+      <div class="steq-op" v-html="opEqHtml"></div>
+    </RfFigLabel>
+    <RfFigLabel :x="slider.x + slider.w + 18" :y="slider.y - 13" :w="110" :vb-h="height">
+      <div class="steq-readout" v-html="alphaReadout"></div>
+    </RfFigLabel>
   </div>
 </template>
 
 <style scoped>
 .steq-wrap {
+  position: relative;
   width: 100%;
 }
 

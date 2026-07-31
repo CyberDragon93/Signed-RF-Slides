@@ -7,6 +7,7 @@ let srfUidCounter = 0
 import * as d3 from 'd3'
 import katex from 'katex'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import RfFigLabel from './RfFigLabel.vue'
 import {
   SCHEMA, DENSITY, PALETTE, lcg, randn, gaussianPdf, branchPdf,
   signedDensity, boundaryCurves, zeroBranches, quantileSeeds, simulateTrajectories,
@@ -877,16 +878,6 @@ onUnmounted(() => {
         <path :d="tgShapes.minus" fill="none" :stroke="PALETTE.negative" stroke-width="1.4" stroke-dasharray="3 2.1" stroke-linecap="round" />
         <path :d="tgShapes.signed" fill="none" :stroke="PALETTE.ink" stroke-width="2.2" stroke-linecap="round" />
 
-        <foreignObject :x="tgShapes.labels.plus.x" :y="tgShapes.labels.plus.y" width="118" height="26" pointer-events="none">
-          <div xmlns="http://www.w3.org/1999/xhtml" class="srf-math" :style="{ color: PALETTE.samplingDark }" v-html="tgLabelPlus"></div>
-        </foreignObject>
-        <foreignObject :x="tgShapes.labels.minus.x" :y="tgShapes.labels.minus.y" width="70" height="26" pointer-events="none">
-          <div xmlns="http://www.w3.org/1999/xhtml" class="srf-math" :style="{ color: PALETTE.negativeDark }" v-html="tgLabelMinus"></div>
-        </foreignObject>
-        <foreignObject :x="tgShapes.labels.signed.x" :y="tgShapes.labels.signed.y" width="96" height="26" pointer-events="none">
-          <div xmlns="http://www.w3.org/1999/xhtml" class="srf-math" :style="{ color: PALETTE.ink }" v-html="tgLabelSigned"></div>
-        </foreignObject>
-
         <g class="srf-slider" @pointerdown.prevent="handleAlphaDown">
           <text :x="tgSlider.x - 14" :y="tgSlider.y + 4" text-anchor="end" class="srf-slider-text">signed weight</text>
           <line :x1="tgSlider.x" :y1="tgSlider.y" :x2="tgSlider.x + tgSlider.w" :y2="tgSlider.y" stroke="#D6DDF3" stroke-width="8" stroke-linecap="round" />
@@ -899,9 +890,6 @@ onUnmounted(() => {
             :cx="tgSlider.x + tgSlider.w * clamp((alphaLive - TG_ALPHA_LO) / (TG_ALPHA_HI - TG_ALPHA_LO))" :cy="tgSlider.y"
             r="10.5" fill="#FFFFFF" :stroke="PALETTE.samplingDark" stroke-width="2.2"
           />
-          <foreignObject :x="tgSlider.x + tgSlider.w + 18" :y="tgSlider.y - 13" width="110" height="26" pointer-events="none">
-            <div xmlns="http://www.w3.org/1999/xhtml" class="srf-readout" v-html="alphaReadout"></div>
-          </foreignObject>
         </g>
       </g>
 
@@ -911,16 +899,6 @@ onUnmounted(() => {
           x="24" :y="EV_PY0 - 8" width="848" :height="evPh + 16" rx="10"
           :fill="PALETTE.panel" :stroke="PALETTE.panelBorder" :filter="`url(#${uid}-shadow)`"
         />
-
-        <foreignObject x="30" y="4" width="120" height="26" pointer-events="none">
-          <div xmlns="http://www.w3.org/1999/xhtml" class="srf-title" v-html="titleLeft"></div>
-        </foreignObject>
-        <foreignObject x="250" y="4" width="300" height="26" pointer-events="none">
-          <div xmlns="http://www.w3.org/1999/xhtml" class="srf-title srf-center" v-html="titleCenter"></div>
-        </foreignObject>
-        <foreignObject :x="EV_STRIP_X" y="4" width="180" height="26" pointer-events="none">
-          <div xmlns="http://www.w3.org/1999/xhtml" class="srf-title" v-html="titleRight"></div>
-        </foreignObject>
 
         <!-- center (t, x) panel -->
         <rect :x="EV_CX0" :y="EV_PY0" :width="EV_CX1 - EV_CX0" :height="evPh" fill="#FFFFFF" :stroke="PALETTE.grid" stroke-width="1" />
@@ -980,37 +958,6 @@ onUnmounted(() => {
           :stroke="PALETTE.ink" stroke-width="1.2" stroke-opacity="0.8"
         />
 
-        <!-- zone labels (paper callout styling), evolution only -->
-        <template v-if="isEvolution">
-          <foreignObject
-            v-for="z in zoneLabels"
-            :key="`zone-${z.id}`"
-            :x="z.x" :y="z.y - 13" width="64" height="27"
-            pointer-events="none"
-          >
-            <div
-              xmlns="http://www.w3.org/1999/xhtml"
-              class="srf-zone"
-              :style="{ color: z.color, borderColor: z.color }"
-              v-html="z.html"
-            ></div>
-          </foreignObject>
-        </template>
-
-        <!-- overlay: single chip near the start of the zero-set boundary -->
-        <foreignObject
-          v-if="omegaZeroLabel"
-          :x="omegaZeroLabel.x" :y="omegaZeroLabel.y" width="58" height="27"
-          pointer-events="none"
-        >
-          <div
-            xmlns="http://www.w3.org/1999/xhtml"
-            class="srf-zone"
-            :style="{ color: PALETTE.negativeDark, borderColor: PALETTE.negativeDark }"
-            v-html="omegaZeroHtml"
-          ></div>
-        </foreignObject>
-
         <!-- left strip: source density -->
         <path :d="srcShapes.area" :fill="PALETTE.source" opacity="0.14" />
         <path :d="srcShapes.line" fill="none" :stroke="PALETTE.source" stroke-width="2" stroke-linecap="round" />
@@ -1063,24 +1010,6 @@ onUnmounted(() => {
             :d="overlayStrip.line" fill="none"
             :stroke="PALETTE.ink" stroke-width="1.8" stroke-linecap="round"
           />
-          <template v-if="branchRefs">
-            <foreignObject :x="branchRefs.labelPlus.x" :y="branchRefs.labelPlus.y" width="44" height="27" pointer-events="none">
-              <div
-                xmlns="http://www.w3.org/1999/xhtml"
-                class="srf-zone"
-                :style="{ color: PALETTE.samplingDark, borderColor: PALETTE.samplingDark }"
-                v-html="refLabelPlus"
-              ></div>
-            </foreignObject>
-            <foreignObject :x="branchRefs.labelMinus.x" :y="branchRefs.labelMinus.y" width="44" height="27" pointer-events="none">
-              <div
-                xmlns="http://www.w3.org/1999/xhtml"
-                class="srf-zone"
-                :style="{ color: PALETTE.negativeDark, borderColor: PALETTE.negativeDark }"
-                v-html="refLabelMinus"
-              ></div>
-            </foreignObject>
-          </template>
         </template>
 
         <!-- recessive time axis labels -->
@@ -1115,9 +1044,6 @@ onUnmounted(() => {
           <line :x1="evTSlider.x" :y1="evTSlider.y" :x2="evTSlider.x + evTSlider.w" :y2="evTSlider.y" stroke="#D6DDF3" stroke-width="8" stroke-linecap="round" />
           <line :x1="evTSlider.x" :y1="evTSlider.y" :x2="evTSlider.x + evTSlider.w * clamp(tCur)" :y2="evTSlider.y" :stroke="PALETTE.sampling" stroke-width="8" stroke-linecap="round" />
           <circle :cx="evTSlider.x + evTSlider.w * clamp(tCur)" :cy="evTSlider.y" r="10.5" fill="#FFFFFF" :stroke="PALETTE.samplingDark" stroke-width="2.2" />
-          <foreignObject :x="evTSlider.x + evTSlider.w + 16" :y="evTSlider.y - 13" width="86" height="26" pointer-events="none">
-            <div xmlns="http://www.w3.org/1999/xhtml" class="srf-readout" v-html="tReadout"></div>
-          </foreignObject>
         </g>
         <g v-if="!isSimulate" class="srf-slider" @pointerdown.prevent="handleAlphaDown">
           <text :x="evASlider.x - 12" :y="evASlider.y + 4" text-anchor="end" class="srf-slider-text">signed weight</text>
@@ -1131,17 +1057,94 @@ onUnmounted(() => {
             :cx="evASlider.x + evASlider.w * clamp((alphaLive - EV_ALPHA_LO) / (EV_ALPHA_HI - EV_ALPHA_LO))" :cy="evASlider.y"
             r="10.5" fill="#FFFFFF" :stroke="PALETTE.samplingDark" stroke-width="2.2"
           />
-          <foreignObject :x="evASlider.x + evASlider.w + 16" :y="evASlider.y - 13" width="110" height="26" pointer-events="none">
-            <div xmlns="http://www.w3.org/1999/xhtml" class="srf-readout" v-html="alphaReadout"></div>
-          </foreignObject>
         </g>
       </g>
     </svg>
+
+    <!-- HTML label overlays (moved out of the SVG; see RfFigLabel.vue) -->
+    <template v-if="isTargetMode">
+      <RfFigLabel :x="tgShapes.labels.plus.x" :y="tgShapes.labels.plus.y" :w="118" :vb-h="height">
+        <div class="srf-math" :style="{ color: PALETTE.samplingDark }" v-html="tgLabelPlus"></div>
+      </RfFigLabel>
+      <RfFigLabel :x="tgShapes.labels.minus.x" :y="tgShapes.labels.minus.y" :w="70" :vb-h="height">
+        <div class="srf-math" :style="{ color: PALETTE.negativeDark }" v-html="tgLabelMinus"></div>
+      </RfFigLabel>
+      <RfFigLabel :x="tgShapes.labels.signed.x" :y="tgShapes.labels.signed.y" :w="96" :vb-h="height">
+        <div class="srf-math" :style="{ color: PALETTE.ink }" v-html="tgLabelSigned"></div>
+      </RfFigLabel>
+      <RfFigLabel :x="tgSlider.x + tgSlider.w + 18" :y="tgSlider.y - 13" :w="110" :vb-h="height">
+        <div class="srf-readout" v-html="alphaReadout"></div>
+      </RfFigLabel>
+    </template>
+    <template v-else>
+      <RfFigLabel :x="30" :y="4" :w="120" :vb-h="height">
+        <div class="srf-title" v-html="titleLeft"></div>
+      </RfFigLabel>
+      <RfFigLabel :x="250" :y="4" :w="300" :vb-h="height">
+        <div class="srf-title srf-center" v-html="titleCenter"></div>
+      </RfFigLabel>
+      <RfFigLabel :x="EV_STRIP_X" :y="4" :w="180" :vb-h="height">
+        <div class="srf-title" v-html="titleRight"></div>
+      </RfFigLabel>
+
+      <!-- zone labels (paper callout styling), evolution only -->
+      <template v-if="isEvolution">
+        <RfFigLabel
+          v-for="z in zoneLabels"
+          :key="`zone-${z.id}`"
+          :x="z.x" :y="z.y - 13" :w="64" :vb-h="height"
+        >
+          <div
+            class="srf-zone"
+            :style="{ color: z.color, borderColor: z.color }"
+            v-html="z.html"
+          ></div>
+        </RfFigLabel>
+      </template>
+
+      <!-- overlay: single chip near the start of the zero-set boundary -->
+      <RfFigLabel
+        v-if="omegaZeroLabel"
+        :x="omegaZeroLabel.x" :y="omegaZeroLabel.y" :w="58" :vb-h="height"
+      >
+        <div
+          class="srf-zone"
+          :style="{ color: PALETTE.negativeDark, borderColor: PALETTE.negativeDark }"
+          v-html="omegaZeroHtml"
+        ></div>
+      </RfFigLabel>
+
+      <!-- terminal branch reference labels (simulate mode) -->
+      <template v-if="!isEvolution && branchRefs">
+        <RfFigLabel :x="branchRefs.labelPlus.x" :y="branchRefs.labelPlus.y" :w="44" :vb-h="height">
+          <div
+            class="srf-zone"
+            :style="{ color: PALETTE.samplingDark, borderColor: PALETTE.samplingDark }"
+            v-html="refLabelPlus"
+          ></div>
+        </RfFigLabel>
+        <RfFigLabel :x="branchRefs.labelMinus.x" :y="branchRefs.labelMinus.y" :w="44" :vb-h="height">
+          <div
+            class="srf-zone"
+            :style="{ color: PALETTE.negativeDark, borderColor: PALETTE.negativeDark }"
+            v-html="refLabelMinus"
+          ></div>
+        </RfFigLabel>
+      </template>
+
+      <RfFigLabel :x="evTSlider.x + evTSlider.w + 16" :y="evTSlider.y - 13" :w="86" :vb-h="height">
+        <div class="srf-readout" v-html="tReadout"></div>
+      </RfFigLabel>
+      <RfFigLabel v-if="!isSimulate" :x="evASlider.x + evASlider.w + 16" :y="evASlider.y - 13" :w="110" :vb-h="height">
+        <div class="srf-readout" v-html="alphaReadout"></div>
+      </RfFigLabel>
+    </template>
   </div>
 </template>
 
 <style scoped>
 .srf-wrap {
+  position: relative;
   width: 100%;
   margin-top: 0.1rem;
 }

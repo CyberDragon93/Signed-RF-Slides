@@ -2,6 +2,7 @@
 import * as d3 from 'd3'
 import katex from 'katex'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
+import RfFigLabel from './RfFigLabel.vue'
 import {
   DENSITY,
   PALETTE,
@@ -268,9 +269,6 @@ onUnmounted(() => {
         />
         <text :x="X(tickX)" :y="layout.plot.bottom + 14" text-anchor="middle" class="rd-tick-text">{{ tickX }}</text>
       </g>
-      <foreignObject :x="layout.plot.right + 6" :y="layout.plot.bottom - 10" width="26" height="22">
-        <div xmlns="http://www.w3.org/1999/xhtml" class="rd-axis-label" v-html="xAxisLabel"></div>
-      </foreignObject>
 
       <!-- Zone fills under the signed curve (ghost + negative breathe) -->
       <path
@@ -339,37 +337,49 @@ onUnmounted(() => {
           :x1="z.mx" :y1="z.arrowY1" :x2="z.mx" :y2="z.arrowY2"
           :stroke="z.dark" stroke-width="1" :marker-end="`url(#rdArrow-${z.id})`"
         />
-        <foreignObject :x="z.mx - 92" :y="z.boxY" width="184" height="30">
-          <div xmlns="http://www.w3.org/1999/xhtml" class="rd-zone-row">
-            <span class="rd-zone-box" :style="{ color: z.dark, borderColor: z.dark }" v-html="z.labelHtml"></span>
-          </div>
-        </foreignObject>
       </g>
-
-      <!-- Direct curve labels (ink / muted, per the deck's text rules) -->
-      <foreignObject :x="signedLabelPos.x" :y="signedLabelPos.y" width="86" height="24">
-        <div xmlns="http://www.w3.org/1999/xhtml" class="rd-curve-label rd-curve-label--ink" v-html="signedLabel"></div>
-      </foreignObject>
-      <foreignObject :x="piPlusLabelPos.x" :y="piPlusLabelPos.y" width="52" height="24">
-        <div xmlns="http://www.w3.org/1999/xhtml" class="rd-curve-label" v-html="piPlusLabel"></div>
-      </foreignObject>
-      <foreignObject :x="piMinusLabelPos.x" :y="piMinusLabelPos.y" width="52" height="24">
-        <div xmlns="http://www.w3.org/1999/xhtml" class="rd-curve-label" v-html="piMinusLabel"></div>
-      </foreignObject>
-
-      <!-- Bottom annotations: decomposition + mass-balance identity -->
-      <foreignObject :x="(layout.plot.left + layout.plot.right) / 2 - 160" :y="layout.panel.y + layout.panel.h - 26" width="320" height="24">
-        <div xmlns="http://www.w3.org/1999/xhtml" class="rd-note rd-note--center" v-html="unionNote"></div>
-      </foreignObject>
-      <foreignObject :x="layout.plot.right - 300" :y="layout.panel.y + layout.panel.h - 26" width="300" height="24">
-        <div xmlns="http://www.w3.org/1999/xhtml" class="rd-note rd-note--right" v-html="massNote"></div>
-      </foreignObject>
     </svg>
+
+    <!-- x-axis label -->
+    <RfFigLabel :x="layout.plot.right + 6" :y="layout.plot.bottom - 10" :w="26" :vb-h="height">
+      <div class="rd-axis-label" v-html="xAxisLabel"></div>
+    </RfFigLabel>
+
+    <!-- Zone label boxes (arrows stay in the svg) -->
+    <RfFigLabel
+      v-for="z in zones.filter(zz => zz.labelHtml)"
+      :key="`zl-${z.id}`"
+      :x="z.mx - 92" :y="z.boxY" :w="184" :vb-h="height"
+    >
+      <div class="rd-zone-row">
+        <span class="rd-zone-box" :style="{ color: z.dark, borderColor: z.dark }" v-html="z.labelHtml"></span>
+      </div>
+    </RfFigLabel>
+
+    <!-- Direct curve labels (ink / muted, per the deck's text rules) -->
+    <RfFigLabel :x="signedLabelPos.x" :y="signedLabelPos.y" :w="86" :vb-h="height">
+      <div class="rd-curve-label rd-curve-label--ink" v-html="signedLabel"></div>
+    </RfFigLabel>
+    <RfFigLabel :x="piPlusLabelPos.x" :y="piPlusLabelPos.y" :w="52" :vb-h="height">
+      <div class="rd-curve-label" v-html="piPlusLabel"></div>
+    </RfFigLabel>
+    <RfFigLabel :x="piMinusLabelPos.x" :y="piMinusLabelPos.y" :w="52" :vb-h="height">
+      <div class="rd-curve-label" v-html="piMinusLabel"></div>
+    </RfFigLabel>
+
+    <!-- Bottom annotations: decomposition + mass-balance identity -->
+    <RfFigLabel :x="(layout.plot.left + layout.plot.right) / 2 - 160" :y="layout.panel.y + layout.panel.h - 26" :w="320" :vb-h="height">
+      <div class="rd-note rd-note--center" v-html="unionNote"></div>
+    </RfFigLabel>
+    <RfFigLabel :x="layout.plot.right - 300" :y="layout.panel.y + layout.panel.h - 26" :w="300" :vb-h="height">
+      <div class="rd-note rd-note--right" v-html="massNote"></div>
+    </RfFigLabel>
   </div>
 </template>
 
 <style scoped>
 .rd-wrap {
+  position: relative;
   width: 100%;
   margin-top: 0.1rem;
 }

@@ -10,6 +10,7 @@ import * as d3 from 'd3'
 import katex from 'katex'
 import { computed, onMounted, onUnmounted } from 'vue'
 import { ref } from 'vue'
+import RfFigLabel from './RfFigLabel.vue'
 import {
   DENSITY,
   PALETTE,
@@ -448,9 +449,6 @@ onUnmounted(() => {
       </defs>
 
       <!-- Source strip: pi_0 -->
-      <foreignObject :x="stripX - 16" :y="panelY - 30" :width="stripW + 40" height="24" class="pe-fo">
-        <div xmlns="http://www.w3.org/1999/xhtml" class="pe-src-label" v-html="sourceLabel"></div>
-      </foreignObject>
       <path :d="srcArea" fill="#4969E2" opacity="0.14" />
       <path :d="srcLine" fill="none" stroke="#4969E2" stroke-width="2" stroke-linecap="round" />
       <line
@@ -542,18 +540,6 @@ onUnmounted(() => {
         rx="8" fill="none" stroke="#D6DDF3" stroke-width="1"
       />
 
-      <!-- White-backed chip labels near the boundary curves -->
-      <foreignObject
-        v-for="lb in curveLabels"
-        :key="lb.key"
-        :x="lb.x" :y="lb.y" width="150" height="22"
-        class="pe-fo"
-      >
-        <div xmlns="http://www.w3.org/1999/xhtml" class="pe-curve-label" :class="lb.cls">
-          <span class="pe-chipbg" v-html="lb.html"></span>
-        </div>
-      </foreignObject>
-
       <!-- Callout: the forward reading of the boundary event -->
       <g v-if="callout">
         <path :d="callout.path" fill="none" stroke="#202124" stroke-width="1.1" :marker-end="`url(#${uid}-arrow)`" />
@@ -595,15 +581,7 @@ onUnmounted(() => {
           :cx="slider.x + slider.w * clamp(cursor)" :cy="slider.y"
           r="10.5" fill="#FFFFFF" :stroke="PALETTE.samplingDark" stroke-width="2.2"
         />
-        <foreignObject :x="slider.x + slider.w + 18" :y="slider.y - 13" width="96" height="26" class="pe-fo">
-          <div xmlns="http://www.w3.org/1999/xhtml" class="pe-readout" v-html="tReadout"></div>
-        </foreignObject>
       </g>
-
-      <!-- Legend -->
-      <foreignObject :x="panelX" :y="layout.legendY - 6" :width="panelW" height="26" class="pe-fo">
-        <div xmlns="http://www.w3.org/1999/xhtml" class="pe-legend" v-html="legendHtml"></div>
-      </foreignObject>
 
       <!-- Transparent overlay: drag to scrub t -->
       <rect
@@ -612,11 +590,35 @@ onUnmounted(() => {
         @pointerdown.prevent="handlePanelDown"
       />
     </svg>
+
+    <!-- HTML label overlays (moved out of the SVG; see RfFigLabel) -->
+    <RfFigLabel :x="stripX - 16" :y="panelY - 30" :w="stripW + 40" :vb-h="height">
+      <div class="pe-src-label" v-html="sourceLabel"></div>
+    </RfFigLabel>
+
+    <RfFigLabel
+      v-for="lb in curveLabels"
+      :key="lb.key"
+      :x="lb.x" :y="lb.y" :w="150" :vb-h="height"
+    >
+      <div class="pe-curve-label" :class="lb.cls">
+        <span class="pe-chipbg" v-html="lb.html"></span>
+      </div>
+    </RfFigLabel>
+
+    <RfFigLabel :x="slider.x + slider.w + 18" :y="slider.y - 13" :w="96" :vb-h="height">
+      <div class="pe-readout" v-html="tReadout"></div>
+    </RfFigLabel>
+
+    <RfFigLabel :x="panelX" :y="layout.legendY - 6" :w="panelW" :vb-h="height">
+      <div class="pe-legend" v-html="legendHtml"></div>
+    </RfFigLabel>
   </div>
 </template>
 
 <style scoped>
 .pe-wrap {
+  position: relative;
   width: 100%;
   margin-top: 0.1rem;
 }

@@ -2,6 +2,7 @@
 import * as d3 from 'd3'
 import katex from 'katex'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
+import RfFigLabel from './RfFigLabel.vue'
 
 const props = defineProps({
   height: { type: Number, default: 355 },
@@ -341,13 +342,6 @@ onUnmounted(() => {
         </linearGradient>
       </defs>
 
-      <foreignObject :x="layout.left.x - densityW" :y="layout.left.y - 29" :width="layout.left.w + densityW" height="26">
-        <div xmlns="http://www.w3.org/1999/xhtml" class="cm-panel-title" v-html="interpolationTitle"></div>
-      </foreignObject>
-      <foreignObject :x="layout.right.x" :y="layout.right.y - 29" :width="layout.right.w + densityW" height="26">
-        <div xmlns="http://www.w3.org/1999/xhtml" class="cm-panel-title" v-html="flowTitle"></div>
-      </foreignObject>
-
       <g v-for="panel in [layout.left, layout.right]" :key="`panel-${panel.x}`">
         <rect
           :x="panel.x"
@@ -407,24 +401,8 @@ onUnmounted(() => {
         <circle :cx="layout.right.x" :cy="valueY(sample.x0)" r="1.9" fill="#253A88" opacity="0.5" />
       </g>
 
-      <foreignObject :x="layout.left.x - densityW - 6" :y="layout.left.y - 1" width="80" height="28">
-        <div xmlns="http://www.w3.org/1999/xhtml" class="cm-label" v-html="sourceLabel"></div>
-      </foreignObject>
-      <foreignObject :x="layout.right.x + layout.right.w + 48" :y="valueY(plusTarget.mu) - 27" width="80" height="30">
-        <div xmlns="http://www.w3.org/1999/xhtml" class="cm-label cm-plus" v-html="plusLabel"></div>
-      </foreignObject>
-      <foreignObject :x="layout.right.x + layout.right.w + 48" :y="valueY(minusTarget.mu) - 4" width="80" height="30">
-        <div xmlns="http://www.w3.org/1999/xhtml" class="cm-label cm-minus" v-html="minusLabel"></div>
-      </foreignObject>
-      <foreignObject :x="layout.right.x + layout.right.w + 84" :y="layout.right.y + layout.right.h * 0.5 - 16" width="64" height="32">
-        <div xmlns="http://www.w3.org/1999/xhtml" class="cm-label cm-mix" v-html="mixLabel"></div>
-      </foreignObject>
-
       <g class="cm-slider" @pointerdown.prevent="handlePointerDown">
         <text x="232" :y="height - 24" text-anchor="end" class="cm-slider-text">weight of</text>
-        <foreignObject x="238" :y="height - 39" width="34" height="25">
-          <div xmlns="http://www.w3.org/1999/xhtml" class="cm-mini-math" v-html="minusLabel"></div>
-        </foreignObject>
         <line :x1="layout.slider.x" :y1="layout.slider.y" :x2="layout.slider.x + layout.slider.w" :y2="layout.slider.y" stroke="#D6DDF3" stroke-width="8" stroke-linecap="round" />
         <line :x1="layout.slider.x" :y1="layout.slider.y" :x2="layout.slider.x + layout.slider.w * alphaValue" :y2="layout.slider.y" stroke="#4969E2" stroke-width="8" stroke-linecap="round" />
         <circle :cx="layout.slider.x + layout.slider.w * alphaValue" :cy="layout.slider.y" r="10.5" fill="#FFFFFF" stroke="#253A88" stroke-width="2.2" />
@@ -432,11 +410,33 @@ onUnmounted(() => {
         <text x="700" :y="height - 24" class="cm-mass-text">plus {{ plusMass.toFixed(2) }} / minus {{ minusMass.toFixed(2) }}</text>
       </g>
     </svg>
+    <RfFigLabel :x="layout.left.x - densityW" :y="layout.left.y - 29" :w="layout.left.w + densityW" :vb-h="height">
+      <div class="cm-panel-title" v-html="interpolationTitle"></div>
+    </RfFigLabel>
+    <RfFigLabel :x="layout.right.x" :y="layout.right.y - 29" :w="layout.right.w + densityW" :vb-h="height">
+      <div class="cm-panel-title" v-html="flowTitle"></div>
+    </RfFigLabel>
+    <RfFigLabel :x="layout.left.x - densityW - 6" :y="layout.left.y - 1" :w="80" :vb-h="height">
+      <div class="cm-label" v-html="sourceLabel"></div>
+    </RfFigLabel>
+    <RfFigLabel :x="layout.right.x + layout.right.w + 48" :y="valueY(plusTarget.mu) - 27" :w="80" :vb-h="height">
+      <div class="cm-label cm-plus" v-html="plusLabel"></div>
+    </RfFigLabel>
+    <RfFigLabel :x="layout.right.x + layout.right.w + 48" :y="valueY(minusTarget.mu) - 4" :w="80" :vb-h="height">
+      <div class="cm-label cm-minus" v-html="minusLabel"></div>
+    </RfFigLabel>
+    <RfFigLabel :x="layout.right.x + layout.right.w + 84" :y="layout.right.y + layout.right.h * 0.5 - 16" :w="64" :vb-h="height">
+      <div class="cm-label cm-mix" v-html="mixLabel"></div>
+    </RfFigLabel>
+    <RfFigLabel :x="238" :y="height - 39" :w="34" :vb-h="height">
+      <div class="cm-mini-math" v-html="minusLabel"></div>
+    </RfFigLabel>
   </div>
 </template>
 
 <style scoped>
 .cm-wrap {
+  position: relative;
   width: 100%;
   margin-top: 0.1rem;
 }

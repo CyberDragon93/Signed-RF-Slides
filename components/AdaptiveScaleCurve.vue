@@ -2,6 +2,7 @@
 import * as d3 from 'd3'
 import katex from 'katex'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
+import RfFigLabel from './RfFigLabel.vue'
 import { PALETTE } from './signedRfMath.js'
 
 const props = defineProps({
@@ -104,9 +105,13 @@ const dotY = computed(() => yOfLambda(Math.min(dotLambda.value, lambdaMax)))
 const readoutPos = computed(() => {
   const p = layout.value.plot
   const flip = dotX.value > p.x0 + 0.55 * (p.x1 - p.x0)
+  let y = dotY.value - 34
+  // High-lambda frames: an above-the-dot label would land on the pole box in
+  // the top band — tuck it below the dot (and below the box) instead.
+  if (y < p.yTop + 56) y = Math.max(dotY.value + 16, p.yTop + 58)
   return {
     x: flip ? dotX.value - 126 : dotX.value + 16,
-    y: clamp(dotY.value - 34, p.yTop + 2, p.yBot - 30),
+    y: clamp(y, p.yTop + 2, p.yBot - 30),
   }
 })
 
@@ -287,13 +292,6 @@ onUnmounted(() => {
         stroke-linecap="round"
         opacity="0.9"
       />
-      <foreignObject :x="layout.plot.x1 - 170" :y="yOfLambda(1) - 19" width="166" height="18">
-        <div xmlns="http://www.w3.org/1999/xhtml" class="lg-ref-label" v-html="cfg1Label"></div>
-      </foreignObject>
-      <foreignObject :x="layout.plot.x1 - 170" :y="yOfLambda(3) - 19" width="166" height="18">
-        <div xmlns="http://www.w3.org/1999/xhtml" class="lg-ref-label" v-html="cfg3Label"></div>
-      </foreignObject>
-
       <!-- Recessive axes -->
       <line
         :x1="layout.plot.x0"
@@ -341,35 +339,11 @@ onUnmounted(() => {
         stroke-width="1.6"
         stroke-dasharray="4,3"
       />
-      <foreignObject :x="poleX - 18" :y="layout.plot.yBot + 4" width="86" height="20">
-        <div xmlns="http://www.w3.org/1999/xhtml" class="lg-pole-tick" v-html="poleTick"></div>
-      </foreignObject>
-      <foreignObject :x="poleX - 300" :y="layout.plot.yTop + 4" width="206" height="48">
-        <div xmlns="http://www.w3.org/1999/xhtml" class="lg-pole-box">
-          <div class="lg-pole-eq" v-html="poleLine1"></div>
-          <div class="lg-pole-sub" v-html="poleLine2"></div>
-        </div>
-      </foreignObject>
-
       <!-- Annotations -->
       <text :x="layout.plot.x0 + 14" :y="yOfLambda(4.45)" class="lg-annot">looks positive: guidance vanishes</text>
-      <foreignObject :x="poleX + 8" :y="yOfLambda(6.6)" width="126" height="36">
-        <div xmlns="http://www.w3.org/1999/xhtml" class="lg-annot-html">leans negative:<br />repulsion grows</div>
-      </foreignObject>
-
-      <!-- Axis labels -->
-      <foreignObject :x="layout.plot.x1 + 22" :y="layout.plot.yBot - 12" width="70" height="26">
-        <div xmlns="http://www.w3.org/1999/xhtml" class="lg-axis-label" v-html="xAxisLabel"></div>
-      </foreignObject>
-      <foreignObject :x="layout.plot.x0 - 34" :y="layout.panel.y - 30" width="90" height="28">
-        <div xmlns="http://www.w3.org/1999/xhtml" class="lg-axis-label" v-html="yAxisLabel"></div>
-      </foreignObject>
 
       <!-- Marker dot + readout -->
       <circle :cx="dotX" :cy="dotY" r="10" :fill="PALETTE.sampling" stroke="#FFFFFF" stroke-width="2.4" />
-      <foreignObject :x="readoutPos.x" :y="readoutPos.y" width="112" height="28">
-        <div xmlns="http://www.w3.org/1999/xhtml" class="lg-readout" v-html="lambdaReadout"></div>
-      </foreignObject>
 
       <!-- Pointer capture over the plot -->
       <rect
@@ -414,16 +388,44 @@ onUnmounted(() => {
           :stroke="PALETTE.samplingDark"
           stroke-width="2.2"
         />
-        <foreignObject :x="layout.slider.x + layout.slider.w + 18" :y="layout.slider.y - 12" width="110" height="26">
-          <div xmlns="http://www.w3.org/1999/xhtml" class="lg-alpha-readout" v-html="alphaReadout"></div>
-        </foreignObject>
       </g>
     </svg>
+    <RfFigLabel :x="layout.plot.x1 - 170" :y="yOfLambda(1) - 19" :w="166" :vb-h="height">
+      <div class="lg-ref-label" v-html="cfg1Label"></div>
+    </RfFigLabel>
+    <RfFigLabel :x="layout.plot.x1 - 170" :y="yOfLambda(3) - 19" :w="166" :vb-h="height">
+      <div class="lg-ref-label" v-html="cfg3Label"></div>
+    </RfFigLabel>
+    <RfFigLabel :x="poleX - 18" :y="layout.plot.yBot + 4" :w="86" :vb-h="height">
+      <div class="lg-pole-tick" v-html="poleTick"></div>
+    </RfFigLabel>
+    <RfFigLabel :x="poleX - 300" :y="layout.plot.yTop + 4" :w="206" :vb-h="height">
+      <div class="lg-pole-box">
+        <div class="lg-pole-eq" v-html="poleLine1"></div>
+        <div class="lg-pole-sub" v-html="poleLine2"></div>
+      </div>
+    </RfFigLabel>
+    <RfFigLabel :x="poleX + 8" :y="yOfLambda(6.6)" :w="126" :vb-h="height">
+      <div class="lg-annot-html">leans negative:<br />repulsion grows</div>
+    </RfFigLabel>
+    <RfFigLabel :x="layout.plot.x1 + 22" :y="layout.plot.yBot - 12" :w="70" :vb-h="height">
+      <div class="lg-axis-label" v-html="xAxisLabel"></div>
+    </RfFigLabel>
+    <RfFigLabel :x="layout.plot.x0 - 34" :y="layout.panel.y - 30" :w="90" :vb-h="height">
+      <div class="lg-axis-label" v-html="yAxisLabel"></div>
+    </RfFigLabel>
+    <RfFigLabel :x="readoutPos.x" :y="readoutPos.y" :w="112" :vb-h="height">
+      <div class="lg-readout" v-html="lambdaReadout"></div>
+    </RfFigLabel>
+    <RfFigLabel :x="layout.slider.x + layout.slider.w + 18" :y="layout.slider.y - 12" :w="110" :vb-h="height">
+      <div class="lg-alpha-readout" v-html="alphaReadout"></div>
+    </RfFigLabel>
   </div>
 </template>
 
 <style scoped>
 .lg-wrap {
+  position: relative;
   width: 100%;
   margin-top: 0.1rem;
 }

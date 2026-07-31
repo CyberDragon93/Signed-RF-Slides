@@ -2,6 +2,7 @@
 import * as d3 from 'd3'
 import katex from 'katex'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import RfFigLabel from './RfFigLabel.vue'
 
 const props = defineProps({
   height: { type: Number, default: 455 },
@@ -509,13 +510,6 @@ onUnmounted(() => {
         <line :x1="timeToX(panel, t)" :y1="panel.y + 4" :x2="timeToX(panel, t)" :y2="panel.y + panel.h - 2" stroke="#172B78" stroke-width="1.6" stroke-dasharray="5 5" />
       </g>
 
-      <foreignObject :x="layout.leftTop.x - sideDensityW" :y="layout.leftTop.y - 28" :width="layout.leftTop.w + sideDensityW" height="25">
-        <div xmlns="http://www.w3.org/1999/xhtml" class="mp-panel-title-html" v-html="interpolationTitle"></div>
-      </foreignObject>
-      <foreignObject :x="layout.rightTop.x" :y="layout.rightTop.y - 28" :width="layout.rightTop.w + sideDensityW" height="25">
-        <div xmlns="http://www.w3.org/1999/xhtml" class="mp-panel-title-html" v-html="odeTitle"></div>
-      </foreignObject>
-
       <g>
         <path
           v-for="sample in samples"
@@ -690,15 +684,6 @@ onUnmounted(() => {
         <line :x1="layout.rightDensity.x" :y1="layout.rightDensity.y + layout.rightDensity.h" :x2="layout.rightDensity.x + layout.rightDensity.w" :y2="layout.rightDensity.y + layout.rightDensity.h" stroke="#253A88" stroke-opacity="0.24" />
       </g>
 
-      <foreignObject :x="layout.leftDensity.x" :y="layout.leftDensity.y - 28" :width="layout.leftDensity.w" height="25">
-        <div xmlns="http://www.w3.org/1999/xhtml" class="mp-density-title-html" v-html="marginalXLabel"></div>
-      </foreignObject>
-      <foreignObject :x="layout.rightDensity.x" :y="layout.rightDensity.y - 28" :width="layout.rightDensity.w" height="25">
-        <div xmlns="http://www.w3.org/1999/xhtml" class="mp-density-title-html" v-html="marginalZLabel"></div>
-      </foreignObject>
-      <foreignObject :x="width / 2 - 35" :y="layout.leftDensity.y + layout.leftDensity.h * 0.56 - 50" width="70" height="34">
-        <div xmlns="http://www.w3.org/1999/xhtml" class="mp-pi-label" v-html="piLabel"></div>
-      </foreignObject>
       <text :x="width / 2" :y="layout.leftDensity.y + layout.leftDensity.h * 0.56" text-anchor="middle" class="mp-equals">=</text>
 
       <g class="mp-slider" @pointerdown.prevent="handleSliderDown">
@@ -732,11 +717,27 @@ onUnmounted(() => {
         <text :x="layout.slider.x + layout.slider.w + 18" :y="layout.slider.y + 5" class="mp-slider-label">1</text>
       </g>
     </svg>
+    <RfFigLabel :x="layout.leftTop.x - sideDensityW" :y="layout.leftTop.y - 28" :w="layout.leftTop.w + sideDensityW" :vb-h="height">
+      <div class="mp-panel-title-html" v-html="interpolationTitle"></div>
+    </RfFigLabel>
+    <RfFigLabel :x="layout.rightTop.x" :y="layout.rightTop.y - 28" :w="layout.rightTop.w + sideDensityW" :vb-h="height">
+      <div class="mp-panel-title-html" v-html="odeTitle"></div>
+    </RfFigLabel>
+    <RfFigLabel :x="layout.leftDensity.x" :y="layout.leftDensity.y - 28" :w="layout.leftDensity.w" :vb-h="height">
+      <div class="mp-density-title-html" v-html="marginalXLabel"></div>
+    </RfFigLabel>
+    <RfFigLabel :x="layout.rightDensity.x" :y="layout.rightDensity.y - 28" :w="layout.rightDensity.w" :vb-h="height">
+      <div class="mp-density-title-html" v-html="marginalZLabel"></div>
+    </RfFigLabel>
+    <RfFigLabel :x="width / 2 - 35" :y="layout.leftDensity.y + layout.leftDensity.h * 0.56 - 50" :w="70" :vb-h="height">
+      <div class="mp-pi-label" v-html="piLabel"></div>
+    </RfFigLabel>
   </div>
 </template>
 
 <style scoped>
 .mp-wrap {
+  position: relative;
   width: 100%;
   margin-top: 0.15rem;
 }
