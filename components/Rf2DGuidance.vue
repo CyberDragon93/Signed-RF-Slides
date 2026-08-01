@@ -36,13 +36,10 @@ const DATASETS = [
   { id: 'ring4', label: 'ring4' },
   { id: 'unsafe_arc', label: 'arc' },
   { id: 'unsafe_sector', label: 'sector' },
-  { id: 'sector_swap', label: 'swap' },
   { id: 'unsafe_core', label: 'core' },
   { id: 'ring_vs_core', label: 'ring6' },
   { id: 'plus_two_minus_one', label: '2v1' },
-  { id: 'plus_one_minus_two', label: '1v2' },
   { id: 'plus_three_minus_one', label: '3v1' },
-  { id: 'plus_one_minus_three', label: '1v3' },
   { id: 'cross', label: 'cross' },
   { id: 'triangles', label: 'tri' },
   { id: 'teaser_arc3', label: 'arc3' },
@@ -65,6 +62,8 @@ const CHIP_META = (() => {
 const width = 900
 const uid = `g2d-${g2dUidCounter++}`
 const N_PARTICLES = 260
+// Broad single-Gaussian toys read better with a denser cloud.
+const PARTICLE_COUNTS = { diagonal_point: 520, memo_points: 520 }
 const SWEEP = 7.0
 const HOLD = 2.2
 const CYCLE = SWEEP + HOLD
@@ -162,7 +161,8 @@ function renderPanelBg(w2, a, view, maxAbs) {
 function buildSlice(datasetId) {
   const w2 = WORLDS_2D[datasetId]
   const view = viewOf(w2)
-  const seeds = seeds2d(N_PARTICLES)
+  const nP = PARTICLE_COUNTS[datasetId] || N_PARTICLES
+  const seeds = seeds2d(nP)
 
   // Shared colour normalization across every panel of the figure, as in the
   // paper: max |signed density| over all sweep values on the view grid.
@@ -186,8 +186,8 @@ function buildSlice(datasetId) {
       const s = SWEEP_VALUES_2D[col]
       const frames = simulateGuidance2d(seeds, w2, mode, s)
       const last = frames[frames.length - 1]
-      const negMask = new Uint8Array(N_PARTICLES)
-      for (let i = 0; i < N_PARTICLES; i += 1) {
+      const negMask = new Uint8Array(nP)
+      for (let i = 0; i < nP; i += 1) {
         if (signedDensity2d(last[2 * i], last[2 * i + 1], 1, w2, s) < 0) negMask[i] = 1
       }
       panels.push({
@@ -273,7 +273,8 @@ function draw() {
     ctx.strokeStyle = PARTICLE_EDGE
     ctx.fillStyle = PARTICLE_FILL
     const r = 1.55 * S
-    for (let i = 0; i < N_PARTICLES; i += 1) {
+    const nP = A.length >> 1
+    for (let i = 0; i < nP; i += 1) {
       const x = A[2 * i] + (B[2 * i] - A[2 * i]) * fr
       const y = A[2 * i + 1] + (B[2 * i + 1] - A[2 * i + 1]) * fr
       const px = sx(x)
@@ -288,7 +289,8 @@ function draw() {
       ctx.lineWidth = 0.85 * S
       const arm = 2.4 * S
       const F = p.frames[N_STEPS_2D]
-      for (let i = 0; i < N_PARTICLES; i += 1) {
+      const nF = F.length >> 1
+      for (let i = 0; i < nF; i += 1) {
         if (!p.negMask[i]) continue
         const px = sx(F[2 * i])
         const py = sy(F[2 * i + 1])
