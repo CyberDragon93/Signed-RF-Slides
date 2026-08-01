@@ -11,29 +11,68 @@
 
 // ---- Presets (PRESET_LIBRARY, sigma = 0.6 everywhere) ----------------------
 
-function world(plusMeans, plusWeights, minusMeans, minusWeights, sigma = 0.6) {
+function world(plusMeans, plusWeights, minusMeans, minusWeights, plusSigma = 0.6, minusSigma = 0.6) {
   const norm = ws => {
     const s = ws.reduce((a, b) => a + b, 0)
     return ws.map(w => w / s)
   }
+  const sig = (v, means) => (Array.isArray(v) ? v : means.map(() => v))
   return {
-    plus: { means: plusMeans, weights: norm(plusWeights), sigmas: plusMeans.map(() => sigma) },
-    minus: { means: minusMeans, weights: norm(minusWeights), sigmas: minusMeans.map(() => sigma) },
+    plus: { means: plusMeans, weights: norm(plusWeights), sigmas: sig(plusSigma, plusMeans) },
+    minus: { means: minusMeans, weights: norm(minusWeights), sigmas: sig(minusSigma, minusMeans) },
   }
 }
 
+// The paper's full PRESET_LIBRARY (paper_2d_fancy_core.py), sigma = 0.6
+// unless a preset overrides it.
 export const WORLDS_2D = {
-  shared_modes: world(
-    [[-3.2, 0.2], [-1.6, 2.2], [1.2, 2.4], [3.0, 0.4], [1.8, -2.0], [-1.4, -2.3]],
-    [1, 1, 1, 1, 1, 1],
-    [[1.2, 2.4], [3.0, 0.4], [1.8, -2.0], [0.0, 0.2]],
-    [0.23, 0.27, 0.23, 0.27],
+  plus_two_minus_one: world(
+    [[-2.0, 0.0], [2.0, 0.0]], [1, 1],
+    [[2.0, 0.0]], [1],
+  ),
+  plus_one_minus_two: world(
+    [[2.0, 0.0]], [1],
+    [[-2.0, 0.0], [2.0, 0.0]], [1, 1],
+  ),
+  plus_three_minus_one: world(
+    [[-2.0, 0.0], [2.0, 0.0], [0.0, 2.2]], [1, 1, 1],
+    [[2.0, 0.0]], [1],
+  ),
+  plus_one_minus_three: world(
+    [[2.0, 0.0]], [1],
+    [[-2.0, 0.0], [2.0, 0.0], [0.0, 2.2]], [1, 1, 1],
   ),
   ring4: world(
     [[-2.0, 0.0], [2.0, 0.0], [0.0, 2.0], [0.0, -2.0]],
     [1, 1, 1, 1],
     [[2.0, 0.0], [0.0, 2.0]],
     [0.5, 0.5],
+  ),
+  cross: world(
+    [[0.0, -2.0], [0.0, 2.0]], [1, 1],
+    [[-2.0, 0.0], [2.0, 0.0]], [1, 1],
+  ),
+  triangles: world(
+    [[-2.0, -1.2], [-0.5, 1.6], [1.5, -1.0]], [1, 1, 1],
+    [[-0.5, -1.8], [1.8, 0.8], [3.0, -1.2]], [1, 1, 1],
+  ),
+  shared_modes: world(
+    [[-3.2, 0.2], [-1.6, 2.2], [1.2, 2.4], [3.0, 0.4], [1.8, -2.0], [-1.4, -2.3]],
+    [1, 1, 1, 1, 1, 1],
+    [[1.2, 2.4], [3.0, 0.4], [1.8, -2.0], [0.0, 0.2]],
+    [0.23, 0.27, 0.23, 0.27],
+  ),
+  ring_vs_core: world(
+    [[-3.0, 0.0], [-1.5, 2.6], [1.5, 2.6], [3.0, 0.0], [1.5, -2.6], [-1.5, -2.6]],
+    [1, 1, 1, 1, 1, 1],
+    [[-0.7, 0.2], [0.9, 0.5], [0.1, -1.0]],
+    [0.34, 0.33, 0.33],
+  ),
+  unsafe_core: world(
+    [[-3.0, 0.0], [-2.1, 2.1], [0.0, 3.0], [2.1, 2.1], [3.0, 0.0], [2.1, -2.1], [0.0, -3.0], [-2.1, -2.1]],
+    [1, 1, 1, 1, 1, 1, 1, 1],
+    [[0.0, 0.0], [0.9, 0.0], [0.3, 0.9], [-0.5, -0.6]],
+    [0.35, 0.25, 0.20, 0.20],
   ),
   unsafe_arc: world(
     [[-3.0, 0.0], [-2.1, 2.1], [0.0, 3.0], [2.1, 2.1], [3.0, 0.0], [2.1, -2.1], [0.0, -3.0], [-2.1, -2.1]],
@@ -46,6 +85,31 @@ export const WORLDS_2D = {
     [1, 1, 1, 1, 1, 1, 1],
     [[2.4, 1.8], [3.2, -0.1], [1.7, -2.2]],
     [0.40, 0.35, 0.25],
+  ),
+  sector_swap: world(
+    [[2.4, 1.8], [3.2, -0.1], [1.7, -2.2]],
+    [0.40, 0.35, 0.25],
+    [[-3.0, 1.5], [-2.2, -1.6], [-0.4, 2.3], [0.0, 0.0], [1.7, -2.2], [2.4, 1.8], [3.2, -0.1]],
+    [1, 1, 1, 1, 1, 1, 1],
+  ),
+  diagonal_point: world(
+    [[0.0, 0.0]], [1],
+    [[1.05, 1.05]], [1],
+    [1.25], [0.08],
+  ),
+  teaser_arc3: world(
+    [[2.0, 0.0], [0.0, 2.0], [-2.0, 0.0]], [1, 1, 1],
+    [[0.0, 2.0]], [1],
+  ),
+  five_negative: world(
+    [[0.0, 0.0]], [1],
+    [[0.0, 0.0], [-2.1, 2.1], [2.1, 2.1], [-2.1, -2.1], [2.1, -2.1]],
+    [1, 1, 1, 1, 1],
+  ),
+  memo_points: world(
+    [[0.0, 0.0]], [1],
+    [[-0.9, -0.9], [0.0, 0.0], [0.9, 0.9]], [1, 1, 1],
+    [1.25], [0.08, 0.08, 0.08],
   ),
 }
 

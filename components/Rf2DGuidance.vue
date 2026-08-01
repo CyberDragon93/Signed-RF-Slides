@@ -30,13 +30,37 @@ const props = defineProps({
   autoplay: { type: Boolean, default: true },
 })
 
-// ---- Datasets ---------------------------------------------------------------
+// ---- Datasets: the paper's full preset library --------------------------------
 const DATASETS = [
   { id: 'shared_modes', label: 'shared' },
-  { id: 'ring4', label: 'ring' },
+  { id: 'ring4', label: 'ring4' },
   { id: 'unsafe_arc', label: 'arc' },
   { id: 'unsafe_sector', label: 'sector' },
+  { id: 'sector_swap', label: 'swap' },
+  { id: 'unsafe_core', label: 'core' },
+  { id: 'ring_vs_core', label: 'ring6' },
+  { id: 'plus_two_minus_one', label: '2v1' },
+  { id: 'plus_one_minus_two', label: '1v2' },
+  { id: 'plus_three_minus_one', label: '3v1' },
+  { id: 'plus_one_minus_three', label: '1v3' },
+  { id: 'cross', label: 'cross' },
+  { id: 'triangles', label: 'tri' },
+  { id: 'teaser_arc3', label: 'arc3' },
+  { id: 'five_negative', label: '5neg' },
+  { id: 'diagonal_point', label: 'point' },
+  { id: 'memo_points', label: 'memo' },
 ]
+
+// Chip geometry: width follows the label, x accumulates.
+const CHIP_META = (() => {
+  let x = 24
+  return DATASETS.map((d) => {
+    const w = 16 + d.label.length * 6
+    const m = { id: d.id, label: d.label, x, w }
+    x += w + 5
+    return m
+  })
+})()
 
 const width = 900
 const uid = `g2d-${g2dUidCounter++}`
@@ -422,19 +446,19 @@ onUnmounted(() => {
         />
       </g>
 
-      <!-- Dataset chips -->
-      <g v-for="(d, di) in DATASETS" :key="`ds-${d.id}`" class="g2d-chip" @pointerdown.prevent="selectDataset(d.id)">
+      <!-- Dataset chips (the paper's full preset library) -->
+      <g v-for="m in CHIP_META" :key="`ds-${m.id}`" class="g2d-chip" @pointerdown.prevent="selectDataset(m.id)">
         <rect
-          :x="MARGIN_X + di * 66" :y="CHIPS_Y" width="60" height="21" rx="10.5"
-          :fill="d.id === datasetId ? '#EAF0FF' : '#FFFFFF'"
-          :stroke="d.id === datasetId ? '#253A88' : '#C9D2E8'"
-          :stroke-width="d.id === datasetId ? 1.4 : 1"
+          :x="m.x" :y="CHIPS_Y" :width="m.w" height="21" rx="10.5"
+          :fill="m.id === datasetId ? '#EAF0FF' : '#FFFFFF'"
+          :stroke="m.id === datasetId ? '#253A88' : '#C9D2E8'"
+          :stroke-width="m.id === datasetId ? 1.4 : 1"
         />
         <text
-          :x="MARGIN_X + di * 66 + 30" :y="CHIPS_Y + 14.5"
+          :x="m.x + m.w / 2" :y="CHIPS_Y + 14.5"
           text-anchor="middle" class="g2d-chip-text"
-          :class="{ 'g2d-chip-text--on': d.id === datasetId }"
-        >{{ d.label }}</text>
+          :class="{ 'g2d-chip-text--on': m.id === datasetId }"
+        >{{ m.label }}</text>
       </g>
 
       <!-- Play / pause -->
