@@ -58,10 +58,20 @@ function mathHtml(tex) {
 // The density world defaults to the paper's alpha = 0.85.
 const ALPHA_INIT = props.mode === 'target' || WORLD === DENSITY ? 0.85 : 1.0
 const alphaLive = ref(ALPHA_INIT)
-// Eased copy of alpha for the cheap per-frame analytic curves (strip ink
-// curve, scale): detent switches morph smoothly instead of jumping, at the
-// cost of a few thousand gaussian evals per frame during the ~200 ms ease.
+// Eased copy of alpha: detent switches morph the whole figure continuously
+// instead of jumping. Cheap analytic curves recompute from alphaAnim per
+// frame; trajectories lerp between the two cached detents; the heat image
+// blends the two cached renders with the same weight.
 const alphaAnim = ref(ALPHA_INIT)
+const prevAlpha = ref(ALPHA_INIT)
+
+// Ease progress from the previous detent to the committed one (1 = settled).
+const morphW = computed(() => {
+  const from = prevAlpha.value
+  const to = committedAlpha.value
+  if (from === to) return 1
+  return clamp((alphaAnim.value - from) / (to - from), 0, 1)
+})
 const committedAlpha = ref(WORLD === DENSITY ? 0.85 : 1.0)
 const tCur = ref(1.0)
 const alphaManual = ref(false)
@@ -199,10 +209,15 @@ const ghostBoundaryPath = computed(() => boundaryPath(ghostPts.value))
 // wedge) draw every edge, not just the first root per time step.
 const zeroBranchPaths = computed(() => {
   const ys = yE.value
-  const branches = srfMemoGet(
-    `zb|${worldKey}|${committedAlpha.value}`,
-    () => zeroBranches(committedAlpha.value, WORLD, 140),
-  )
+  // While easing between detents, re-derive the boundary from the eased alpha
+  // at reduced resolution (analytic, ~1 ms) so the curve moves continuously;
+  // once settled, swap to the cached full-resolution version.
+  const branches = morphW.value < 1
+    ? zeroBranches(alphaAnim.value, WORLD, 60, 0.35, 220)
+    : srfMemoGet(
+        `zb|${worldKey}|${committedAlpha.value}`,
+        () => zeroBranches(committedAlpha.value, WORLD, 140),
+      )
   return branches.map((line) => {
     let d = ''
     for (const [t, xv] of line) d += (d ? 'L' : 'M') + tX(t).toFixed(1) + ',' + ys(xv).toFixed(1)
@@ -214,6 +229,26 @@ const quantTraj = computed(() => srfMemoGet(
   `qt|${worldKey}|${committedAlpha.value}`,
   () => simulateTrajectories(quantileSeeds(17), committedAlpha.value, WORLD, 480),
 ))
+
+// Trajectories vary continuously in alpha: while easing, draw the pointwise
+// lerp of the two cached detents (same seeds), which converges to the target
+// detent exactly at w = 1. A few thousand lerps per frame — negligible.
+const displayTraj = computed(() => {
+  const w = morphW.value
+  const B = quantTraj.value
+  if (w >= 1) return B
+  const A = srfMemoGet(
+    `qt|${worldKey}|${prevAlpha.value}`,
+    () => simulateTrajectories(quantileSeeds(17), prevAlpha.value, WORLD, 480),
+  )
+  const paths = B.paths.map((pb, i) => {
+    const pa = A.paths[i]
+    const out = new Float64Array(pb.length)
+    for (let k = 0; k < pb.length; k += 1) out[k] = pa[k] + (pb[k] - pa[k]) * w
+    return out
+  })
+  return { times: B.times, paths }
+})
 
 function evTrajPath(times, arr, stride) {
   const ys = yE.value
@@ -229,12 +264,12 @@ function evTrajPath(times, arr, stride) {
 }
 
 const trajPaths = computed(() => {
-  const { times, paths } = quantTraj.value
+  const { times, paths } = displayTraj.value
   return paths.map(p => evTrajPath(times, p, 3))
 })
 
 const trajDots = computed(() => {
-  const { paths } = quantTraj.value
+  const { paths } = displayTraj.value
   const last = paths[0].length - 1
   const idx = Math.max(0, Math.min(last, Math.round(tCur.value * last)))
   const ys = yE.value
@@ -574,6 +609,8 @@ const histBars = computed(() => {
 
 // ---- blue-only empirical heat: sample density of the 400-path ensemble ----
 // Rebuilds only when `particles` does, i.e. on committed alpha changes.
+const heatFromUrl = computed(() => srfMemo.get(`heat|${worldKey}|${prevAlpha.value}`) || '')
+
 const empiricalHeatUrl = computed(() => {
   if (!isEmpirical.value) return ''
   const pd = particles.value
@@ -768,7 +805,10 @@ function alphaCommit() {
     clearTimeout(commitTimer)
     commitTimer = 0
   }
-  if (committedAlpha.value !== alphaLive.value) committedAlpha.value = alphaLive.value
+  if (committedAlpha.value !== alphaLive.value) {
+    prevAlpha.value = committedAlpha.value
+    committedAlpha.value = alphaLive.value
+  }
 }
 
 function setAlphaFromX(x) {
@@ -961,7 +1001,7 @@ onUnmounted(() => {
         <path :d="tgShapes.signed" fill="none" :stroke="PALETTE.ink" stroke-width="2.2" stroke-linecap="round" />
 
         <g class="srf-slider" @pointerdown.prevent="handleAlphaDown">
-          <text :x="tgSlider.x - 14" :y="tgSlider.y + 4" text-anchor="end" class="srf-slider-text">signed weight</text>
+          <text :x="tgSlider.x - 14" :y="tgSlider.y + 4" text-anchor="end" class="srf-slider-text">repulsive strength</text>
           <line :x1="tgSlider.x" :y1="tgSlider.y" :x2="tgSlider.x + tgSlider.w" :y2="tgSlider.y" stroke="#D6DDF3" stroke-width="8" stroke-linecap="round" />
           <line
             :x1="tgSlider.x" :y1="tgSlider.y"
@@ -984,25 +1024,24 @@ onUnmounted(() => {
 
         <!-- center (t, x) panel -->
         <rect :x="EV_CX0" :y="EV_PY0" :width="EV_CX1 - EV_CX0" :height="evPh" fill="#FFFFFF" :stroke="PALETTE.grid" stroke-width="1" />
-        <Transition name="srf-xfade">
-          <image
-            v-if="centerHeatUrl"
-            :key="centerHeatUrl"
-            :x="EV_CX0" :y="EV_PY0" :width="EV_CX1 - EV_CX0" :height="evPh"
-            :href="centerHeatUrl" preserveAspectRatio="none"
-          />
-        </Transition>
+        <image
+          v-if="isEmpirical && heatFromUrl && morphW < 1"
+          :x="EV_CX0" :y="EV_PY0" :width="EV_CX1 - EV_CX0" :height="evPh"
+          :href="heatFromUrl" preserveAspectRatio="none"
+        />
+        <image
+          v-if="centerHeatUrl"
+          :x="EV_CX0" :y="EV_PY0" :width="EV_CX1 - EV_CX0" :height="evPh"
+          :href="centerHeatUrl" preserveAspectRatio="none"
+          :opacity="isEmpirical && morphW < 1 ? morphW : 1"
+        />
 
         <g v-if="isEvolution || isOverlay" :clip-path="`url(#${uid}-clipPanel)`">
-          <Transition name="srf-xfade">
-            <g :key="`zbg-${committedAlpha}`">
-              <path
-                v-for="(bd, bi) in zeroBranchPaths"
-                :key="`zb-${bi}`"
-                :d="bd" fill="none" :stroke="PALETTE.negative" stroke-width="1.6" stroke-opacity="0.9" stroke-linecap="round"
-              />
-            </g>
-          </Transition>
+          <path
+            v-for="(bd, bi) in zeroBranchPaths"
+            :key="`zb-${bi}`"
+            :d="bd" fill="none" :stroke="PALETTE.negative" stroke-width="1.6" stroke-opacity="0.9" stroke-linecap="round"
+          />
           <path v-if="isEvolution" :d="ghostBoundaryPath" fill="none" :stroke="PALETTE.buffer" stroke-width="1.5" stroke-opacity="0.95" stroke-linecap="round" />
         </g>
 
@@ -1023,20 +1062,16 @@ onUnmounted(() => {
 
         <!-- 17 quantile trajectories, clipped at cursor -->
         <g :clip-path="`url(#${uid}-clipCursor)`">
-          <Transition name="srf-xfade">
-            <g :key="`trajg-${committedAlpha}`">
-              <path
-                v-for="(d, i) in trajPaths"
-                :key="`traj-${i}`"
-                :d="d"
-                fill="none"
-                :stroke="PALETTE.traj"
-                stroke-width="0.9"
-                stroke-opacity="0.5"
-                stroke-linecap="round"
-              />
-            </g>
-          </Transition>
+          <path
+            v-for="(d, i) in trajPaths"
+            :key="`traj-${i}`"
+            :d="d"
+            fill="none"
+            :stroke="PALETTE.traj"
+            stroke-width="0.9"
+            stroke-opacity="0.5"
+            stroke-linecap="round"
+          />
         </g>
         <g :clip-path="`url(#${uid}-clipPanel)`">
           <g v-for="dot in trajDots" :key="`dot-${dot.id}`">
@@ -1139,21 +1174,21 @@ onUnmounted(() => {
           <circle :cx="evTSlider.x + evTSlider.w * clamp(tCur)" :cy="evTSlider.y" r="10.5" fill="#FFFFFF" :stroke="PALETTE.samplingDark" stroke-width="2.2" />
         </g>
         <g class="srf-slider" @pointerdown.prevent="handleAlphaDown">
-          <text :x="evASlider.x - 12" :y="evASlider.y + 4" text-anchor="end" class="srf-slider-text">signed weight</text>
+          <text :x="evASlider.x - 12" :y="evASlider.y + 4" text-anchor="end" class="srf-slider-text">repulsive strength</text>
           <line :x1="evASlider.x" :y1="evASlider.y" :x2="evASlider.x + evASlider.w" :y2="evASlider.y" stroke="#D6DDF3" stroke-width="8" stroke-linecap="round" />
+          <line
+            :x1="evASlider.x" :y1="evASlider.y"
+            :x2="evASlider.x + evASlider.w * alphaDetentFrac(alphaAnim)" :y2="evASlider.y"
+            :stroke="PALETTE.sampling" stroke-width="8" stroke-linecap="round"
+          />
           <circle
             v-for="d in ALPHA_DETENTS"
             :key="`det-${d}`"
             :cx="evASlider.x + evASlider.w * alphaDetentFrac(d)" :cy="evASlider.y"
-            r="1.7" fill="#FFFFFF" fill-opacity="0.9"
-          />
-          <line
-            :x1="evASlider.x" :y1="evASlider.y"
-            :x2="evASlider.x + evASlider.w * alphaDetentFrac(alphaLive)" :y2="evASlider.y"
-            :stroke="PALETTE.sampling" stroke-width="8" stroke-linecap="round"
+            r="2" fill="#FFFFFF" stroke="#3250BC" stroke-opacity="0.45" stroke-width="0.9"
           />
           <circle
-            :cx="evASlider.x + evASlider.w * alphaDetentFrac(alphaLive)" :cy="evASlider.y"
+            :cx="evASlider.x + evASlider.w * alphaDetentFrac(alphaAnim)" :cy="evASlider.y"
             r="10.5" fill="#FFFFFF" :stroke="PALETTE.samplingDark" stroke-width="2.2"
           />
         </g>
@@ -1313,18 +1348,6 @@ onUnmounted(() => {
 
 .srf-slider {
   cursor: pointer;
-}
-
-/* Detent switches crossfade the cached artifacts (heat, boundaries,
-   trajectories) instead of hard-swapping them. */
-.srf-xfade-enter-active,
-.srf-xfade-leave-active {
-  transition: opacity 0.24s ease;
-}
-
-.srf-xfade-enter-from,
-.srf-xfade-leave-to {
-  opacity: 0;
 }
 
 .srf-slider-text {

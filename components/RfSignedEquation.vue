@@ -202,7 +202,7 @@ onUnmounted(() => {
 
       <!-- alpha slider -->
       <g class="steq-slider" @pointerdown.prevent="handleAlphaDown">
-        <text :x="slider.x - 14" :y="slider.y + 4" text-anchor="end" class="steq-slider-text">signed weight</text>
+        <text :x="slider.x - 14" :y="slider.y + 4" text-anchor="end" class="steq-slider-text">repulsive strength</text>
         <line :x1="slider.x" :y1="slider.y" :x2="slider.x + slider.w" :y2="slider.y" stroke="#D6DDF3" stroke-width="8" stroke-linecap="round" />
         <line
           :x1="slider.x" :y1="slider.y"

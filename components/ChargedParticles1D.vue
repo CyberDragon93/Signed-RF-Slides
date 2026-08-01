@@ -1,9 +1,14 @@
 <script>
-// Module-scope state: unique SVG defs ids per instance, and a shared cache for
-// the backward ensemble (both modes visualize the SAME honest trajectories).
+// Module-scope state: unique SVG defs ids per instance, and a per-alpha cache
+// for everything deterministic (boundaries, backward ensemble, heat renders) —
+// computed once per detent, shared across instances, prewarmed after mount.
 let cpUidCounter = 0
-let ensembleCache = null
-let boundaryCache = null
+const cpMemo = new Map()
+function cpMemoGet(key, fn) {
+  if (!cpMemo.has(key)) cpMemo.set(key, fn())
+  return cpMemo.get(key)
+}
+let cpPrewarmed = false
 </script>
 
 <script setup>
@@ -12,8 +17,10 @@ import katex from 'katex'
 import { computed, onMounted, onUnmounted, ref, shallowRef } from 'vue'
 import RfFigLabel from './RfFigLabel.vue'
 import {
+  ALPHA_DETENTS,
   DENSITY,
   PALETTE,
+  alphaDetentFrac,
   gaussianPdf,
   reachFrontier,
   signedDensity,
@@ -32,7 +39,7 @@ const props = defineProps({
 // Three-mode pi+ split by a single middle pi-, at the paper's alpha = 0.85.
 const width = 900
 const WORLD = DENSITY
-const ALPHA = DENSITY.alpha
+const ALPHA0 = DENSITY.alpha
 const domain = WORLD.domain
 const uid = `cp1d-${cpUidCounter++}`
 const panelX = 104
@@ -45,13 +52,26 @@ const SWEEP = 7.0 // seconds, t: 1 -> 0
 const HOLD = 1.6 // seconds at t = 0 (print-freeze covers exports; keep the live loop moving)
 const CYCLE = SWEEP + HOLD
 const FLASH = 0.06 // annihilation flash span in t-units
-const N_SEEDS = 26
-const SEED_LO = -3.05
-const SEED_HI = 3.05
+const N_SEEDS = 30
+const SEED_LO = -3.9
+const SEED_HI = 3.9
 const PAIR_DT = 0.10
 const PAIR_DX = 0.14
 
 const isClassified = computed(() => props.mode !== 'uniform')
+
+// ---- interactive repulsive strength (detent ladder, page-16 style) ---------
+const alphaSel = ref(ALPHA0)
+const alphaPrev = ref(ALPHA0)
+const alphaAnim = ref(ALPHA0)
+
+// Ease progress from the previous detent to the selected one (1 = settled).
+const morphW = computed(() => {
+  const from = alphaPrev.value
+  const to = alphaSel.value
+  if (from === to) return 1
+  return clamp((alphaAnim.value - from) / (to - from))
+})
 
 function clamp(value, min = 0, max = 1) {
   return Math.max(min, Math.min(max, value))
@@ -69,13 +89,13 @@ function mathHtml(tex) {
 // Verified against theory: the enclosed gap carries zero net signed mass
 // (signedCdf equal at both ends), forward samples never land inside it, and
 // backward fates match it 26/26.
-if (!boundaryCache) {
-  boundaryCache = {
-    zeroLines: zeroBranches(ALPHA, WORLD, 160),
-    frontier: reachFrontier(ALPHA, WORLD),
-  }
+function boundarySlice(a) {
+  return cpMemoGet(`bd|${a}`, () => ({
+    zeroLines: zeroBranches(a, WORLD, 160),
+    frontier: reachFrontier(a, WORLD),
+  }))
 }
-const { zeroLines, frontier } = boundaryCache
+const frontier = computed(() => boundarySlice(alphaSel.value).frontier)
 
 // Interpolate x(t) on a frontier curve ({ts, xs}, ts increasing).
 function frontAt(curve, t) {
@@ -98,24 +118,9 @@ function frontAt(curve, t) {
 // Each is the exact Signed RF ODE integrated backward from t ~ 0.999 (adaptive
 // RK4); a trajectory either reaches the source or dies on the moving zero set.
 const trajData = shallowRef(null)
+let ensembleJob = 0
 
-function buildEnsemble() {
-  const trajs = []
-  for (let i = 0; i < N_SEEDS; i += 1) {
-    const x1 = SEED_LO + (i / (N_SEEDS - 1)) * (SEED_HI - SEED_LO)
-    const r = simulateBackward(x1, ALPHA, WORLD)
-    const n = r.ts.length
-    trajs.push({
-      id: i,
-      x1,
-      ts: r.ts,
-      xs: r.xs,
-      fate: r.fate,
-      charge: r.charge,
-      tEnd: r.ts[n - 1],
-      xEnd: r.xs[n - 1],
-    })
-  }
+function matchPairs(trajs) {
   // Pair annihilated + / - trajectories whose end points nearly coincide:
   // in forward time these are pair-production events on the zero set.
   const plus = trajs.filter(tr => tr.fate === 'annihilated' && tr.charge === 1)
@@ -152,6 +157,62 @@ function buildEnsemble() {
   return { trajs, pairs, solos }
 }
 
+// Backward ensemble for one detent, chunked so the sweep never stalls; cached
+// per alpha (seeds are alpha-independent, so terminal dots never move).
+function buildEnsembleChunked(alpha, done) {
+  const key = `en|${alpha}`
+  if (cpMemo.has(key)) {
+    done(cpMemo.get(key))
+    return
+  }
+  const trajs = []
+  let i = 0
+  const step = () => {
+    const end = Math.min(i + 5, N_SEEDS)
+    for (; i < end; i += 1) {
+      const x1 = SEED_LO + (i / (N_SEEDS - 1)) * (SEED_HI - SEED_LO)
+      const r = simulateBackward(x1, alpha, WORLD)
+      const n = r.ts.length
+      trajs.push({
+        id: i,
+        x1,
+        ts: r.ts,
+        xs: r.xs,
+        fate: r.fate,
+        charge: r.charge,
+        tEnd: r.ts[n - 1],
+        xEnd: r.xs[n - 1],
+      })
+    }
+    if (i < N_SEEDS) {
+      setTimeout(step, 0)
+    } else {
+      const data = matchPairs(trajs)
+      cpMemo.set(key, data)
+      done(data)
+    }
+  }
+  step()
+}
+
+// Committing a detent restarts the backward sweep from t = 1: at that instant
+// nothing of the trace is revealed yet, so the ensemble swap is invisible —
+// the demo simply re-runs under the new repulsive strength.
+function commitAlpha(det) {
+  alphaPrev.value = alphaSel.value
+  alphaSel.value = det
+  const job = ++ensembleJob
+  buildEnsembleChunked(det, (data) => {
+    if (job !== ensembleJob) return
+    trajData.value = data
+    manual.value = false
+    playing.value = true
+    cursor.value = 1
+    refTs = 0
+    phase0 = 0
+  })
+}
+
 // Binary-search interpolation of x at time t on a backward curve (ts DECREASE).
 function xAtBackward(tr, t) {
   const ts = tr.ts
@@ -172,15 +233,17 @@ function xAtBackward(tr, t) {
 
 // ---- Layout & scales --------------------------------------------------------
 const layout = computed(() => {
-  const sliderY = props.height - 46
-  const panelH = sliderY - 14 - panelY
+  const sliderY = props.height - 30
+  const panelH = sliderY - 16 - panelY
   return { sliderY, panelH, legendY: props.height - 28 }
 })
 const tX = d3.scaleLinear().domain([0, 1]).range([panelX, panelX + panelW])
 const yScale = computed(() => d3.scaleLinear()
   .domain(domain)
   .range([panelY + layout.value.panelH, panelY]))
-const slider = computed(() => ({ x: panelX, y: layout.value.sliderY, w: panelW - 104 }))
+const slider = computed(() => ({ x: 150, y: layout.value.sliderY, w: 185 }))
+const aSlider = computed(() => ({ x: 545, y: layout.value.sliderY, w: 185 }))
+const alphaReadout = computed(() => mathHtml(`\\alpha = ${alphaSel.value.toFixed(2)}`))
 
 // ---- KaTeX labels -----------------------------------------------------------
 const sourceLabel = mathHtml('\\pi_0=\\mathcal{N}(0,1)')
@@ -197,7 +260,12 @@ const legendHtml = computed(() => (isClassified.value ? legendClassifiedHtml : l
 // ---- Static paths -----------------------------------------------------------
 const zeroBranchPaths = computed(() => {
   const ys = yScale.value
-  return zeroLines.map((line) => {
+  // While easing between detents, re-derive the wedge from the eased alpha at
+  // reduced resolution; swap to the cached full-resolution curve at rest.
+  const lines = morphW.value < 1
+    ? zeroBranches(alphaAnim.value, WORLD, 60, 0.35, 220)
+    : boundarySlice(alphaSel.value).zeroLines
+  return lines.map((line) => {
     let d = ''
     for (const [t, xv] of line) d += (d ? 'L' : 'M') + tX(t).toFixed(1) + ',' + ys(xv).toFixed(1)
     return d
@@ -205,9 +273,10 @@ const zeroBranchPaths = computed(() => {
 })
 
 const frontierPaths = computed(() => {
-  if (!frontier) return []
+  const f = frontier.value
+  if (!f || !isClassified.value) return []
   const ys = yScale.value
-  return [frontier.left, frontier.right].map((c) => {
+  return [f.left, f.right].map((c) => {
     const n = c.ts.length
     const stride = Math.max(1, Math.floor(n / 260))
     let d = ''
@@ -371,16 +440,17 @@ const curveLabels = computed(() => {
   const ys = yScale.value
   const out = []
   // Zero-set chip: just left of the wedge tip, where the fork is born.
-  if (frontier) {
-    const tz = frontier.tTip
-    const zr = zeroCrossings(Math.min(tz + 5e-3, 1), ALPHA, WORLD)
+  const f = frontier.value
+  if (f) {
+    const tz = f.tTip
+    const zr = zeroCrossings(Math.min(tz + 5e-3, 1), alphaSel.value, WORLD)
     if (zr.length) {
       const xTip = 0.5 * (zr[0] + zr[zr.length - 1])
       out.push({ key: 'zero', x: tX(tz) - 152, y: ys(xTip) - 12, cls: 'cp-label-zero', html: zeroChipHtml })
     }
     if (isClassified.value) {
       const tg = 0.8
-      const gx = frontAt(frontier.right, tg)
+      const gx = frontAt(f.right, tg)
       if (Number.isFinite(gx)) {
         out.push({ key: 'ghost', x: tX(tg) + 8, y: ys(gx) - 24, cls: 'cp-label-ghost', html: ghostChipHtml })
       }
@@ -404,37 +474,36 @@ const srcArea = computed(() => d3.area()
 
 // ---- Heatmap (schema.py alpha recipe) on an offscreen canvas -----------------
 // classified: 3 zones (reachable blue / ghost buffer / negative magenta);
-// uniform: honest 2-tone by the sign of pi_t^sign only.
-const heatmapUrl = ref('')
-
-function renderHeatmap() {
-  if (typeof document === 'undefined') return
+// uniform: honest 2-tone by the sign of pi_t^sign only. Rendered per detent,
+// memoized, and blended two-layer while the eased alpha morphs.
+function renderHeatmap(alpha, classified) {
+  if (typeof document === 'undefined') return ''
   const W = 300
   const H = 220
   const canvas = document.createElement('canvas')
   canvas.width = W
   canvas.height = H
   const ctx = canvas.getContext('2d')
-  if (!ctx) return
+  if (!ctx) return ''
 
+  const f = boundarySlice(alpha).frontier
   const vals = new Float64Array(W * H)
   const gapLo = new Float64Array(W)
   const gapHi = new Float64Array(W)
   let maxAbs = 1e-12
   for (let px = 0; px < W; px += 1) {
     const t = px / (W - 1)
-    gapLo[px] = frontier ? frontAt(frontier.left, t) : NaN
-    gapHi[px] = frontier ? frontAt(frontier.right, t) : NaN
+    gapLo[px] = f ? frontAt(f.left, t) : NaN
+    gapHi[px] = f ? frontAt(f.right, t) : NaN
     for (let py = 0; py < H; py += 1) {
       const x = domain[1] - (py / (H - 1)) * (domain[1] - domain[0])
-      const v = signedDensity(x, t, ALPHA, WORLD)
+      const v = signedDensity(x, t, alpha, WORLD)
       vals[py * W + px] = v
       const av = Math.abs(v)
       if (av > maxAbs) maxAbs = av
     }
   }
 
-  const classified = isClassified.value
   const img = ctx.createImageData(W, H)
   const cReach = [73, 105, 226]
   const cGhost = [232, 232, 227]
@@ -468,8 +537,16 @@ function renderHeatmap() {
     }
   }
   ctx.putImageData(img, 0, 0)
-  heatmapUrl.value = canvas.toDataURL('image/png')
+  return canvas.toDataURL('image/png')
 }
+
+function heatFor(alpha) {
+  const key = `ht|${isClassified.value ? 'c' : 'u'}|${alpha}`
+  return cpMemoGet(key, () => renderHeatmap(alpha, isClassified.value))
+}
+
+const heatToUrl = computed(() => (typeof document === 'undefined' ? '' : heatFor(alphaSel.value)))
+const heatFromUrl = computed(() => cpMemo.get(`ht|${isClassified.value ? 'c' : 'u'}|${alphaPrev.value}`) || '')
 
 // ---- Animation: backward time cursor (RAF, timestamp-only) -------------------
 const cursor = ref(props.autoplay ? 1 : 0)
@@ -483,6 +560,13 @@ let phase0 = 0
 const isRunning = computed(() => playing.value && !manual.value)
 
 function tick(now) {
+  {
+    const target = alphaSel.value
+    const cur = alphaAnim.value
+    if (cur !== target) {
+      alphaAnim.value = Math.abs(target - cur) < 1e-3 ? target : cur + (target - cur) * 0.16
+    }
+  }
   if (isRunning.value) {
     if (!refTs) refTs = now
     const ph = ((now - refTs) / 1000 + phase0) % CYCLE
@@ -585,9 +669,22 @@ function handleSliderDown(event) {
   setCursorFrom(event)
 }
 
+function setAlphaFrom(event) {
+  const sl = aSlider.value
+  const frac = clamp((svgX(event) - sl.x) / sl.w)
+  const det = ALPHA_DETENTS[Math.round(frac * (ALPHA_DETENTS.length - 1))]
+  if (det !== alphaSel.value) commitAlpha(det)
+}
+
+function handleAlphaDown(event) {
+  dragMode.value = 'alpha'
+  setAlphaFrom(event)
+}
+
 function handlePointerMove(event) {
   if (!dragMode.value) return
-  setCursorFrom(event)
+  if (dragMode.value === 'alpha') setAlphaFrom(event)
+  else setCursorFrom(event)
 }
 
 function handlePointerUp() {
@@ -603,10 +700,29 @@ function togglePlay() {
   }
 }
 
+// Warm the remaining detents in the background (boundaries, heat, ensemble),
+// nearest-first, so every slider position switches without a stall.
+function prewarmDetents() {
+  if (typeof window === 'undefined' || cpPrewarmed) return
+  cpPrewarmed = true
+  const queue = [...ALPHA_DETENTS]
+    .filter(a => a !== alphaSel.value)
+    .sort((a, b) => Math.abs(a - alphaSel.value) - Math.abs(b - alphaSel.value))
+  const next = () => {
+    const a = queue.shift()
+    if (a === undefined) return
+    boundarySlice(a)
+    heatFor(a)
+    buildEnsembleChunked(a, () => setTimeout(next, 120))
+  }
+  setTimeout(next, 2500)
+}
+
 onMounted(() => {
-  if (!ensembleCache) ensembleCache = buildEnsemble()
-  trajData.value = ensembleCache
-  renderHeatmap()
+  const job = ++ensembleJob
+  buildEnsembleChunked(alphaSel.value, (data) => {
+    if (job === ensembleJob) trajData.value = data
+  })
   // In Slidev's print/export context, freeze at t = 0: every trajectory fully
   // swept and every annihilation marker visible — the complete static picture.
   const isPrint = typeof window !== 'undefined' && /print/i.test(window.location.href)
@@ -616,6 +732,7 @@ onMounted(() => {
     return
   }
   raf = requestAnimationFrame(tick)
+  if (!isClassified.value) prewarmDetents()
 })
 
 onUnmounted(() => {
@@ -673,9 +790,15 @@ onUnmounted(() => {
 
       <g :clip-path="`url(#${uid}-panel)`">
         <image
-          v-if="isClassified && heatmapUrl"
+          v-if="heatFromUrl && morphW < 1"
           :x="panelX" :y="panelY" :width="panelW" :height="layout.panelH"
-          :href="heatmapUrl" preserveAspectRatio="none"
+          :href="heatFromUrl" preserveAspectRatio="none"
+        />
+        <image
+          v-if="heatToUrl"
+          :x="panelX" :y="panelY" :width="panelW" :height="layout.panelH"
+          :href="heatToUrl" preserveAspectRatio="none"
+          :opacity="morphW < 1 ? morphW : 1"
         />
 
         <!-- Boundary curves -->
@@ -803,20 +926,21 @@ onUnmounted(() => {
 
       <!-- Play / pause control -->
       <g class="cp-play" @pointerdown.prevent="togglePlay">
-        <circle cx="46" :cy="layout.sliderY" r="12" fill="#FFFFFF" stroke="#253A88" stroke-width="2" />
+        <circle cx="34" :cy="layout.sliderY" r="12" fill="#FFFFFF" stroke="#253A88" stroke-width="2" />
         <g v-if="isRunning">
-          <rect x="41.4" :y="layout.sliderY - 5" width="3.2" height="10" rx="1" fill="#253A88" />
-          <rect x="47.4" :y="layout.sliderY - 5" width="3.2" height="10" rx="1" fill="#253A88" />
+          <rect x="29.4" :y="layout.sliderY - 5" width="3.2" height="10" rx="1" fill="#253A88" />
+          <rect x="35.4" :y="layout.sliderY - 5" width="3.2" height="10" rx="1" fill="#253A88" />
         </g>
         <path
           v-else
-          :d="`M ${42.6} ${layout.sliderY - 5.4} L ${52} ${layout.sliderY} L ${42.6} ${layout.sliderY + 5.4} Z`"
+          :d="`M ${30.6} ${layout.sliderY - 5.4} L ${40} ${layout.sliderY} L ${30.6} ${layout.sliderY + 5.4} Z`"
           fill="#253A88"
         />
       </g>
 
       <!-- Time slider + KaTeX readout -->
       <g class="cp-slider" @pointerdown.prevent="handleSliderDown">
+        <text :x="slider.x - 12" :y="slider.y + 4" text-anchor="end" class="cp-slider-text">time</text>
         <line
           :x1="slider.x" :y1="slider.y" :x2="slider.x + slider.w" :y2="slider.y"
           stroke="#D6DDF3" stroke-width="8" stroke-linecap="round"
@@ -825,9 +949,28 @@ onUnmounted(() => {
           :x1="slider.x" :y1="slider.y" :x2="slider.x + slider.w * clamp(cursor)" :y2="slider.y"
           stroke="#4969E2" stroke-width="8" stroke-linecap="round"
         />
-        <text :x="slider.x - 12" :y="slider.y + 4" text-anchor="end" class="cp-tick">0</text>
-        <text :x="slider.x + slider.w + 10" :y="slider.y + 4" class="cp-tick">1</text>
         <circle :cx="slider.x + slider.w * clamp(cursor)" :cy="slider.y" r="10.5" fill="#FFFFFF" stroke="#253A88" stroke-width="2.2" />
+      </g>
+
+      <!-- Repulsive-strength detent slider: gliding knob, cached levels -->
+      <g class="cp-slider" @pointerdown.prevent="handleAlphaDown">
+        <text :x="aSlider.x - 12" :y="aSlider.y + 4" text-anchor="end" class="cp-slider-text">repulsive strength</text>
+        <line
+          :x1="aSlider.x" :y1="aSlider.y" :x2="aSlider.x + aSlider.w" :y2="aSlider.y"
+          stroke="#D6DDF3" stroke-width="8" stroke-linecap="round"
+        />
+        <line
+          :x1="aSlider.x" :y1="aSlider.y"
+          :x2="aSlider.x + aSlider.w * alphaDetentFrac(alphaAnim)" :y2="aSlider.y"
+          stroke="#4969E2" stroke-width="8" stroke-linecap="round"
+        />
+        <circle
+          v-for="d in ALPHA_DETENTS"
+          :key="`det-${d}`"
+          :cx="aSlider.x + aSlider.w * alphaDetentFrac(d)" :cy="aSlider.y"
+          r="2" fill="#FFFFFF" stroke="#3250BC" stroke-opacity="0.45" stroke-width="0.9"
+        />
+        <circle :cx="aSlider.x + aSlider.w * alphaDetentFrac(alphaAnim)" :cy="aSlider.y" r="10.5" fill="#FFFFFF" stroke="#253A88" stroke-width="2.2" />
       </g>
     </svg>
 
@@ -848,13 +991,16 @@ onUnmounted(() => {
       </div>
     </RfFigLabel>
 
-    <!-- Time readout -->
-    <RfFigLabel :x="slider.x + slider.w + 26" :y="layout.sliderY - 13" :w="80" :vb-h="height">
+    <!-- Readouts -->
+    <RfFigLabel :x="slider.x + slider.w + 16" :y="layout.sliderY - 13" :w="86" :vb-h="height">
       <div class="cp-readout" v-html="tReadout"></div>
     </RfFigLabel>
+    <RfFigLabel :x="aSlider.x + aSlider.w + 16" :y="layout.sliderY - 13" :w="110" :vb-h="height">
+      <div class="cp-readout" v-html="alphaReadout"></div>
+    </RfFigLabel>
 
-    <!-- Legend -->
-    <RfFigLabel :x="panelX" :y="layout.legendY" :w="panelW" :vb-h="height">
+    <!-- Legend (classified reading only) -->
+    <RfFigLabel v-if="isClassified" :x="panelX" :y="layout.legendY" :w="panelW" :vb-h="height">
       <div class="cp-legend" v-html="legendHtml"></div>
     </RfFigLabel>
   </div>
@@ -931,6 +1077,12 @@ onUnmounted(() => {
 
 .cp-curve-label :deep(.katex) {
   font-size: 1.05em;
+}
+
+.cp-slider-text {
+  fill: #536073;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .cp-scrub,

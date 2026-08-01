@@ -18,7 +18,7 @@ import katex from 'katex'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import RfFigLabel from './RfFigLabel.vue'
 import {
-  SCHEMA, DENSITY, TWIN, PALETTE,
+  SCHEMA, DENSITY, TWIN, CORE, SKEW, PALETTE,
   signedDensity, zeroBranches, quantileSeeds, simulateTrajectories,
   ALPHA_DETENTS, alphaDetentFrac,
 } from './signedRfMath.js'
@@ -42,25 +42,6 @@ const MODE2 = {
     { w: 0.5, mu: 1.6, vr: 0.35 },
   ],
   minus: [{ w: 1.0, mu: 1.6, vr: 0.45 }],
-  domain: [-3.4, 3.4],
-}
-
-// CORE: a narrow negative core carved out of the centre of a broad positive —
-// the zero set is a closed lens and trajectories split around it.
-const CORE = {
-  plus: [{ w: 1.0, mu: 0.0, vr: 1.2 }],
-  minus: [{ w: 1.0, mu: 0.0, vr: 0.15 }],
-  domain: [-3.4, 3.4],
-}
-
-// SKEW: asymmetric two-mode positive with the negative overlapping the
-// smaller mode's flank — a one-sided wedge that eats the minor mode first.
-const SKEW = {
-  plus: [
-    { w: 0.65, mu: -1.2, vr: 0.5 },
-    { w: 0.35, mu: 1.4, vr: 0.35 },
-  ],
-  minus: [{ w: 1.0, mu: 0.6, vr: 0.5 }],
   domain: [-3.4, 3.4],
 }
 
@@ -120,6 +101,16 @@ function renderPanelHeatmap(alpha, setup) {
 }
 
 const alphaSel = ref(1.0)
+const alphaPrev = ref(1.0)
+const alphaAnimG = ref(1.0)
+
+// Ease progress from the previous detent to the selected one (1 = settled).
+const morphWG = computed(() => {
+  const from = alphaPrev.value
+  const to = alphaSel.value
+  if (from === to) return 1
+  return Math.max(0, Math.min(1, (alphaAnimG.value - from) / (to - from)))
+})
 
 function panelSlice(def, a) {
   return srfgMemoGet(`${def.id}|${a}`, () => ({
@@ -129,7 +120,30 @@ function panelSlice(def, a) {
   }))
 }
 
-const panelData = computed(() => PANEL_DEFS.map(def => ({ ...def, ...panelSlice(def, alphaSel.value) })))
+// While easing, trajectories are the pointwise lerp of the two cached
+// detents (continuous in alpha), boundaries re-derive live from the eased
+// alpha at reduced resolution, and the heat image blends the two renders.
+const panelData = computed(() => {
+  const w = morphWG.value
+  return PANEL_DEFS.map((def) => {
+    const S = panelSlice(def, alphaSel.value)
+    if (w >= 1) return { ...def, ...S, heatFrom: '' }
+    const P = panelSlice(def, alphaPrev.value)
+    const paths = S.traj.paths.map((pb, i) => {
+      const pa = P.traj.paths[i]
+      const out = new Float64Array(pb.length)
+      for (let k = 0; k < pb.length; k += 1) out[k] = pa[k] + (pb[k] - pa[k]) * w
+      return out
+    })
+    return {
+      ...def,
+      heatmap: S.heatmap,
+      heatFrom: P.heatmap,
+      branches: zeroBranches(alphaAnimG.value, def.setup, 48, 0.35, 200),
+      traj: { times: S.traj.times, paths },
+    }
+  })
+})
 
 // ---------------------------------------------------------------- layout
 const COLS = 3
@@ -209,7 +223,14 @@ function easeCubicInOut(u) {
 }
 
 function tick(now) {
-  if (playing.value) {
+  {
+    const target = alphaSel.value
+    const cur = alphaAnimG.value
+    if (cur !== target) {
+      alphaAnimG.value = Math.abs(target - cur) < 1e-3 ? target : cur + (target - cur) * 0.16
+    }
+  }
+  if (playing.value && !manual.value) {
     if (!refTs) refTs = now
     const ph = ((now - refTs) / 1000 + phase0) % CYCLE
     cursor.value = ph < SWEEP ? easeCubicInOut(ph / SWEEP) : 1
@@ -221,7 +242,12 @@ function tick(now) {
 }
 
 function togglePlay() {
-  playing.value = !playing.value
+  if (playing.value && !manual.value) {
+    playing.value = false
+  } else {
+    manual.value = false
+    playing.value = true
+  }
 }
 
 // Per-frame sweep geometry (cheap: O(panels x 12) interpolation).
@@ -245,14 +271,17 @@ const sweep = computed(() => {
 
 const playBtn = computed(() => ({ x: MARGIN_X + 12, y: props.height - 14 }))
 
-// ---------------------------------------------------------------- alpha slider
-const aSlider = computed(() => ({ x: MARGIN_X + 330, y: props.height - 14, w: 220 }))
-const dragging = ref(false)
+// ---------------------------------------------------------------- sliders
+const tSlider = computed(() => ({ x: MARGIN_X + 95, y: props.height - 14, w: 140 }))
+const aSlider = computed(() => ({ x: MARGIN_X + 480, y: props.height - 14, w: 180 }))
+const dragMode = ref(null)
+const manual = ref(false)
 
 function mathHtml(tex) {
   return katex.renderToString(tex, { throwOnError: false, output: 'html' })
 }
-const alphaReadout = computed(() => mathHtml(`\\alpha = ${alphaSel.value.toFixed(1)}`))
+const alphaReadout = computed(() => mathHtml(`\\alpha = ${alphaSel.value.toFixed(2)}`))
+const tReadout = computed(() => mathHtml(`t = ${Math.max(0, Math.min(1, cursor.value)).toFixed(2)}`))
 
 function svgX(event) {
   const svg = event.currentTarget.ownerSVGElement || event.currentTarget
@@ -264,20 +293,35 @@ function setAlphaFromX(x) {
   const sl = aSlider.value
   const frac = Math.max(0, Math.min(1, (x - sl.x) / sl.w))
   const det = ALPHA_DETENTS[Math.round(frac * (ALPHA_DETENTS.length - 1))]
-  if (det !== alphaSel.value) alphaSel.value = det
+  if (det !== alphaSel.value) {
+    alphaPrev.value = alphaSel.value
+    alphaSel.value = det
+  }
+}
+
+function setCursorFromX(x) {
+  const sl = tSlider.value
+  cursor.value = Math.max(0, Math.min(1, (x - sl.x) / sl.w))
 }
 
 function handleAlphaDown(event) {
-  dragging.value = true
+  dragMode.value = 'alpha'
   setAlphaFromX(svgX(event))
 }
 
+function handleTimeDown(event) {
+  dragMode.value = 'time'
+  manual.value = true
+  setCursorFromX(svgX(event))
+}
+
 function handlePointerMove(event) {
-  if (dragging.value) setAlphaFromX(svgX(event))
+  if (dragMode.value === 'alpha') setAlphaFromX(svgX(event))
+  else if (dragMode.value === 'time') setCursorFromX(svgX(event))
 }
 
 function handlePointerUp() {
-  dragging.value = false
+  dragMode.value = null
 }
 
 // Warm every detent for every panel in the background so first drags are
@@ -351,49 +395,44 @@ onUnmounted(() => {
           :x="p.plotX" :y="p.plotY" :width="p.plotW" :height="p.plotH"
           fill="#FFFFFF" :stroke="PALETTE.grid" stroke-width="1"
         />
-        <Transition name="srfg-xfade">
-          <image
-            v-if="p.heatmap"
-            :key="p.heatmap"
-            :x="p.plotX" :y="p.plotY" :width="p.plotW" :height="p.plotH"
-            :href="p.heatmap" preserveAspectRatio="none"
-          />
-        </Transition>
+        <image
+          v-if="p.heatFrom && morphWG < 1"
+          :x="p.plotX" :y="p.plotY" :width="p.plotW" :height="p.plotH"
+          :href="p.heatFrom" preserveAspectRatio="none"
+        />
+        <image
+          v-if="p.heatmap"
+          :x="p.plotX" :y="p.plotY" :width="p.plotW" :height="p.plotH"
+          :href="p.heatmap" preserveAspectRatio="none"
+          :opacity="morphWG < 1 ? morphWG : 1"
+        />
 
         <g :clip-path="`url(#${uid}-clip-${p.id})`">
           <!-- zero-boundary branches -->
-          <Transition name="srfg-xfade">
-            <g :key="`bg-${alphaSel}`">
-              <path
-                v-for="(d, j) in p.branchPaths"
-                :key="`b-${j}`"
-                :d="d"
-                fill="none"
-                :stroke="PALETTE.negative"
-                stroke-width="1.3"
-                stroke-opacity="0.9"
-                stroke-linecap="round"
-              />
-            </g>
-          </Transition>
+          <path
+            v-for="(d, j) in p.branchPaths"
+            :key="`b-${j}`"
+            :d="d"
+            fill="none"
+            :stroke="PALETTE.negative"
+            stroke-width="1.3"
+            stroke-opacity="0.9"
+            stroke-linecap="round"
+          />
         </g>
 
         <!-- 12 forward trajectories, revealed up to the shared cursor -->
         <g :clip-path="`url(#${uid}-sweep-${p.id})`">
-          <Transition name="srfg-xfade">
-            <g :key="`tg-${alphaSel}`">
-              <path
-                v-for="(d, j) in p.trajPaths"
-                :key="`t-${j}`"
-                :d="d"
-                fill="none"
-                :stroke="PALETTE.traj"
-                stroke-width="0.85"
-                stroke-opacity="0.5"
-                stroke-linecap="round"
-              />
-            </g>
-          </Transition>
+          <path
+            v-for="(d, j) in p.trajPaths"
+            :key="`t-${j}`"
+            :d="d"
+            fill="none"
+            :stroke="PALETTE.traj"
+            stroke-width="0.85"
+            stroke-opacity="0.5"
+            stroke-linecap="round"
+          />
         </g>
 
         <!-- moving cursor line + endpoint dots riding the trajectories -->
@@ -425,27 +464,45 @@ onUnmounted(() => {
         />
       </g>
 
-      <!-- shared signed-weight detent slider: one alpha across all six worlds -->
+      <!-- shared time scrubber -->
+      <g class="srfg-slider" @pointerdown.prevent="handleTimeDown">
+        <text :x="tSlider.x - 10" :y="tSlider.y + 4" text-anchor="end" class="srfg-slider-text">time</text>
+        <line :x1="tSlider.x" :y1="tSlider.y" :x2="tSlider.x + tSlider.w" :y2="tSlider.y" stroke="#D6DDF3" stroke-width="8" stroke-linecap="round" />
+        <line
+          :x1="tSlider.x" :y1="tSlider.y"
+          :x2="tSlider.x + tSlider.w * Math.max(0, Math.min(1, cursor))" :y2="tSlider.y"
+          :stroke="PALETTE.sampling" stroke-width="8" stroke-linecap="round"
+        />
+        <circle
+          :cx="tSlider.x + tSlider.w * Math.max(0, Math.min(1, cursor))" :cy="tSlider.y"
+          r="9.5" fill="#FFFFFF" :stroke="PALETTE.samplingDark" stroke-width="2"
+        />
+      </g>
+
+      <!-- shared repulsive-strength detent slider: one alpha across all six worlds -->
       <g class="srfg-slider" @pointerdown.prevent="handleAlphaDown">
-        <text :x="aSlider.x - 12" :y="aSlider.y + 4" text-anchor="end" class="srfg-slider-text">signed weight</text>
+        <text :x="aSlider.x - 12" :y="aSlider.y + 4" text-anchor="end" class="srfg-slider-text">repulsive strength</text>
         <line :x1="aSlider.x" :y1="aSlider.y" :x2="aSlider.x + aSlider.w" :y2="aSlider.y" stroke="#D6DDF3" stroke-width="8" stroke-linecap="round" />
+        <line
+          :x1="aSlider.x" :y1="aSlider.y"
+          :x2="aSlider.x + aSlider.w * alphaDetentFrac(alphaAnimG)" :y2="aSlider.y"
+          :stroke="PALETTE.sampling" stroke-width="8" stroke-linecap="round"
+        />
         <circle
           v-for="d in ALPHA_DETENTS"
           :key="`det-${d}`"
           :cx="aSlider.x + aSlider.w * alphaDetentFrac(d)" :cy="aSlider.y"
-          r="1.7" fill="#FFFFFF" fill-opacity="0.9"
-        />
-        <line
-          :x1="aSlider.x" :y1="aSlider.y"
-          :x2="aSlider.x + aSlider.w * alphaDetentFrac(alphaSel)" :y2="aSlider.y"
-          :stroke="PALETTE.sampling" stroke-width="8" stroke-linecap="round"
+          r="2" fill="#FFFFFF" stroke="#3250BC" stroke-opacity="0.45" stroke-width="0.9"
         />
         <circle
-          :cx="aSlider.x + aSlider.w * alphaDetentFrac(alphaSel)" :cy="aSlider.y"
+          :cx="aSlider.x + aSlider.w * alphaDetentFrac(alphaAnimG)" :cy="aSlider.y"
           r="9.5" fill="#FFFFFF" :stroke="PALETTE.samplingDark" stroke-width="2"
         />
       </g>
     </svg>
+    <RfFigLabel :x="tSlider.x + tSlider.w + 14" :y="tSlider.y - 12" :w="90" :vb-h="height">
+      <div class="srfg-readout" v-html="tReadout"></div>
+    </RfFigLabel>
     <RfFigLabel :x="aSlider.x + aSlider.w + 16" :y="aSlider.y - 12" :w="100" :vb-h="height">
       <div class="srfg-readout" v-html="alphaReadout"></div>
     </RfFigLabel>
@@ -468,16 +525,6 @@ onUnmounted(() => {
 .srfg-play,
 .srfg-slider {
   cursor: pointer;
-}
-
-.srfg-xfade-enter-active,
-.srfg-xfade-leave-active {
-  transition: opacity 0.24s ease;
-}
-
-.srfg-xfade-enter-from,
-.srfg-xfade-leave-to {
-  opacity: 0;
 }
 
 .srfg-slider-text {

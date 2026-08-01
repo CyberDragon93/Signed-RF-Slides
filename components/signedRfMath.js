@@ -34,6 +34,28 @@ export const DENSITY = {
   domain: [-4.25, 4.25],
 }
 
+// TWIN-like extra worlds shared by the gallery and the pair-emission demo.
+// CORE: a narrow negative core carved out of the centre of a broad positive —
+// the zero set is a closed lens and trajectories split around it.
+export const CORE = {
+  plus: [{ w: 1.0, mu: 0.0, vr: 1.2 }],
+  minus: [{ w: 1.0, mu: 0.0, vr: 0.15 }],
+  alpha: 0.9,
+  domain: [-3.4, 3.4],
+}
+
+// SKEW: asymmetric two-mode positive with the negative overlapping the
+// smaller mode's flank — a one-sided wedge that eats the minor mode first.
+export const SKEW = {
+  plus: [
+    { w: 0.65, mu: -1.2, vr: 0.5 },
+    { w: 0.35, mu: 1.4, vr: 0.35 },
+  ],
+  minus: [{ w: 1.0, mu: 0.6, vr: 0.5 }],
+  alpha: 1.0,
+  domain: [-3.4, 3.4],
+}
+
 export const V_CLIP = 200
 
 // ---- Basic numerics ----------------------------------------------------
@@ -167,7 +189,7 @@ export function signedVelocity(x, t, alpha, setup) {
 // ---- Alpha detents ---------------------------------------------------------
 // Shared ladder for the interactive signed-weight sliders: a wide span with
 // snapping, so every level's geometry can be computed once and cached.
-export const ALPHA_DETENTS = [0, 0.25, 0.5, 1, 2, 4]
+export const ALPHA_DETENTS = [0, 0.2, 0.25, 0.5, 1, 2, 4]
 
 export function snapAlphaDetent(v) {
   let best = ALPHA_DETENTS[0]
@@ -178,8 +200,8 @@ export function snapAlphaDetent(v) {
 }
 
 // Piecewise-linear position of alpha on the detent track: detents sit at
-// equal spacing regardless of their numeric gaps (0.5 -> 1 spans as much
-// track as 5 -> 10), and off-ladder values land between their neighbours.
+// equal spacing regardless of their numeric gaps, and off-ladder values land
+// between their neighbours.
 export function alphaDetentFrac(a) {
   const n = ALPHA_DETENTS.length
   if (a <= ALPHA_DETENTS[0]) return 0
@@ -251,12 +273,12 @@ export function boundaryCurves(alpha, setup, nT = 220, t0 = 0.01, t1 = 1.0) {
 // into continuous polylines by nearest-continuation (jump threshold in x);
 // a root with no continuation starts a new polyline. Multi-root worlds
 // (e.g. DENSITY's middle wedge) yield several branches.
-export function zeroBranches(alpha, setup, nT = 140, jumpTol = 0.35) {
+export function zeroBranches(alpha, setup, nT = 140, jumpTol = 0.35, nGrid = 800) {
   const done = []
   let active = []
   for (let k = 0; k < nT; k += 1) {
     const t = 0.01 + (k / (nT - 1)) * (1.0 - 0.01)
-    const roots = zeroCrossings(t, alpha, setup)
+    const roots = zeroCrossings(t, alpha, setup, nGrid)
     const used = new Array(roots.length).fill(false)
     const next = []
     for (const line of active) {
@@ -297,11 +319,11 @@ export function zeroBranches(alpha, setup, nT = 140, jumpTol = 0.35) {
     let tNone = tUnknown
     for (let i = 0; i < 30; i += 1) {
       const tm = 0.5 * (tHas + tNone)
-      const roots = zeroCrossings(tm, alpha, setup).filter(r => r >= xa && r <= xb)
+      const roots = zeroCrossings(tm, alpha, setup, nGrid).filter(r => r >= xa && r <= xb)
       if (roots.length) tHas = tm
       else tNone = tm
     }
-    const roots = zeroCrossings(tHas, alpha, setup).filter(r => r >= xa && r <= xb)
+    const roots = zeroCrossings(tHas, alpha, setup, nGrid).filter(r => r >= xa && r <= xb)
     return roots.length ? [tHas, 0.5 * (roots[0] + roots[roots.length - 1])] : null
   }
   for (let i = 0; i < out.length; i += 1) {
@@ -419,6 +441,31 @@ export function reachFrontier(alpha, setup) {
     left: simulateAdaptive(roots[0] - eps, t0, alpha, setup),
     right: simulateAdaptive(roots[roots.length - 1] + eps, t0, alpha, setup),
   }
+}
+
+// Multi-wedge generalization: one frontier pair per negative wedge present at
+// the first birth time (roots pair up as consecutive [lower, upper] edges).
+// Valid for worlds whose wedges are born together (all interior-wedge demos).
+export function reachFrontiers(alpha, setup) {
+  let lo = 0.01
+  let hi = 1
+  for (let i = 0; i < 60; i += 1) {
+    const m = 0.5 * (lo + hi)
+    if (zeroCrossings(m, alpha, setup).length) hi = m
+    else lo = m
+  }
+  const t0 = Math.min(hi + 2e-3, 1)
+  const roots = zeroCrossings(t0, alpha, setup)
+  const eps = 1e-4
+  const out = []
+  for (let i = 0; i + 1 < roots.length; i += 2) {
+    out.push({
+      tTip: t0,
+      left: simulateAdaptive(roots[i] - eps, t0, alpha, setup),
+      right: simulateAdaptive(roots[i + 1] + eps, t0, alpha, setup),
+    })
+  }
+  return out
 }
 
 // Pair-production trajectories: seeds at boundary +/- eps (schema.py).
