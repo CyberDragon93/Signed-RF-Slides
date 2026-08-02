@@ -36,14 +36,15 @@ Negativity-Controlled Generation
 
 ---
 
-# Rectified Flow in a Nutshell
+# Rectified Flow 
 
-<MarginalPreservationDemo :height="340" :marginals="false" autoplay />
+<MarginalPreservationDemo :height="290" :marginals="false" autoplay />
 
 <div class="mt-1"></div>
 
-- **Causalization**: turn the interpolation $X_t=(1-t)X_0+tX_1$, with $X_0\sim\pi_0,\;X_1\sim\pi_1$,
-  into a causal ODE $\dot Z_t = v_t^{\text{RF}}(Z_t)$ —
+- **Goal**: a flow map between $\pi_0$ and $\pi_1$, each observed only through i.i.d. samples.
+- **Idea**: interpolate independent draws $(X_0, X_1)$ — typically the straight line $X_t=(1-t)X_0+tX_1$.
+- **Causalization**: turn the interpolation into a causal ODE $\dot Z_t = v_t^{\text{RF}}(Z_t)$ via the $L^2$ fit
 
   $$
   \min_v
@@ -55,10 +56,10 @@ Negativity-Controlled Generation
     \right\|^2
   \right] \mathrm dt,
   \qquad
-  \dot X_t = X_1 - X_0.
+  \dot X_t = X_1 - X_0;
   $$
 
-- The optimum is the conditional average: $\;v_t^{\text{RF}}(x)=\mathbb{E}\left[X_1-X_0\mid X_t=x\right]$.
+  the optimum is the conditional average $\;v_t^{\text{RF}}(x)=\mathbb{E}\left[X_1-X_0\mid X_t=x\right]$.
 
 <div class="abs-b mb-10 ml-14 text-sm" style="opacity: 0.55;">
 
