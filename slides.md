@@ -38,31 +38,12 @@ Negativity-Controlled Generation
 
 # Rectified Flow in a Nutshell
 
-<Rf1DFlow mode="coupling" :height="340" autoplay />
+<MarginalPreservationDemo :height="340" :marginals="false" autoplay />
 
-<div style="height: 1.2rem"></div>
+<div class="mt-1"></div>
 
-- **Coupling**: sample a noise–data pair $X_0 \sim \pi_0,\; X_1 \sim \pi_1$.
-
-- **Interpolation**: connect each pair by the straight path
-
-$$
-X_t=(1-t)X_0+tX_1,\qquad t\in[0,1].
-$$
-
-<div class="abs-b mb-10 ml-14 text-sm" style="opacity: 0.55;">
-
-*Flow Straight and Fast* — Liu, Gong, Liu (arXiv 2209.03003)
-
-</div>
-
----
-
-# Rectified Flow in a Nutshell
-
-<Rf1DFlow mode="conditional" :height="340" autoplay />
-
-- **Causalization**: turn the interpolation into a causal ODE $\dot Z_t = v_t^{\text{RF}}(Z_t)$ —
+- **Causalization**: turn the interpolation $X_t=(1-t)X_0+tX_1$, with $X_0\sim\pi_0,\;X_1\sim\pi_1$,
+  into a causal ODE $\dot Z_t = v_t^{\text{RF}}(Z_t)$ —
 
   $$
   \min_v
@@ -78,6 +59,12 @@ $$
   $$
 
 - The optimum is the conditional average: $\;v_t^{\text{RF}}(x)=\mathbb{E}\left[X_1-X_0\mid X_t=x\right]$.
+
+<div class="abs-b mb-10 ml-14 text-sm" style="opacity: 0.55;">
+
+*Flow Straight and Fast* — Liu, Gong, Liu (arXiv 2209.03003)
+
+</div>
 
 ---
 
@@ -276,7 +263,7 @@ The signed density is not itself a probability law, but the ODE trajectory law i
 
 ---
 
-# Just Run It
+# Just Run It 
 
 <RfSigned1D mode="simulate" :height="440" autoplay />
 
