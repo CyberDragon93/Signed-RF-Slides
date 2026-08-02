@@ -4,7 +4,7 @@ let srfUidCounter = 0
 
 // Everything drawn for a given (world, alpha) is deterministic, so cache it
 // across drags, instances and pages: switching back to a visited detent is
-// then instant instead of re-running boundary root-finding, 400 RK4
+// then instant instead of re-running boundary root-finding, 800 RK4
 // trajectories and a canvas heat render.
 const srfMemo = new Map()
 function srfMemoGet(key, fn) {
@@ -486,7 +486,7 @@ const refLabelMinus = mathHtml('\\pi_1^-')
 const particles = ref(null)
 let particleJob = 0
 
-// Chunked 400-path ensemble; results are cached per (world, alpha) so a
+// Chunked 800-path ensemble; results are cached per (world, alpha) so a
 // revisited detent resolves synchronously. `cancelled` lets the view job
 // abandon stale work; prewarm jobs always run to completion.
 function buildParticles(alpha, cancelled, done) {
@@ -497,7 +497,7 @@ function buildParticles(alpha, cancelled, done) {
   }
   const rand = lcg(97)
   const seeds = []
-  for (let i = 0; i < 400; i += 1) seeds.push(randn(rand))
+  for (let i = 0; i < 800; i += 1) seeds.push(randn(rand))
   const paths = []
   let times = null
   let i = 0
@@ -607,7 +607,7 @@ const histBars = computed(() => {
 // modes "simulate" / "overlay" — empirical ensemble view
 // ======================================================================
 
-// ---- blue-only empirical heat: sample density of the 400-path ensemble ----
+// ---- blue-only empirical heat: sample density of the 800-path ensemble ----
 // Rebuilds only when `particles` does, i.e. on committed alpha changes.
 const heatFromUrl = computed(() => srfMemo.get(`heat|${worldKey}|${prevAlpha.value}`) || '')
 
