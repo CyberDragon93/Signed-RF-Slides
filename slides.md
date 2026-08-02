@@ -69,7 +69,7 @@ Negativity-Controlled Generation
 
 ---
 
-# The $\mathtt{Rectify}$ Operator
+# Rectified Flow 
 
 <MarginalPreservationDemo :height="455" autoplay />
 
@@ -517,20 +517,20 @@ Two ingredients: the branch velocities $v_t^{\pm}$ and the density ratio $r_t(x)
 
 # Constant vs Signed, in 2D
 
-<div class="flex justify-center">
-  <Rf2DGuidance :height="440" autoplay style="max-width: 95%;" />
+<div class="flex justify-center mt-2">
+  <BaseImg src="figures/gaussian_mixture_guidance_sweep_vec.svg" class="rounded shadow-sm" style="max-width: 92%; max-height: 430px; object-fit: contain;" />
 </div>
 
-<div class="mt-1 text-center" style="font-size: 0.82em; opacity: 0.75;">
+<div class="mt-2 text-center" style="font-size: 0.82em; opacity: 0.75;">
 
-Background: signed target $\pi^{\mathtt{sign}}$ — blue positive, pink negative. Dots: live samples of the exact ODE, shared noise across panels; red ×'s mark samples landing where $\pi^{\mathtt{sign}}<0$.
+Background: signed target $\pi^{\mathtt{sign}}$ — blue positive, pink negative. Dots: samples; red ×'s mark samples landing where $\pi^{\mathtt{sign}}<0$.
 
 </div>
 
 <div class="mt-2"></div>
 
-- Constant guidance either leaves samples on the negative modes (weak $\omega$) or over-repels into
-  low-density regions (strong $\omega$); Signed RF avoids them **while keeping the positive modes and coverage**.
+- Constant guidance: weak $\omega$ leaves samples near negative modes; strong $\omega$ over-repels into low-density regions.
+- Signed RF avoids the negative modes **while keeping the positive modes and coverage**.
 
 ---
 
