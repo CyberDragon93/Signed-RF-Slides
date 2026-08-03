@@ -7,9 +7,7 @@ import RfFigLabel from './RfFigLabel.vue'
 const props = defineProps({
   height: { type: Number, default: 455 },
   autoplay: { type: Boolean, default: true },
-  // false renders only the two trajectory panels (interpolation + ODE):
-  // the causalization view, before marginal preservation enters the story.
-  marginals: { type: Boolean, default: true },
+  showMarginals: { type: Boolean, default: true },
 })
 
 const width = 900
@@ -29,13 +27,13 @@ let start = 0
 
 const layout = computed(() => {
   const topY = 28
-  const topH = props.marginals
+  const topH = props.showMarginals
     ? Math.max(178, Math.min(214, props.height * 0.46))
-    : Math.max(178, props.height - topY - 58)
+    : Math.max(178, Math.min(214, props.height - 72))
   const densityY = topY + topH + 44
   const densityH = Math.max(74, props.height - densityY - 72)
-  const panelW = props.marginals ? 324 : 334
-  const leftX = props.marginals ? 42 : 36
+  const panelW = 324
+  const leftX = 42
   const rightX = width - leftX - sideDensityW - panelW
 
   return {
@@ -658,40 +656,38 @@ onUnmounted(() => {
       <text :x="timeToX(layout.leftTop, t) + 6" :y="layout.leftTop.y + 14" class="mp-time-label">t = {{ tLabel }}</text>
       <text :x="timeToX(layout.rightTop, t) + 6" :y="layout.rightTop.y + 14" class="mp-time-label">t = {{ tLabel }}</text>
 
-      <template v-if="marginals">
-        <g>
-          <rect :x="layout.leftDensity.x" :y="layout.leftDensity.y" :width="layout.leftDensity.w" :height="layout.leftDensity.h" rx="8" fill="#FBFCFF" stroke="#D9E0F6" />
-          <path :d="densityAreaPath(layout.leftDensity)" fill="url(#mpDensityFill)" />
-          <path :d="densityLinePath(layout.leftDensity)" fill="none" stroke="#253A88" stroke-width="2.1" />
-          <line :x1="layout.leftDensity.x" :y1="layout.leftDensity.y + layout.leftDensity.h" :x2="layout.leftDensity.x + layout.leftDensity.w" :y2="layout.leftDensity.y + layout.leftDensity.h" stroke="#253A88" stroke-opacity="0.24" />
-        </g>
+      <g v-if="props.showMarginals">
+        <rect :x="layout.leftDensity.x" :y="layout.leftDensity.y" :width="layout.leftDensity.w" :height="layout.leftDensity.h" rx="8" fill="#FBFCFF" stroke="#D9E0F6" />
+        <path :d="densityAreaPath(layout.leftDensity)" fill="url(#mpDensityFill)" />
+        <path :d="densityLinePath(layout.leftDensity)" fill="none" stroke="#253A88" stroke-width="2.1" />
+        <line :x1="layout.leftDensity.x" :y1="layout.leftDensity.y + layout.leftDensity.h" :x2="layout.leftDensity.x + layout.leftDensity.w" :y2="layout.leftDensity.y + layout.leftDensity.h" stroke="#253A88" stroke-opacity="0.24" />
+      </g>
 
-        <g>
-          <rect :x="layout.rightDensity.x" :y="layout.rightDensity.y" :width="layout.rightDensity.w" :height="layout.rightDensity.h" rx="8" fill="#FBFCFF" stroke="#D9E0F6" />
-          <rect
-            v-for="(bar, index) in histogramBarRects(layout.rightDensity)"
-            :key="`hist-${index}`"
-            :x="bar.x"
-            :y="bar.y"
-            :width="bar.width"
-            :height="bar.height"
-            rx="2"
-            fill="#4969E2"
-            opacity="0.58"
-          />
-          <path
-            :d="densityLinePath(layout.rightDensity)"
-            fill="none"
-            stroke="#253A88"
-            stroke-width="1.7"
-            stroke-opacity="0.52"
-            stroke-dasharray="5 4"
-          />
-          <line :x1="layout.rightDensity.x" :y1="layout.rightDensity.y + layout.rightDensity.h" :x2="layout.rightDensity.x + layout.rightDensity.w" :y2="layout.rightDensity.y + layout.rightDensity.h" stroke="#253A88" stroke-opacity="0.24" />
-        </g>
+      <g v-if="props.showMarginals">
+        <rect :x="layout.rightDensity.x" :y="layout.rightDensity.y" :width="layout.rightDensity.w" :height="layout.rightDensity.h" rx="8" fill="#FBFCFF" stroke="#D9E0F6" />
+        <rect
+          v-for="(bar, index) in histogramBarRects(layout.rightDensity)"
+          :key="`hist-${index}`"
+          :x="bar.x"
+          :y="bar.y"
+          :width="bar.width"
+          :height="bar.height"
+          rx="2"
+          fill="#4969E2"
+          opacity="0.58"
+        />
+        <path
+          :d="densityLinePath(layout.rightDensity)"
+          fill="none"
+          stroke="#253A88"
+          stroke-width="1.7"
+          stroke-opacity="0.52"
+          stroke-dasharray="5 4"
+        />
+        <line :x1="layout.rightDensity.x" :y1="layout.rightDensity.y + layout.rightDensity.h" :x2="layout.rightDensity.x + layout.rightDensity.w" :y2="layout.rightDensity.y + layout.rightDensity.h" stroke="#253A88" stroke-opacity="0.24" />
+      </g>
 
-        <text :x="width / 2" :y="layout.leftDensity.y + layout.leftDensity.h * 0.56" text-anchor="middle" class="mp-equals">=</text>
-      </template>
+      <text v-if="props.showMarginals" :x="width / 2" :y="layout.leftDensity.y + layout.leftDensity.h * 0.56" text-anchor="middle" class="mp-equals">=</text>
 
       <g class="mp-slider" @pointerdown.prevent="handleSliderDown">
         <line
@@ -730,17 +726,15 @@ onUnmounted(() => {
     <RfFigLabel :x="layout.rightTop.x" :y="layout.rightTop.y - 28" :w="layout.rightTop.w + sideDensityW" :vb-h="height">
       <div class="mp-panel-title-html" v-html="odeTitle"></div>
     </RfFigLabel>
-    <template v-if="marginals">
-      <RfFigLabel :x="layout.leftDensity.x" :y="layout.leftDensity.y - 28" :w="layout.leftDensity.w" :vb-h="height">
-        <div class="mp-density-title-html" v-html="marginalXLabel"></div>
-      </RfFigLabel>
-      <RfFigLabel :x="layout.rightDensity.x" :y="layout.rightDensity.y - 28" :w="layout.rightDensity.w" :vb-h="height">
-        <div class="mp-density-title-html" v-html="marginalZLabel"></div>
-      </RfFigLabel>
-      <RfFigLabel :x="width / 2 - 35" :y="layout.leftDensity.y + layout.leftDensity.h * 0.56 - 50" :w="70" :vb-h="height">
-        <div class="mp-pi-label" v-html="piLabel"></div>
-      </RfFigLabel>
-    </template>
+    <RfFigLabel v-if="props.showMarginals" :x="layout.leftDensity.x" :y="layout.leftDensity.y - 28" :w="layout.leftDensity.w" :vb-h="height">
+      <div class="mp-density-title-html" v-html="marginalXLabel"></div>
+    </RfFigLabel>
+    <RfFigLabel v-if="props.showMarginals" :x="layout.rightDensity.x" :y="layout.rightDensity.y - 28" :w="layout.rightDensity.w" :vb-h="height">
+      <div class="mp-density-title-html" v-html="marginalZLabel"></div>
+    </RfFigLabel>
+    <RfFigLabel v-if="props.showMarginals" :x="width / 2 - 35" :y="layout.leftDensity.y + layout.leftDensity.h * 0.56 - 50" :w="70" :vb-h="height">
+      <div class="mp-pi-label" v-html="piLabel"></div>
+    </RfFigLabel>
   </div>
 </template>
 
