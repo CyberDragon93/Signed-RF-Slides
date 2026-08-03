@@ -36,46 +36,41 @@ Negativity-Controlled Generation
 
 ---
 
-# Rectified Flow 
+# Causalization by $L^2$ Fitting
 
-<MarginalPreservationDemo :height="290" :marginals="false" autoplay />
+<MarginalPreservationDemo :height="285" :show-marginals="false" autoplay />
 
-<div class="mt-1"></div>
+- Couple $X_0\sim\pi_0$ and $X_1\sim\pi_1$, then interpolate
+  $X_t=(1-t)X_0+tX_1$.
 
-- **Goal**: a flow map between $\pi_0$ and $\pi_1$, each observed only through i.i.d. samples.
-- **Idea**: interpolate independent draws $(X_0, X_1)$ — typically the straight line $X_t=(1-t)X_0+tX_1$.
-- **Causalization**: turn the interpolation into a causal ODE $\dot Z_t = v_t^{\text{RF}}(Z_t)$ via the $L^2$ fit
+- **Causalize** the interpolation by fitting the velocity field that minimizes
 
-  $$
-  \min_v
-  \int_0^1
-  \mathbb{E}_{(X_0,X_1)}
-  \left[
-    \left\|
-      \dot X_t - v_t(X_t)
-    \right\|^2
-  \right] \mathrm dt,
-  \qquad
-  \dot X_t = X_1 - X_0;
-  $$
+$$
+\int_0^1
+\mathbb{E}_{(X_0,X_1)}
+\left[
+  \left\|\dot X_t-v_t(X_t)\right\|^2
+\right]\mathrm dt,
+\qquad
+\dot X_t=X_1-X_0.
+$$
 
-  the optimum is the conditional average $\;v_t^{\text{RF}}(x)=\mathbb{E}\left[X_1-X_0\mid X_t=x\right]$.
-
-<div class="abs-b mb-10 ml-14 text-sm" style="opacity: 0.55;">
-
-*Flow Straight and Fast* — Liu, Gong, Liu (arXiv 2209.03003)
-
-</div>
+The minimizer is $v_t^{\mathrm{RF}}(x)=\mathbb{E}\!\left[X_1-X_0\mid X_t=x\right]$,
+which defines the causal ODE $\dot Z_t=v_t^{\mathrm{RF}}(Z_t)$.
 
 ---
 
-# Rectified Flow 
+# Marginal Preservation
 
 <MarginalPreservationDemo :height="455" autoplay />
 
-- **Marginal preservation**: 
+- **Causalization preserves every marginal**:
+
 $$
-\{Z_t\} = \mathtt{Rectify}\{X_t\} \implies\text{Law}(X_t) = \text{Law}(Z_t)
+\{Z_t\}=\mathtt{Rectify}\{X_t\}
+\quad\Longrightarrow\quad
+\operatorname{Law}(Z_t)=\operatorname{Law}(X_t),
+\qquad t\in[0,1].
 $$
 
 ---
@@ -264,7 +259,7 @@ The signed density is not itself a probability law, but the ODE trajectory law i
 
 ---
 
-# Just Run It 
+# Just Run It
 
 <RfSigned1D mode="simulate" :height="440" autoplay />
 
