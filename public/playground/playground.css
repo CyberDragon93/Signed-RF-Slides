@@ -37,6 +37,12 @@ body {
   font-size: 16px;
 }
 
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
 /* ---- Header ------------------------------------------------------------- */
 
 header.pg-header {
@@ -44,7 +50,8 @@ header.pg-header {
   align-items: baseline;
   justify-content: space-between;
   gap: 16px;
-  max-width: 1180px;
+  width: 100%;
+  max-width: 1280px;
   margin: 0 auto;
   padding: 22px 28px 14px;
   border-bottom: 1px solid var(--hairline);
@@ -85,12 +92,14 @@ nav.pg-nav a:hover {
 /* ---- Main layout ---------------------------------------------------------- */
 
 main.pg-main {
+  flex: 1 0 auto;
   display: flex;
   gap: 24px;
-  align-items: flex-start;
-  max-width: 1180px;
+  align-items: center;
+  width: 100%;
+  max-width: 1280px;
   margin: 0 auto;
-  padding: 20px 28px 36px;
+  padding: 16px 28px 48px;
 }
 
 .pg-stage {
@@ -300,21 +309,6 @@ input[type='range'].pg-range::-moz-range-thumb {
 
 .pg-play svg {
   display: block;
-}
-
-/* ---- Caption / footnotes ----------------------------------------------------------- */
-
-.pg-caption {
-  max-width: 1180px;
-  margin: 0 auto;
-  padding: 0 28px 30px;
-  color: var(--faint);
-  font-size: 13.5px;
-  line-height: 1.55;
-}
-
-.pg-caption .katex {
-  font-size: 1.04em;
 }
 
 /* KaTeX inside controls */

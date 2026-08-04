@@ -8,7 +8,21 @@
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
   <link rel="stylesheet" href="playground.css">
   <style>
-    /* Page-specific: panel-title overlay + motion row rhythm. */
+    /* Page-specific: layered stage + panel-title overlay + motion row rhythm. */
+    #svBase {
+      width: 100%;
+      display: block;
+      height: auto;
+    }
+
+    .g2d-layer {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
     .g2d-titles {
       position: absolute;
       inset: 0;
@@ -53,7 +67,9 @@
 
   <main class="pg-main">
     <div class="pg-stage" id="stage">
-      <canvas id="cv" width="900" height="406"></canvas>
+      <svg id="svBase" role="img" aria-label="Signed RF 2D guidance sweep"></svg>
+      <canvas id="cv" class="g2d-layer"></canvas>
+      <svg id="svTop" class="g2d-layer"></svg>
       <div class="g2d-titles" id="titles"></div>
     </div>
 
@@ -90,18 +106,6 @@
     </aside>
   </main>
 
-  <div class="pg-caption">
-    Ten runs of one shared seed set (260 samples; 520 on the broad single-Gaussian toys) through the
-    closed-form guided flow with the paper's stabilized Euler sampler: the top row uses a constant
-    guidance scale, <span data-tex="v = v_+ + \omega\,(v_+ - v_-)"></span>, the bottom row our signed
-    rule with the adaptive <span data-tex="\lambda(x,t)"></span> at matching strength
-    <span data-tex="\alpha"></span>. The background is the <em>terminal</em> signed target
-    <span data-tex="(1+\alpha)\,p_+ - \alpha\,p_-"></span> at <span data-tex="t=1"></span> (the time
-    slider moves only the particles); red marks flag samples whose <em>endpoints</em> land where it is
-    negative. Constant guidance either leaks into the negative region or, at strong
-    <span data-tex="\omega"></span>, over-repels the whole cloud (samples can leave the frame
-    entirely); the signed rule keeps every endpoint on the positive side.
-  </div>
 
   <script type="module" src="2d.js"></script>
 </body>

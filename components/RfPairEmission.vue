@@ -228,12 +228,11 @@ function buildZones1(a, su, frontiers, reachLo, reachHi) {
   return segs
 }
 
-// Heatmap = the pointwise signed density, nothing else: blue where positive,
-// magenta where negative, opacity by |value|. The ghost zone gets NO tint of
-// its own (its positive density reads as plain faint blue) — region structure
-// lives in the boundary-curve layers, and zone-tinting silently breaks on
-// tail-negative topologies (twin, skew at large alpha).
-function renderHeat(a, su) {
+// Heatmap: reach-aware pointwise signed density — blue where positive AND
+// reachable at that time, magenta where negative, PURE WHITE over the ghost
+// region (positive but unreachable). Boundaries come from the same exact
+// curves the overlay layers draw.
+function renderHeat(a, su, extL, extR, frontiers) {
   if (typeof document === 'undefined') return ''
   const W = 300
   const H = 220
@@ -248,8 +247,16 @@ function renderHeat(a, su) {
   const cNeg = [227, 74, 146]
   const vals = new Float64Array(W * H)
   let maxAbs = 1e-12
+  const colL = new Float64Array(W)
+  const colU = new Float64Array(W)
+  const colGaps = []
   for (let px = 0; px < W; px += 1) {
     const t = px / (W - 1)
+    const L = frontAt(extL, t)
+    const U = frontAt(extR, t)
+    colL[px] = Number.isFinite(L) ? L : -Infinity
+    colU[px] = Number.isFinite(U) ? U : Infinity
+    colGaps.push(frontiers.map(f => [frontAt(f.left, t), frontAt(f.right, t)]))
     for (let py = 0; py < H; py += 1) {
       const x = dHi - (py / (H - 1)) * (dHi - dLo)
       const v = signedDensity(x, t, a, su)
@@ -258,15 +265,33 @@ function renderHeat(a, su) {
       if (av > maxAbs) maxAbs = av
     }
   }
-  for (let i = 0; i < W * H; i += 1) {
-    const v = vals[i]
-    const c = v < 0 ? cNeg : cPos
-    const aPix = 0.02 + 0.28 * Math.pow(Math.abs(v) / maxAbs, 0.75)
-    const o = 4 * i
-    img.data[o] = c[0]
-    img.data[o + 1] = c[1]
-    img.data[o + 2] = c[2]
-    img.data[o + 3] = Math.round(255 * clamp(aPix))
+  for (let py = 0; py < H; py += 1) {
+    const x = dHi - (py / (H - 1)) * (dHi - dLo)
+    for (let px = 0; px < W; px += 1) {
+      const v = vals[py * W + px]
+      const o = 4 * (py * W + px)
+      let alpha = 0
+      let c = cPos
+      if (v < 0) {
+        c = cNeg
+        alpha = 0.02 + 0.28 * Math.pow(-v / maxAbs, 0.75)
+      } else {
+        let ghost = x < colL[px] || x > colU[px]
+        if (!ghost) {
+          for (const [gl, gh] of colGaps[px]) {
+            if (Number.isFinite(gl) && x >= gl && x <= gh) {
+              ghost = true
+              break
+            }
+          }
+        }
+        if (!ghost) alpha = 0.02 + 0.28 * Math.pow(v / maxAbs, 0.75)
+      }
+      img.data[o] = c[0]
+      img.data[o + 1] = c[1]
+      img.data[o + 2] = c[2]
+      img.data[o + 3] = Math.round(255 * clamp(alpha))
+    }
   }
   ctx.putImageData(img, 0, 0)
   return canvas.toDataURL('image/png')
@@ -312,7 +337,7 @@ function sliceFor(wid, a) {
       transported,
       trajCuts,
       pairs: buildEmissions(a, su, zeroLines),
-      heat: renderHeat(a, su),
+      heat: renderHeat(a, su, extL, extR, frontiers),
       zones1: buildZones1(a, su, frontiers, reachLo, reachHi),
     }
   })
@@ -895,8 +920,8 @@ onUnmounted(() => {
       <template v-for="(seg, si) in rstrip.segs" :key="`rs-${si}`">
         <path
           :d="seg.area"
-          :fill="seg.type === 'reach' ? PALETTE.sampling : seg.type === 'ghost' ? PALETTE.bufferDark : PALETTE.negative"
-          :fill-opacity="seg.type === 'ghost' ? 0.3 : 0.2"
+          :fill="seg.type === 'reach' ? PALETTE.sampling : seg.type === 'ghost' ? 'none' : PALETTE.negative"
+          :fill-opacity="seg.type === 'ghost' ? 0 : 0.2"
         />
         <path
           :d="seg.line" fill="none"

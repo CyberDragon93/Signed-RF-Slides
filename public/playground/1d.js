@@ -258,10 +258,12 @@ function buildZones1(a, su, frontiers, reachLo, reachHi) {
   return segs
 }
 
-// Heatmap = the pointwise signed density, nothing else: blue where
-// pi_t^sign > 0, magenta where < 0, opacity by |value|. The ghost zone gets
-// no tint of its own — region structure lives in the boundary-curve layers.
-function renderHeat(a, su) {
+// Heatmap: pointwise signed density with reach-aware colouring — blue where
+// the density is positive AND the point is reachable at that time, magenta
+// where it is negative, and PURE WHITE over the ghost region (positive but
+// unreachable: outside the transported envelope or inside a wedge-frontier
+// gap). Region boundaries come from the same exact curves the layers draw.
+function renderHeat(a, su, extL, extR, frontiers) {
   const HW = 300
   const HH = 220
   const canvas = document.createElement('canvas')
@@ -274,8 +276,16 @@ function renderHeat(a, su) {
   const cNeg = [227, 74, 146]
   const vals = new Float64Array(HW * HH)
   let maxAbs = 1e-12
+  const colL = new Float64Array(HW)
+  const colU = new Float64Array(HW)
+  const colGaps = []
   for (let px = 0; px < HW; px += 1) {
     const t = px / (HW - 1)
+    const L = frontAt(extL, t)
+    const U = frontAt(extR, t)
+    colL[px] = Number.isFinite(L) ? L : -Infinity
+    colU[px] = Number.isFinite(U) ? U : Infinity
+    colGaps.push(frontiers.map(f => [frontAt(f.left, t), frontAt(f.right, t)]))
     for (let py = 0; py < HH; py += 1) {
       const x = dHi - (py / (HH - 1)) * (dHi - dLo)
       const v = signedDensity(x, t, a, su)
@@ -284,15 +294,33 @@ function renderHeat(a, su) {
       if (av > maxAbs) maxAbs = av
     }
   }
-  for (let i = 0; i < HW * HH; i += 1) {
-    const v = vals[i]
-    const c = v < 0 ? cNeg : cPos
-    const aPix = 0.02 + 0.28 * Math.pow(Math.abs(v) / maxAbs, 0.75)
-    const o = 4 * i
-    img.data[o] = c[0]
-    img.data[o + 1] = c[1]
-    img.data[o + 2] = c[2]
-    img.data[o + 3] = Math.round(255 * clamp(aPix))
+  for (let py = 0; py < HH; py += 1) {
+    const x = dHi - (py / (HH - 1)) * (dHi - dLo)
+    for (let px = 0; px < HW; px += 1) {
+      const v = vals[py * HW + px]
+      const o = 4 * (py * HW + px)
+      let alpha = 0
+      let c = cPos
+      if (v < 0) {
+        c = cNeg
+        alpha = 0.02 + 0.28 * Math.pow(-v / maxAbs, 0.75)
+      } else {
+        let ghost = x < colL[px] || x > colU[px]
+        if (!ghost) {
+          for (const [gl, gh] of colGaps[px]) {
+            if (Number.isFinite(gl) && x >= gl && x <= gh) {
+              ghost = true
+              break
+            }
+          }
+        }
+        if (!ghost) alpha = 0.02 + 0.28 * Math.pow(v / maxAbs, 0.75)
+      }
+      img.data[o] = c[0]
+      img.data[o + 1] = c[1]
+      img.data[o + 2] = c[2]
+      img.data[o + 3] = Math.round(255 * clamp(alpha))
+    }
   }
   hctx.putImageData(img, 0, 0)
   return canvas.toDataURL('image/png')
@@ -331,7 +359,7 @@ function sliceFor(wid, a) {
   const transported = simulateTrajectories(quantileSeeds(17), a, su, 480)
   const pairs = buildEmissions(a, su, zeroLines)
   const zones1 = buildZones1(a, su, frontiers, reachLo, reachHi)
-  const heatUrl = renderHeat(a, su)
+  const heatUrl = renderHeat(a, su, extL, extR, frontiers)
 
   // -- geometry as SVG path data --
   const zeroD = zeroLines.map((line) => {
@@ -575,8 +603,9 @@ const gBrackets = mk('g', { 'stroke-width': 1.2, 'stroke-opacity': 0.75 }, gStri
 const calloutPath = mk('path', { fill: 'none', stroke: '#202124', 'stroke-width': 1.1 })
 const calloutHead = mk('path', { fill: '#202124' })
 
-const ZONE_FILL = { reach: PALETTE.sampling, ghost: PALETTE.bufferDark, neg: PALETTE.negative }
-const ZONE_LINE_OP = { reach: 0.2, ghost: 0.3, neg: 0.2 }
+// Ghost carries NO fill: white background is the ghost region's colour.
+const ZONE_FILL = { reach: PALETTE.sampling, ghost: 'none', neg: PALETTE.negative }
+const ZONE_LINE_OP = { reach: 0.2, ghost: 0, neg: 0.2 }
 
 // Per-slice dynamic node pools.
 let trajDots = []
@@ -823,7 +852,7 @@ function renderStaticMath() {
   const omZero = mathHtml('\\Omega_t^0') || '&Omega;<sub>t</sub><sup>0</sup>'
   const pi0 = mathHtml('\\pi_0') || '&pi;&#8320;'
   ovLegend.innerHTML = [
-    '<span class="lg-key"><span class="lg-chip lg-ghost">+</span>ghost particle</span>',
+    '<span class="lg-key"><span class="lg-chip lg-ghost">+</span>buffer particle</span>',
     '<span class="lg-key"><span class="lg-chip lg-neg">−</span>negative particle</span>',
     `<span class="lg-note">created in pairs on ${omZero} — never transported from ${pi0}</span>`,
   ].join('')

@@ -52,13 +52,13 @@ const PANEL_BORDER = '#2B2B2B'
 // ---- Layout (internal fixed coordinate system) -------------------------------
 const WIDTH = 900
 const COLS = SWEEP_VALUES_2D.length
-const GAP = 8
-const MARGIN_X = 24
-const PANEL = (WIDTH - 2 * MARGIN_X - (COLS - 1) * GAP) / COLS // ~164
-const TITLE_H = 22
-const ROW0_Y = 30
-const ROW_STRIDE = PANEL + TITLE_H + 10
-const HEIGHT = ROW0_Y + ROW_STRIDE + PANEL + 16 // 406
+const GAP = 7
+const MARGIN_X = 10
+const PANEL = (WIDTH - 2 * MARGIN_X - (COLS - 1) * GAP) / COLS // ~170
+const TITLE_H = 20
+const ROW0_Y = 26
+const ROW_STRIDE = PANEL + TITLE_H + 9
+const HEIGHT = ROW0_Y + ROW_STRIDE + PANEL + 12
 
 function panelRect(row, col) {
   return {
@@ -141,7 +141,7 @@ function renderPanelBg(w2, a, view, maxAbs) {
     }
   }
   ctx.putImageData(img, 0, 0)
-  return canvas
+  return canvas.toDataURL('image/png')
 }
 
 function buildSlice(datasetId) {
@@ -176,6 +176,19 @@ function buildSlice(datasetId) {
       for (let i = 0; i < nP; i += 1) {
         if (signedDensity2d(last[2 * i], last[2 * i + 1], 1, w2, s) < 0) negMask[i] = 1
       }
+      // Violation marks as one vector path per panel (crisp at any zoom).
+      const rect = panelRect(row, col)
+      const sx = x => rect.x + ((x - view.xLo) / (view.xHi - view.xLo)) * rect.w
+      const sy = y => rect.y + ((view.yHi - y) / (view.yHi - view.yLo)) * rect.h
+      const arm = 2.4
+      let marksD = ''
+      for (let i = 0; i < nP; i += 1) {
+        if (!negMask[i]) continue
+        const px = sx(last[2 * i])
+        const py = sy(last[2 * i + 1])
+        marksD += `M${(px - arm).toFixed(2)},${(py - arm).toFixed(2)}L${(px + arm).toFixed(2)},${(py + arm).toFixed(2)}`
+          + `M${(px - arm).toFixed(2)},${(py + arm).toFixed(2)}L${(px + arm).toFixed(2)},${(py - arm).toFixed(2)}`
+      }
       panels.push({
         row,
         col,
@@ -183,6 +196,7 @@ function buildSlice(datasetId) {
         scale: s,
         frames,
         negMask,
+        marksD,
         bg: renderPanelBg(w2, s, view, maxAbs),
       })
     }
@@ -210,6 +224,8 @@ function sliceFor(datasetId) {
 // ---- DOM -----------------------------------------------------------------------
 const stage = document.getElementById('stage')
 const cv = document.getElementById('cv')
+const svBase = document.getElementById('svBase')
+const svTop = document.getElementById('svTop')
 const titlesEl = document.getElementById('titles')
 const worldChipsEl = document.getElementById('worldChips')
 const displayChipsEl = document.getElementById('displayChips')
@@ -217,6 +233,77 @@ const speedChipsEl = document.getElementById('speedChips')
 const playBtn = document.getElementById('playBtn')
 const timeSlider = document.getElementById('timeSlider')
 const timeReadout = document.getElementById('timeReadout')
+
+// ---- SVG scaffolding ---------------------------------------------------------------
+// Static chrome (panel bg images, grid, borders) and the violation marks are
+// vector SVG; only the moving particles are canvas. Built once, re-pointed on
+// world switches.
+const SVG_NS = 'http://www.w3.org/2000/svg'
+function mkSvg(tag, attrs, parent) {
+  const el = document.createElementNS(SVG_NS, tag)
+  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v)
+  parent.appendChild(el)
+  return el
+}
+
+svBase.setAttribute('viewBox', `0 0 ${WIDTH} ${HEIGHT}`)
+svTop.setAttribute('viewBox', `0 0 ${WIDTH} ${HEIGHT}`)
+
+const bgImages = []
+const gridPaths = []
+const markPaths = []
+{
+  const topDefs = mkSvg('defs', {}, svTop)
+  for (let row = 0; row < 2; row += 1) {
+    for (let col = 0; col < COLS; col += 1) {
+      const rect = panelRect(row, col)
+      mkSvg('rect', { x: rect.x, y: rect.y, width: rect.w, height: rect.h, fill: '#FFFFFF' }, svBase)
+      bgImages.push(mkSvg('image', {
+        x: rect.x, y: rect.y, width: rect.w, height: rect.h, preserveAspectRatio: 'none',
+      }, svBase))
+      gridPaths.push(mkSvg('path', {
+        fill: 'none', stroke: GRID_STROKE, 'stroke-width': 0.7, 'stroke-opacity': 0.85,
+      }, svBase))
+      mkSvg('rect', {
+        x: rect.x, y: rect.y, width: rect.w, height: rect.h,
+        fill: 'none', stroke: PANEL_BORDER, 'stroke-width': 1.15,
+      }, svBase)
+      const k = row * COLS + col
+      const cp = mkSvg('clipPath', { id: `g2dClip${k}` }, topDefs)
+      mkSvg('rect', { x: rect.x, y: rect.y, width: rect.w, height: rect.h }, cp)
+      markPaths.push(mkSvg('path', {
+        fill: 'none', stroke: NEG_MARK, 'stroke-width': 0.85, 'clip-path': `url(#g2dClip${k})`,
+      }, svTop))
+    }
+  }
+}
+
+// Point the vector chrome at the current world's slice.
+function applyWorld() {
+  const { view, panels, gridX, gridY } = sliceFor(datasetId)
+  let gridD = ''
+  for (let row = 0; row < 2; row += 1) {
+    for (let col = 0; col < COLS; col += 1) {
+      const rect = panelRect(row, col)
+      let d = ''
+      for (const f of gridX) {
+        const gx = (rect.x + f * rect.w).toFixed(2)
+        d += `M${gx},${rect.y.toFixed(2)}L${gx},${(rect.y + rect.h).toFixed(2)}`
+      }
+      for (const f of gridY) {
+        const gy = (rect.y + (1 - f) * rect.h).toFixed(2)
+        d += `M${rect.x.toFixed(2)},${gy}L${(rect.x + rect.w).toFixed(2)},${gy}`
+      }
+      gridPaths[row * COLS + col].setAttribute('d', d)
+    }
+  }
+  for (const p of panels) {
+    const k = p.row * COLS + p.col
+    bgImages[k].setAttribute('href', p.bg)
+    markPaths[k].setAttribute('d', p.marksD)
+  }
+  void gridD
+}
 
 // ---- State -----------------------------------------------------------------------
 let datasetId = 'shared_modes'
@@ -307,43 +394,20 @@ function draw() {
   const k = cv.width / WIDTH
   ctx.setTransform(k, 0, 0, k, 0, 0)
   ctx.clearRect(0, 0, WIDTH, HEIGHT)
-  const { view, panels, gridX, gridY } = sliceFor(datasetId)
+  const { view, panels } = sliceFor(datasetId)
   const c = clamp(cursor)
   const fpos = c * N_STEPS_2D
   const k0 = Math.min(N_STEPS_2D - 1, Math.floor(fpos))
   const fr = fpos - k0
-  const showNeg = show.marks && c > 0.985
 
+  // Vector layers: bg/grid via display, marks appear at the terminal hold.
+  for (const img of bgImages) img.setAttribute('display', show.bg ? '' : 'none')
+  for (const gp of gridPaths) gp.setAttribute('display', show.grid ? '' : 'none')
+  svTop.style.display = show.marks && c > 0.985 ? '' : 'none'
+
+  // Canvas layer: the moving particles only.
   for (const p of panels) {
     const rect = panelRect(p.row, p.col)
-    ctx.fillStyle = '#FFFFFF'
-    ctx.fillRect(rect.x, rect.y, rect.w, rect.h)
-    if (show.bg) {
-      ctx.drawImage(p.bg, rect.x, rect.y, rect.w, rect.h)
-    }
-    if (show.grid) {
-      ctx.strokeStyle = GRID_STROKE
-      ctx.lineWidth = 0.7
-      ctx.globalAlpha = 0.85
-      ctx.beginPath()
-      for (const f of gridX) {
-        const gx = rect.x + f * rect.w
-        ctx.moveTo(gx, rect.y)
-        ctx.lineTo(gx, rect.y + rect.h)
-      }
-      for (const f of gridY) {
-        const gy = rect.y + (1 - f) * rect.h
-        ctx.moveTo(rect.x, gy)
-        ctx.lineTo(rect.x + rect.w, gy)
-      }
-      ctx.stroke()
-      ctx.globalAlpha = 1
-    }
-    ctx.strokeStyle = PANEL_BORDER
-    ctx.lineWidth = 1.15
-    ctx.strokeRect(rect.x, rect.y, rect.w, rect.h)
-
-    // Particles + violation marks, clipped to the panel.
     const A = p.frames[k0]
     const B = p.frames[k0 + 1]
     const sx = x => rect.x + ((x - view.xLo) / (view.xHi - view.xLo)) * rect.w
@@ -364,24 +428,6 @@ function draw() {
       ctx.arc(sx(x), sy(y), r, 0, 2 * Math.PI)
       ctx.fill()
       ctx.stroke()
-    }
-    if (showNeg) {
-      ctx.strokeStyle = NEG_MARK
-      ctx.lineWidth = 0.85
-      const arm = 2.4
-      const F = p.frames[N_STEPS_2D]
-      const nF = F.length >> 1
-      for (let i = 0; i < nF; i += 1) {
-        if (!p.negMask[i]) continue
-        const px = sx(F[2 * i])
-        const py = sy(F[2 * i + 1])
-        ctx.beginPath()
-        ctx.moveTo(px - arm, py - arm)
-        ctx.lineTo(px + arm, py + arm)
-        ctx.moveTo(px - arm, py + arm)
-        ctx.lineTo(px + arm, py - arm)
-        ctx.stroke()
-      }
     }
     ctx.restore()
   }
@@ -437,6 +483,7 @@ function selectDataset(id) {
   for (const btn of worldChipsEl.children) {
     btn.classList.toggle('on', btn.dataset.id === id)
   }
+  applyWorld()
   // restart the sweep: nothing is mid-flight at t = 0, so the swap is clean
   manual = false
   playing = true
@@ -525,10 +572,6 @@ function prewarm() {
 // ---- Boot --------------------------------------------------------------------------------------
 whenKatex(() => {
   buildTitles()
-  // Re-render caption math + the readout once KaTeX is live.
-  for (const el of document.querySelectorAll('.pg-caption [data-tex]')) {
-    el.innerHTML = mathHtml(el.dataset.tex)
-  }
   updateTimeUI()
 })
 
@@ -536,6 +579,7 @@ buildTitles() // plain-text fallback until KaTeX loads
 updatePlayBtn()
 resize()
 sliceFor(datasetId)
+applyWorld()
 updateTimeUI()
 schedule()
 prewarm()
