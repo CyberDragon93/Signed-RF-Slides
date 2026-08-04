@@ -73,37 +73,65 @@ function frontAt(curve, t) {
   return span > 0 ? xs[lo] + ((t - ts[lo]) / span) * (xs[hi] - xs[lo]) : xs[lo]
 }
 
-function buildEmissions(a, su, frontiers) {
-  // One demo pair per wedge edge; single-wedge worlds get two production
-  // times, multi-wedge worlds one (keeps the picture readable).
-  const dts = frontiers.length > 1 ? [0.16] : [0.09, 0.33]
+// Interpolate a zero-branch line (array of [t, x] points, ascending t) at t.
+function lineAt(line, t) {
+  const n = line.length
+  if (t < line[0][0] || n < 2) return NaN
+  if (t >= line[n - 1][0]) return line[n - 1][1]
+  let lo = 0
+  let hi = n - 1
+  while (hi - lo > 1) {
+    const m = (lo + hi) >> 1
+    if (line[m][0] <= t) lo = m
+    else hi = m
+  }
+  const span = line[hi][0] - line[lo][0]
+  return span > 0 ? line[lo][1] + ((t - line[lo][0]) / span) * (line[hi][1] - line[lo][1]) : line[lo][1]
+}
+
+// Pair emissions seeded directly on the zero-set branches — topology-agnostic.
+// A pair is born on the boundary; which side is the ghost (+) and which the
+// negative (-) particle is decided by where each trajectory actually lands.
+function buildEmissions(a, su, zeroLines) {
+  const dts = zeroLines.length > 2 ? [0.16] : [0.09, 0.33]
   const eps = 0.07
   const pairs = []
-  for (let k = 0; k < frontiers.length; k += 1) {
-    const f = frontiers[k]
+  for (let k = 0; k < zeroLines.length; k += 1) {
+    const line = zeroLines[k]
+    if (line.length < 2) continue
     for (const dt of dts) {
-      const t0 = Math.min(0.97, f.tTip + dt)
-      const gl = frontAt(f.left, t0)
-      const gh = frontAt(f.right, t0)
-      const roots = zeroCrossings(t0, a, su).filter(r => r > gl && r < gh)
-      if (roots.length < 2) continue
-      const rl = roots[0]
-      const ru = roots[roots.length - 1]
-      pairs.push(
-        { id: `w${k}-lo-${dt}`, t: t0, xb: rl, ghost: simulateAdaptive(rl - eps, t0, a, su), reject: simulateAdaptive(rl + eps, t0, a, su) },
-        { id: `w${k}-hi-${dt}`, t: t0, xb: ru, ghost: simulateAdaptive(ru + eps, t0, a, su), reject: simulateAdaptive(ru - eps, t0, a, su) },
-      )
+      const t0 = Math.min(0.97, line[0][0] + dt)
+      const xb = lineAt(line, t0)
+      if (!Number.isFinite(xb)) continue
+      const below = simulateAdaptive(xb - eps, t0, a, su)
+      const above = simulateAdaptive(xb + eps, t0, a, su)
+      const sideSign = c => Math.sign(signedDensity(c.xs[c.xs.length - 1], 1, a, su))
+      const sb = sideSign(below)
+      const sa = sideSign(above)
+      if (sb === sa) continue // degenerate seed: both sides slid to one regime
+      pairs.push({
+        id: `z${k}-${dt}`,
+        t: t0,
+        xb,
+        ghost: sb > 0 ? below : above,
+        reject: sb > 0 ? above : below,
+      })
     }
   }
   pairs.sort((a2, b2) => a2.t - b2.t)
   return pairs
 }
 
-function buildZones1(a, su, frontiers) {
+// Terminal zones, robust to any topology: negative where pi_1^sign < 0;
+// ghost where positive but unreachable — outside the transported span
+// [reachLo, reachHi] (edges = landings of extreme source trajectories) or
+// inside a validated interior-wedge frontier gap; reachable otherwise.
+function buildZones1(a, su, frontiers, reachLo, reachHi) {
   const [lo, hi] = su.domain
   const gaps = frontiers.map(f => [f.left.xs[f.left.xs.length - 1], f.right.xs[f.right.xs.length - 1]])
   const typeOf = (x) => {
     if (signedDensity(x, 1, a, su) < 0) return 'neg'
+    if (x < reachLo || x > reachHi) return 'ghost'
     for (const [gl, gh] of gaps) {
       if (x >= gl && x <= gh) return 'ghost'
     }
@@ -125,7 +153,11 @@ function buildZones1(a, su, frontiers) {
   return segs
 }
 
-function renderHeat(a, su, frontiers) {
+// Heatmap = the pointwise signed density, nothing else: blue where
+// pi_t^sign > 0, magenta where < 0, opacity by |value|. Region structure
+// (ghost/reach) is carried by the boundary-curve layers, not baked in here —
+// the zone recipe silently breaks on tail-negative topologies (twin, skew).
+function renderHeat(a, su) {
   const HW = 300
   const HH = 220
   const canvas = document.createElement('canvas')
@@ -134,15 +166,12 @@ function renderHeat(a, su, frontiers) {
   const hctx = canvas.getContext('2d')
   const [dLo, dHi] = su.domain
   const img = hctx.createImageData(HW, HH)
-  const cReach = [73, 105, 226]
-  const cGhost = [232, 232, 227]
+  const cPos = [73, 105, 226]
   const cNeg = [227, 74, 146]
   const vals = new Float64Array(HW * HH)
-  const gapsPerCol = []
   let maxAbs = 1e-12
   for (let px = 0; px < HW; px += 1) {
     const t = px / (HW - 1)
-    gapsPerCol.push(frontiers.map(f => [frontAt(f.left, t), frontAt(f.right, t)]))
     for (let py = 0; py < HH; py += 1) {
       const x = dHi - (py / (HH - 1)) * (dHi - dLo)
       const v = signedDensity(x, t, a, su)
@@ -151,30 +180,15 @@ function renderHeat(a, su, frontiers) {
       if (av > maxAbs) maxAbs = av
     }
   }
-  for (let py = 0; py < HH; py += 1) {
-    const x = dHi - (py / (HH - 1)) * (dHi - dLo)
-    for (let px = 0; px < HW; px += 1) {
-      const v = vals[py * HW + px]
-      let c = cReach
-      let aScale = 1
-      if (v < 0) {
-        c = cNeg
-      } else {
-        for (const [gl, gh] of gapsPerCol[px]) {
-          if (Number.isFinite(gl) && x >= gl && x <= gh) {
-            c = cGhost
-            aScale = 0.45
-            break
-          }
-        }
-      }
-      const aPix = 0.02 + 0.28 * Math.pow(Math.abs(v) / maxAbs, 0.75)
-      const o = 4 * (py * HW + px)
-      img.data[o] = c[0]
-      img.data[o + 1] = c[1]
-      img.data[o + 2] = c[2]
-      img.data[o + 3] = Math.round(255 * clamp(aPix * aScale))
-    }
+  for (let i = 0; i < HW * HH; i += 1) {
+    const v = vals[i]
+    const c = v < 0 ? cNeg : cPos
+    const aPix = 0.02 + 0.28 * Math.pow(Math.abs(v) / maxAbs, 0.75)
+    const o = 4 * i
+    img.data[o] = c[0]
+    img.data[o + 1] = c[1]
+    img.data[o + 2] = c[2]
+    img.data[o + 3] = Math.round(255 * clamp(aPix))
   }
   hctx.putImageData(img, 0, 0)
   return canvas
@@ -203,12 +217,24 @@ function sliceFor(wid, a) {
   const y = makeY(su.domain)
   const [dLo, dHi] = su.domain
 
-  const frontiers = reachFrontiers(a, su)
+  // Interior-wedge frontiers, validated: a real wedge is NEGATIVE just inside
+  // its birth roots. Tail-negative topologies (twin, skew at large alpha) make
+  // reachFrontiers pair the roots across the positive bulk — discard those.
+  const frontiers = reachFrontiers(a, su).filter((f) => {
+    const mid = 0.5 * (f.left.xs[0] + f.right.xs[0])
+    return signedDensity(mid, Math.min(f.tTip + 0.01, 1), a, su) < 0
+  })
+  // True reach envelope: transported images of extreme source quantiles.
+  const extL = simulateAdaptive(-4.2, 0, a, su)
+  const extR = simulateAdaptive(4.2, 0, a, su)
+  const reachLo = extL.xs[extL.xs.length - 1]
+  const reachHi = extR.xs[extR.xs.length - 1]
+
   const zeroLines = zeroBranches(a, su, 160)
   const transported = simulateTrajectories(quantileSeeds(17), a, su, 480)
-  const pairs = buildEmissions(a, su, frontiers)
-  const zones1 = buildZones1(a, su, frontiers)
-  const heat = renderHeat(a, su, frontiers)
+  const pairs = buildEmissions(a, su, zeroLines)
+  const zones1 = buildZones1(a, su, frontiers, reachLo, reachHi)
+  const heat = renderHeat(a, su)
 
   // -- geometry in stage coordinates --
   const zeroPaths = zeroLines.map((line) => {
@@ -216,7 +242,13 @@ function sliceFor(wid, a) {
     line.forEach(([t, xv], i) => (i ? p.lineTo(tX(t), y(xv)) : p.moveTo(tX(t), y(xv))))
     return p
   })
+  // Ghost-boundary display: validated wedge frontiers, plus the reach
+  // envelope itself whenever it converges to the panel interior (twin-style
+  // worlds — for interior-wedge worlds it hugs the domain edge, so skip it).
+  const edgeCut = 0.88 * Math.max(Math.abs(dLo), Math.abs(dHi))
   const frontierPaths = frontiers.flatMap(f => [curvePath2D(f.left, y, 260), curvePath2D(f.right, y, 260)])
+  if (Math.abs(reachLo) < edgeCut) frontierPaths.push(curvePath2D(extL, y, 260))
+  if (Math.abs(reachHi) < edgeCut) frontierPaths.push(curvePath2D(extR, y, 260))
   const { times, paths } = transported
   const trajPaths = paths.map((arr) => {
     const p = new Path2D()
@@ -299,17 +331,15 @@ function sliceFor(wid, a) {
   const cxc = v => clamp(v, panelX + 6, panelX + panelW - 156)
   const cyc = v => clamp(v, panelY + 4, panelY1 - 26)
   const labels = {}
-  if (frontiers.length) {
-    const f = frontiers[0]
-    const tz = f.tTip
-    const zr = zeroCrossings(Math.min(tz + 5e-3, 1), a, su)
-    if (zr.length > 1) {
-      const xTip = 0.5 * (zr[0] + zr[1])
-      labels.zero = { x: cxc(tX(tz) - 152), y: cyc(y(xTip) - 12) }
-    }
+  if (zeroLines.length && zeroLines[0].length) {
+    const [tz, xz] = zeroLines[0][0]
+    labels.zero = { x: cxc(tX(tz) - 152), y: cyc(y(xz) - 12) }
+  }
+  {
     const tg = 0.78
-    const fo = frontiers[frontiers.length - 1]
-    const gx = frontAt(fo.right, tg)
+    let gx = NaN
+    if (frontiers.length) gx = frontAt(frontiers[frontiers.length - 1].right, tg)
+    else if (Math.abs(reachHi) < edgeCut) gx = frontAt(extR, tg)
     if (Number.isFinite(gx)) labels.ghost = { x: cxc(tX(tg) + 8), y: cyc(y(gx) - 24) }
   }
 
@@ -353,7 +383,7 @@ function sliceFor(wid, a) {
 
 let worldId = 'paper'
 let alphaSel = 0.85
-const layers = { heat: true, zero: true, ghost: true, traj: true, pairs: false, strip: true }
+const layers = { heat: true, zero: true, ghost: true, traj: true, pairs: false, strip: true, labels: false }
 let slice = null
 
 let cursor = 1
@@ -589,9 +619,9 @@ function drawScene() {
       ctx.lineWidth = 1.7
       ctx.stroke(seg.line)
     }
-    // zone brackets on the right edge
+    // zone brackets on the right edge (annotation: labels layer)
     const bx = RSTRIP_X + RSTRIP_W - 22
-    for (const seg of g.rsegs) {
+    for (const seg of layers.labels ? g.rsegs : []) {
       if (seg.span <= 6) continue
       const yT = clamp(seg.yTop + 1, panelY, panelY1)
       const yB = clamp(seg.yBot - 1, panelY, panelY1)
@@ -606,7 +636,7 @@ function drawScene() {
   }
 
   // Callout arrow: the forward reading of the boundary event
-  if (layers.pairs && g.callout) {
+  if (layers.labels && layers.pairs && g.callout) {
     const { bx, by, mx, my } = g.callout
     const sx = bx + 30
     const sy = by + 12
@@ -693,14 +723,14 @@ const ZONE_TXT = { reach: 'Ω^r', ghost: 'Ω^g', neg: 'Ω^−' }
 function updateOverlays() {
   const g = slice.geom
 
-  // curve label chips
-  if (layers.zero && g.labels.zero) {
+  // curve label chips (annotation: labels layer, default off)
+  if (layers.labels && layers.zero && g.labels.zero) {
     posPct(ovZero, g.labels.zero.x, g.labels.zero.y)
     ovZero.style.display = ''
   } else {
     ovZero.style.display = 'none'
   }
-  if (layers.ghost && g.labels.ghost) {
+  if (layers.labels && layers.ghost && g.labels.ghost) {
     posPct(ovGhost, g.labels.ghost.x, g.labels.ghost.y)
     ovGhost.style.display = ''
   } else {
@@ -710,7 +740,7 @@ function updateOverlays() {
   // right-strip zone labels
   ovZones.innerHTML = ''
   ovStripTitle.style.display = layers.strip ? '' : 'none'
-  if (layers.strip) {
+  if (layers.strip && layers.labels) {
     for (const zl of g.zoneLabels) {
       const div = document.createElement('div')
       div.className = 'ov ov-zonebox'
@@ -727,14 +757,14 @@ function updateOverlays() {
     }
   }
 
-  // callout + legend follow the pair-emission layer
-  if (layers.pairs && g.callout) {
+  // callout + legend follow the pair-emission layer AND the labels layer
+  if (layers.labels && layers.pairs && g.callout) {
     posPct(ovCallout, g.callout.bx, g.callout.by)
     ovCallout.style.display = ''
   } else {
     ovCallout.style.display = 'none'
   }
-  ovLegend.style.display = layers.pairs ? '' : 'none'
+  ovLegend.style.display = layers.labels && layers.pairs ? '' : 'none'
 }
 
 // ---- Controls -------------------------------------------------------------------------
