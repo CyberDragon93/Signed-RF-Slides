@@ -366,7 +366,7 @@ function buildTitles() {
       div.style.width = `${(rect.w / WIDTH) * 100}%`
       div.style.height = `${(20 / HEIGHT) * 100}%`
       div.innerHTML = row === 0
-        ? `Constant&nbsp;${mathHtml(`\\omega=${s.toFixed(1)}`)}`
+        ? `Constant&nbsp;CFG&nbsp;${mathHtml(`= ${s.toFixed(1)}`)}`
         : `Ours&nbsp;${mathHtml(`\\alpha=${s.toFixed(1)}`)}`
       titlesEl.appendChild(div)
     }
