@@ -529,6 +529,19 @@ Background: signed target $\pi^{\mathtt{sign}}$ — blue positive, pink negative
 
 ---
 
+# Playground
+
+<RfPlayground2D :height="470" autoplay />
+
+<div class="mt-1 text-center" style="font-size: 0.82em; opacity: 0.75;">
+
+Live Euler dynamics of the guided ODE — pick a world, a rule, a strength; moving a control steers the particles in flight.
+Background: $\pi_1^{\mathtt{sign}}$; red ×'s mark landings where it is negative.
+
+</div>
+
+---
+
 # Estimating the Ratio I: a Classifier
 
 <div class="h-16"></div>

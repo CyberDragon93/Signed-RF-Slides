@@ -125,10 +125,16 @@ const LAMBDA_CLIP = 20.0
 
 // log p_t and velocity of one GMM branch at (x, y, t); the velocity uses the
 // posterior-weighted per-component drift (t s^2 - (1 - t)) / var_t.
+//
+// Shared scratch for the per-component log terms: these functions run in the
+// live per-frame hot path (hundreds of particles x several substeps), where
+// a fresh Array per call causes measurable minor-GC churn. Calls never nest.
+const LOGS_SCRATCH = new Float64Array(64)
+
 export function branchLogp2d(x, y, t, br) {
   const { means, weights, sigmas } = br
   let mx = -Infinity
-  const logs = new Array(means.length)
+  const logs = LOGS_SCRATCH
   for (let k = 0; k < means.length; k += 1) {
     const vr = (1 - t) * (1 - t) + t * t * sigmas[k] * sigmas[k]
     const dx = x - t * means[k][0]
@@ -138,14 +144,14 @@ export function branchLogp2d(x, y, t, br) {
     if (l > mx) mx = l
   }
   let s = 0
-  for (const l of logs) s += Math.exp(l - mx)
+  for (let k = 0; k < means.length; k += 1) s += Math.exp(logs[k] - mx)
   return mx + Math.log(s)
 }
 
 export function branchVelocity2d(x, y, t, br, out) {
   const { means, weights, sigmas } = br
   let mx = -Infinity
-  const logs = new Array(means.length)
+  const logs = LOGS_SCRATCH
   for (let k = 0; k < means.length; k += 1) {
     const vr = (1 - t) * (1 - t) + t * t * sigmas[k] * sigmas[k]
     const dx = x - t * means[k][0]
