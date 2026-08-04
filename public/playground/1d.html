@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Signed Rectified Flow · 1D playground</title>
+  <link rel="stylesheet" href="playground.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <style>
+    /* ---- page-specific: 1D anatomy stage --------------------------------- */
+    #cv {
+      width: 100%;
+      aspect-ratio: 900 / 560;
+      display: block;
+    }
+
+    .ov {
+      position: absolute;
+      pointer-events: none;
+      line-height: 1.25;
+      white-space: nowrap;
+    }
+
+    .ov-chip {
+      display: inline-block;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.92);
+      padding: 1px 7px 2px;
+      border: 1px solid;
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .ov-zero { color: #9d2d64; border-color: #9d2d64; }
+    .ov-ghostb { color: #666666; border-color: #666666; }
+
+    .ov-src { color: #253a88; font-size: 13px; font-weight: 650; }
+
+    .ov-striptitle {
+      color: #202124;
+      font-size: 13px;
+      font-weight: 650;
+      transform: translateX(-50%);
+    }
+
+    .ov-zone {
+      display: inline-block;
+      padding: 0 5px 1px;
+      border-radius: 6px;
+      border: 1px solid;
+      background: rgba(255, 255, 255, 0.92);
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .ov-zonebox { transform: translateY(-50%); }
+
+    .ov-callout {
+      border: 1px solid #202124;
+      background: #ffffff;
+      border-radius: 6px;
+      padding: 1px 9px 2px;
+      font-size: 12px;
+      font-weight: 650;
+      color: #202124;
+      transform: translate(-50%, -50%);
+    }
+
+    .ov-axis {
+      color: var(--faint);
+      font-size: 11.5px;
+      transform: translateX(-50%);
+    }
+
+    .ov-legend {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      color: #536073;
+      font-size: 12px;
+      font-weight: 600;
+      transform: translateX(-50%);
+    }
+
+    .ov-legend .lg-key {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .ov-legend .lg-chip {
+      display: inline-flex;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      align-items: center;
+      justify-content: center;
+      color: #ffffff;
+      font-size: 10.5px;
+      font-weight: 800;
+    }
+
+    .ov-legend .lg-ghost { background: #9a9a9a; }
+    .ov-legend .lg-neg { background: #e34a92; }
+    .ov-legend .lg-note { font-weight: 500; }
+
+    /* ---- controls: alpha detent ticks ------------------------------------ */
+    .pg-range-wrap {
+      position: relative;
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    .pg-range-wrap input[type='range'].pg-range { width: 100%; }
+
+    .pg-ticks {
+      position: absolute;
+      left: 10px;
+      right: 10px;
+      top: 23px;
+      height: 5px;
+      pointer-events: none;
+    }
+
+    .pg-ticks span {
+      position: absolute;
+      top: 0;
+      width: 3.5px;
+      height: 3.5px;
+      border-radius: 50%;
+      background: var(--prim);
+      opacity: 0.4;
+      transform: translateX(-50%);
+    }
+
+    #speedChips { flex-wrap: nowrap; }
+  </style>
+</head>
+<body>
+  <header class="pg-header">
+    <div class="pg-title">Signed Rectified Flow <span class="pg-title-sub">· 1D playground</span></div>
+    <nav class="pg-nav">
+      <a href="../">slides</a>
+      <a href="2d.html">2D playground</a>
+      <a href="https://arxiv.org/abs/2607.18516">paper</a>
+    </nav>
+  </header>
+
+  <main class="pg-main">
+    <div class="pg-stage" id="stage">
+      <canvas id="cv" width="900" height="560"></canvas>
+      <div class="pg-layer" id="overlay">
+        <div class="ov ov-src" id="ovSrc">&pi;&#8320; = N(0,1)</div>
+        <div class="ov ov-striptitle" id="ovStripTitle"></div>
+        <div class="ov" id="ovZero" style="display:none"><span class="ov-chip ov-zero" id="ovZeroChip">zero set</span></div>
+        <div class="ov" id="ovGhost" style="display:none"><span class="ov-chip ov-ghostb">ghost boundary</span></div>
+        <div class="ov" id="ovZones" style="inset:0"></div>
+        <div class="ov ov-callout" id="ovCallout" style="display:none">pair production</div>
+        <div class="ov ov-legend" id="ovLegend" style="display:none"></div>
+        <div class="ov ov-axis" id="ovT0"></div>
+        <div class="ov ov-axis" id="ovT1"></div>
+      </div>
+    </div>
+
+    <aside class="pg-controls" id="controls">
+      <div class="pg-group">
+        <div class="pg-group-label">world</div>
+        <div class="pg-chips" id="worldChips">
+          <button class="pg-chip on" data-world="paper">paper</button>
+          <button class="pg-chip" data-world="lens">lens</button>
+          <button class="pg-chip" data-world="twin">twin</button>
+          <button class="pg-chip" data-world="skew">skew</button>
+        </div>
+      </div>
+
+      <div class="pg-group">
+        <div class="pg-group-label">signed weight</div>
+        <div class="pg-slider-row">
+          <div class="pg-range-wrap">
+            <input type="range" class="pg-range" id="alphaRange" min="0.05" max="4" step="0.05" value="0.85" aria-label="signed weight alpha">
+            <div class="pg-ticks" id="alphaTicks"></div>
+          </div>
+          <div class="pg-readout" id="alphaReadout">&alpha; = 0.85</div>
+        </div>
+      </div>
+
+      <div class="pg-group">
+        <div class="pg-group-label">layers</div>
+        <div class="pg-chips" id="layerChips">
+          <button class="pg-chip pg-toggle on" data-layer="heat">heatmap</button>
+          <button class="pg-chip pg-toggle on" data-layer="zero">zero set <span class="ktx" data-tex="\Omega_t^0"></span></button>
+          <button class="pg-chip pg-toggle on" data-layer="ghost">ghost boundary</button>
+          <button class="pg-chip pg-toggle on" data-layer="traj">trajectories</button>
+          <button class="pg-chip pg-toggle" data-layer="pairs">pair emission</button>
+          <button class="pg-chip pg-toggle on" data-layer="strip">terminal strip</button>
+        </div>
+      </div>
+
+      <div class="pg-group">
+        <div class="pg-group-label">motion</div>
+        <div class="pg-btn-row">
+          <button class="pg-play" id="playBtn" aria-label="play or pause"></button>
+          <div class="pg-chips" id="speedChips">
+            <button class="pg-chip" data-speed="0.5">0.5&times;</button>
+            <button class="pg-chip on" data-speed="1">1&times;</button>
+            <button class="pg-chip" data-speed="2">2&times;</button>
+          </div>
+        </div>
+        <div class="pg-slider-row">
+          <input type="range" class="pg-range" id="timeRange" min="0" max="1" step="0.001" value="1" aria-label="time">
+          <div class="pg-readout" id="timeReadout">t = 1.00</div>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <div class="pg-caption">
+    Anatomy of Signed RF sampling: the signed marginal
+    <span class="ktx" data-tex="\pi_t^{\mathtt{sign}} = (1+\alpha)\,\pi_t^{+} - \alpha\,\pi_t^{-}"></span>
+    carries <span class="ktx" data-tex="\pi_0 = \mathcal{N}(0,1)"></span> (left strip) to the signed target (right strip)
+    along the exact signed velocity field &mdash; the quantile trajectories are true RK4 integrations, nothing is choreographed.
+    Ghost <span class="ktx" data-tex="(+)"></span> / negative <span class="ktx" data-tex="(-)"></span> particle pairs are created on the
+    magenta zero set <span class="ktx" data-tex="\Omega_t^0"></span>, never transported from
+    <span class="ktx" data-tex="\pi_0"></span>; the gray ghost boundary encloses exactly the unreachable region
+    <span class="ktx" data-tex="\Omega^{g}"></span> at <span class="ktx" data-tex="t=1"></span>.
+  </div>
+
+  <script type="module" src="1d.js"></script>
+</body>
+</html>

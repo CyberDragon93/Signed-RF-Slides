@@ -302,6 +302,12 @@ $\Omega_t^- \coloneqq \{\pi_t^{\mathtt{sign}}<0\}$.
 From here on, one world — the paper's setting: a three-mode $\pi_1^+$ with $\pi_1^-$ sitting in the middle.
 Trajectories fork around the negative wedge, and the histogram still matches $\pi_t^{\mathtt{sign}}$ on both sides.
 
+<div class="mt-2 text-center" style="font-size: 0.85em; opacity: 0.7;">
+
+Explore live: <a href="./playground/1d.html" target="_blank">**1D playground ↗**</a>
+
+</div>
+
 ---
 
 # Why? Trace the Dynamics Backward
@@ -527,16 +533,9 @@ Background: signed target $\pi^{\mathtt{sign}}$ — blue positive, pink negative
 - Constant guidance: weak $\omega$ leaves samples near negative modes; strong $\omega$ over-repels into low-density regions.
 - Signed RF avoids the negative modes **while keeping the positive modes and coverage**.
 
----
+<div class="mt-3 text-center" style="font-size: 0.85em; opacity: 0.7;">
 
-# Playground
-
-<RfPlayground2D :height="470" autoplay />
-
-<div class="mt-1 text-center" style="font-size: 0.82em; opacity: 0.75;">
-
-Live Euler dynamics of the guided ODE — pick a world, a rule, a strength; moving a control steers the particles in flight.
-Background: $\pi_1^{\mathtt{sign}}$; red ×'s mark landings where it is negative.
+Explore live: <a href="./playground/2d.html" target="_blank">**2D playground ↗**</a>
 
 </div>
 
