@@ -74,23 +74,46 @@ function clamp(v, lo = 0, hi = 1) {
 }
 
 // ---- Per-dataset slice ---------------------------------------------------------
-// View window: square bbox of all component means padded, then zoomed in by the
-// paper's SWEEP_ZOOM (crop about the centre).
+// View window, exactly the paper's recipe (paper_2d_fancy_sweeps.branch_limits
+// -> _square_limits -> _zoom_limits): per-axis mean bounds padded by
+// 4 * max(all sigmas, 1) + 0.8 and clamped to at least [-extent, extent],
+// squared to a shared span about per-axis centres, then zoomed by SWEEP_ZOOM.
+// The old single-interval window with a hardcoded sigma = 0.6 pad cropped up
+// to half the samples on the broad-sigma toys (point, memo).
+function squareLimits(xl, yl) {
+  const xc = 0.5 * (xl[0] + xl[1])
+  const yc = 0.5 * (yl[0] + yl[1])
+  const half = 0.5 * Math.max(xl[1] - xl[0], yl[1] - yl[0])
+  return [[xc - half, xc + half], [yc - half, yc + half]]
+}
+
+function zoomLimits(l, zoom) {
+  const c = 0.5 * (l[0] + l[1])
+  const half = 0.5 * (l[1] - l[0]) / zoom
+  return [c - half, c + half]
+}
+
 function viewOf(w2) {
-  let lo = Infinity
-  let hi = -Infinity
+  let sigMax = 1.0
+  let xLo = Infinity
+  let xHi = -Infinity
+  let yLo = Infinity
+  let yHi = -Infinity
   for (const br of [w2.plus, w2.minus]) {
+    for (const s of br.sigmas) sigMax = Math.max(sigMax, s)
     for (const m of br.means) {
-      lo = Math.min(lo, m[0], m[1])
-      hi = Math.max(hi, m[0], m[1])
+      xLo = Math.min(xLo, m[0])
+      xHi = Math.max(xHi, m[0])
+      yLo = Math.min(yLo, m[1])
+      yHi = Math.max(yHi, m[1])
     }
   }
-  const pad = 4 * 0.6 + 0.8
-  lo -= pad
-  hi += pad
-  const c = 0.5 * (lo + hi)
-  const half = 0.5 * (hi - lo) / ZOOM
-  return { lo: c - half, hi: c + half }
+  const extent = 4.0 * sigMax + 0.8
+  let xlim = [Math.min(xLo - extent, -extent), Math.max(xHi + extent, extent)]
+  let ylim = [Math.min(yLo - extent, -extent), Math.max(yHi + extent, extent)]
+  ;[xlim, ylim] = squareLimits(xlim, ylim)
+  ;[xlim, ylim] = squareLimits(zoomLimits(xlim, ZOOM), zoomLimits(ylim, ZOOM))
+  return { xLo: xlim[0], xHi: xlim[1], yLo: ylim[0], yHi: ylim[1] }
 }
 
 // Background canvas for one panel: signed density at t = 1, paper recipe.
@@ -103,9 +126,9 @@ function renderPanelBg(w2, a, view, maxAbs) {
   const img = ctx.createImageData(G, G)
   const scale = Math.max(maxAbs * TANH_SCALE, 1e-12)
   for (let r = 0; r < G; r += 1) {
-    const y = view.hi - ((r + 0.5) / G) * (view.hi - view.lo)
+    const y = view.yHi - ((r + 0.5) / G) * (view.yHi - view.yLo)
     for (let c = 0; c < G; c += 1) {
-      const x = view.lo + ((c + 0.5) / G) * (view.hi - view.lo)
+      const x = view.xLo + ((c + 0.5) / G) * (view.xHi - view.xLo)
       const d = signedDensity2d(x, y, 1, w2, a)
       const strength = Math.tanh(d / scale)
       const blend = Math.pow(Math.abs(strength), BLEND_GAMMA) * IMAGE_ALPHA
@@ -133,9 +156,9 @@ function buildSlice(datasetId) {
   const G = 72
   for (const a of SWEEP_VALUES_2D) {
     for (let r = 0; r < G; r += 1) {
-      const y = view.lo + (r / (G - 1)) * (view.hi - view.lo)
+      const y = view.yLo + (r / (G - 1)) * (view.yHi - view.yLo)
       for (let c = 0; c < G; c += 1) {
-        const x = view.lo + (c / (G - 1)) * (view.hi - view.lo)
+        const x = view.xLo + (c / (G - 1)) * (view.xHi - view.xLo)
         const d = Math.abs(signedDensity2d(x, y, 1, w2, a))
         if (d > maxAbs) maxAbs = d
       }
@@ -165,12 +188,17 @@ function buildSlice(datasetId) {
     }
   }
 
-  // Grid line fractions: world-unit lines every 2 units inside the view.
-  const gridFracs = []
-  for (let g = Math.ceil(view.lo / 2) * 2; g <= view.hi; g += 2) {
-    gridFracs.push((g - view.lo) / (view.hi - view.lo))
+  // Grid line fractions: world-unit lines every 2 units, per axis (the view
+  // is square in span but its x/y centres differ).
+  const gridX = []
+  for (let g = Math.ceil(view.xLo / 2) * 2; g <= view.xHi; g += 2) {
+    gridX.push((g - view.xLo) / (view.xHi - view.xLo))
   }
-  return { view, panels, gridFracs }
+  const gridY = []
+  for (let g = Math.ceil(view.yLo / 2) * 2; g <= view.yHi; g += 2) {
+    gridY.push((g - view.yLo) / (view.yHi - view.yLo))
+  }
+  return { view, panels, gridX, gridY }
 }
 
 const sliceCache = new Map()
@@ -279,7 +307,7 @@ function draw() {
   const k = cv.width / WIDTH
   ctx.setTransform(k, 0, 0, k, 0, 0)
   ctx.clearRect(0, 0, WIDTH, HEIGHT)
-  const { view, panels, gridFracs } = sliceFor(datasetId)
+  const { view, panels, gridX, gridY } = sliceFor(datasetId)
   const c = clamp(cursor)
   const fpos = c * N_STEPS_2D
   const k0 = Math.min(N_STEPS_2D - 1, Math.floor(fpos))
@@ -298,10 +326,12 @@ function draw() {
       ctx.lineWidth = 0.7
       ctx.globalAlpha = 0.85
       ctx.beginPath()
-      for (const f of gridFracs) {
+      for (const f of gridX) {
         const gx = rect.x + f * rect.w
         ctx.moveTo(gx, rect.y)
         ctx.lineTo(gx, rect.y + rect.h)
+      }
+      for (const f of gridY) {
         const gy = rect.y + (1 - f) * rect.h
         ctx.moveTo(rect.x, gy)
         ctx.lineTo(rect.x + rect.w, gy)
@@ -316,8 +346,8 @@ function draw() {
     // Particles + violation marks, clipped to the panel.
     const A = p.frames[k0]
     const B = p.frames[k0 + 1]
-    const sx = x => rect.x + ((x - view.lo) / (view.hi - view.lo)) * rect.w
-    const sy = y => rect.y + ((view.hi - y) / (view.hi - view.lo)) * rect.h
+    const sx = x => rect.x + ((x - view.xLo) / (view.xHi - view.xLo)) * rect.w
+    const sy = y => rect.y + ((view.yHi - y) / (view.yHi - view.yLo)) * rect.h
     ctx.save()
     ctx.beginPath()
     ctx.rect(rect.x, rect.y, rect.w, rect.h)

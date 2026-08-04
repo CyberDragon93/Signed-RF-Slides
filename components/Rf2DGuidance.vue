@@ -109,23 +109,44 @@ function mathHtml(tex) {
 }
 
 // ---- Per-dataset slice --------------------------------------------------------
-// View window: square bbox of all component means padded, then zoomed in by
-// the paper's SWEEP_ZOOM (crop about the centre).
+// View window, exactly the paper's recipe (branch_limits -> _square_limits ->
+// _zoom_limits): per-axis mean bounds padded by 4 * max(all sigmas, 1) + 0.8,
+// clamped to at least [-extent, extent], squared to a shared span about the
+// per-axis centres, then zoomed by SWEEP_ZOOM.
+function squareLimits(xl, yl) {
+  const xc = 0.5 * (xl[0] + xl[1])
+  const yc = 0.5 * (yl[0] + yl[1])
+  const half = 0.5 * Math.max(xl[1] - xl[0], yl[1] - yl[0])
+  return [[xc - half, xc + half], [yc - half, yc + half]]
+}
+
+function zoomLimits(l, zoom) {
+  const c = 0.5 * (l[0] + l[1])
+  const half = 0.5 * (l[1] - l[0]) / zoom
+  return [c - half, c + half]
+}
+
 function viewOf(w2) {
-  let lo = Infinity
-  let hi = -Infinity
+  let sigMax = 1.0
+  let xLo = Infinity
+  let xHi = -Infinity
+  let yLo = Infinity
+  let yHi = -Infinity
   for (const br of [w2.plus, w2.minus]) {
+    for (const s of br.sigmas) sigMax = Math.max(sigMax, s)
     for (const m of br.means) {
-      lo = Math.min(lo, m[0], m[1])
-      hi = Math.max(hi, m[0], m[1])
+      xLo = Math.min(xLo, m[0])
+      xHi = Math.max(xHi, m[0])
+      yLo = Math.min(yLo, m[1])
+      yHi = Math.max(yHi, m[1])
     }
   }
-  const pad = 4 * 0.6 + 0.8
-  lo -= pad
-  hi += pad
-  const c = 0.5 * (lo + hi)
-  const half = 0.5 * (hi - lo) / ZOOM
-  return { lo: c - half, hi: c + half }
+  const extent = 4.0 * sigMax + 0.8
+  let xlim = [Math.min(xLo - extent, -extent), Math.max(xHi + extent, extent)]
+  let ylim = [Math.min(yLo - extent, -extent), Math.max(yHi + extent, extent)]
+  ;[xlim, ylim] = squareLimits(xlim, ylim)
+  ;[xlim, ylim] = squareLimits(zoomLimits(xlim, ZOOM), zoomLimits(ylim, ZOOM))
+  return { xLo: xlim[0], xHi: xlim[1], yLo: ylim[0], yHi: ylim[1] }
 }
 
 // Background canvas for one panel: signed density at t = 1, paper recipe.
@@ -140,9 +161,9 @@ function renderPanelBg(w2, a, view, maxAbs) {
   const img = ctx.createImageData(G, G)
   const scale = Math.max(maxAbs * TANH_SCALE, 1e-12)
   for (let r = 0; r < G; r += 1) {
-    const y = view.hi - ((r + 0.5) / G) * (view.hi - view.lo)
+    const y = view.yHi - ((r + 0.5) / G) * (view.yHi - view.yLo)
     for (let c = 0; c < G; c += 1) {
-      const x = view.lo + ((c + 0.5) / G) * (view.hi - view.lo)
+      const x = view.xLo + ((c + 0.5) / G) * (view.xHi - view.xLo)
       const d = signedDensity2d(x, y, 1, w2, a)
       const strength = Math.tanh(d / scale)
       const blend = Math.pow(Math.abs(strength), BLEND_GAMMA) * IMAGE_ALPHA
@@ -170,9 +191,9 @@ function buildSlice(datasetId) {
   const G = 72
   for (const a of SWEEP_VALUES_2D) {
     for (let r = 0; r < G; r += 1) {
-      const y = view.lo + (r / (G - 1)) * (view.hi - view.lo)
+      const y = view.yLo + (r / (G - 1)) * (view.yHi - view.yLo)
       for (let c = 0; c < G; c += 1) {
-        const x = view.lo + (c / (G - 1)) * (view.hi - view.lo)
+        const x = view.xLo + (c / (G - 1)) * (view.xHi - view.xLo)
         const d = Math.abs(signedDensity2d(x, y, 1, w2, a))
         if (d > maxAbs) maxAbs = d
       }
@@ -224,14 +245,15 @@ const titles = computed(() => slice.value.panels.map(p => ({
 const tReadout = computed(() => mathHtml(`t = ${clamp(cursor.value).toFixed(2)}`))
 
 // Grid lines every 2 world units inside the view window.
-const gridLines = computed(() => {
-  const { lo, hi } = slice.value.view
+function gridFracs(lo, hi) {
   const out = []
   for (let g = Math.ceil(lo / 2) * 2; g <= hi; g += 2) {
     out.push((g - lo) / (hi - lo))
   }
   return out
-})
+}
+const gridLinesX = computed(() => gridFracs(slice.value.view.xLo, slice.value.view.xHi))
+const gridLinesY = computed(() => gridFracs(slice.value.view.yLo, slice.value.view.yHi))
 
 // ---- Animation ---------------------------------------------------------------------
 const cursor = ref(1)
@@ -263,8 +285,8 @@ function draw() {
     const rect = panelRect(p.row, p.col)
     const A = p.frames[k0]
     const B = p.frames[k0 + 1]
-    const sx = x => (rect.x + ((x - view.lo) / (view.hi - view.lo)) * rect.w) * S
-    const sy = y => (rect.y + ((view.hi - y) / (view.hi - view.lo)) * rect.h) * S
+    const sx = x => (rect.x + ((x - view.xLo) / (view.xHi - view.xLo)) * rect.w) * S
+    const sy = y => (rect.y + ((view.yHi - y) / (view.yHi - view.yLo)) * rect.h) * S
     ctx.save()
     ctx.beginPath()
     ctx.rect(rect.x * S, rect.y * S, rect.w * S, rect.h * S)
@@ -427,14 +449,14 @@ onUnmounted(() => {
         <!-- world-unit grid, paper style -->
         <g>
           <line
-            v-for="(f, gi) in gridLines"
+            v-for="(f, gi) in gridLinesX"
             :key="`gv-${gi}`"
             :x1="panelRect(p.row, p.col).x + f * PANEL" :y1="panelRect(p.row, p.col).y"
             :x2="panelRect(p.row, p.col).x + f * PANEL" :y2="panelRect(p.row, p.col).y + PANEL"
             stroke="#DFE6EF" stroke-width="0.7" stroke-opacity="0.85"
           />
           <line
-            v-for="(f, gi) in gridLines"
+            v-for="(f, gi) in gridLinesY"
             :key="`gh-${gi}`"
             :x1="panelRect(p.row, p.col).x" :y1="panelRect(p.row, p.col).y + (1 - f) * PANEL"
             :x2="panelRect(p.row, p.col).x + PANEL" :y2="panelRect(p.row, p.col).y + (1 - f) * PANEL"

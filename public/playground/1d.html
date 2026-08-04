@@ -9,7 +9,7 @@
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
   <style>
     /* ---- page-specific: 1D anatomy stage --------------------------------- */
-    #cv {
+    #sv {
       width: 100%;
       aspect-ratio: 900 / 560;
       display: block;
@@ -149,7 +149,7 @@
 
   <main class="pg-main">
     <div class="pg-stage" id="stage">
-      <canvas id="cv" width="900" height="560"></canvas>
+      <svg id="sv" viewBox="0 0 900 560" role="img" aria-label="Signed RF 1D anatomy"></svg>
       <div class="pg-layer" id="overlay">
         <div class="ov ov-src" id="ovSrc">&pi;&#8320; = N(0,1)</div>
         <div class="ov ov-striptitle" id="ovStripTitle"></div>
@@ -223,7 +223,8 @@
     Anatomy of Signed RF sampling: the signed marginal
     <span class="ktx" data-tex="\pi_t^{\mathtt{sign}} = (1+\alpha)\,\pi_t^{+} - \alpha\,\pi_t^{-}"></span>
     carries <span class="ktx" data-tex="\pi_0 = \mathcal{N}(0,1)"></span> (left strip) to the signed target (right strip)
-    along the exact signed velocity field &mdash; the quantile trajectories are true RK4 integrations, nothing is choreographed.
+    along the closed-form signed velocity field &mdash; the quantile trajectories are RK4 integrations of the paper's
+    stabilized sampler (velocity clipped near the singular zero set), nothing is choreographed.
     Ghost <span class="ktx" data-tex="(+)"></span> / negative <span class="ktx" data-tex="(-)"></span> particle pairs are created on the
     magenta zero set <span class="ktx" data-tex="\Omega_t^0"></span>, never transported from
     <span class="ktx" data-tex="\pi_0"></span>; the gray ghost boundary encloses exactly the unreachable region

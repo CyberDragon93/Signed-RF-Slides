@@ -91,13 +91,16 @@
   </main>
 
   <div class="pg-caption">
-    Ten runs of the same 260 seeds through the exact closed-form flow: the top row samples with a
-    constant guidance scale, <span data-tex="v = v_+ + \omega\,(v_+ - v_-)"></span>, while the bottom
-    row uses our signed rule with the adaptive
-    <span data-tex="\lambda(x,t)"></span> at matching strength <span data-tex="\alpha"></span>.
-    Red marks flag samples that land where the signed target density
-    <span data-tex="(1+\alpha)\,p_+ - \alpha\,p_-"></span> is negative &mdash; constant guidance keeps
-    violating the negative region as <span data-tex="\omega"></span> grows, the signed rule does not.
+    Ten runs of one shared seed set (260 samples; 520 on the broad single-Gaussian toys) through the
+    closed-form guided flow with the paper's stabilized Euler sampler: the top row uses a constant
+    guidance scale, <span data-tex="v = v_+ + \omega\,(v_+ - v_-)"></span>, the bottom row our signed
+    rule with the adaptive <span data-tex="\lambda(x,t)"></span> at matching strength
+    <span data-tex="\alpha"></span>. The background is the <em>terminal</em> signed target
+    <span data-tex="(1+\alpha)\,p_+ - \alpha\,p_-"></span> at <span data-tex="t=1"></span> (the time
+    slider moves only the particles); red marks flag samples whose <em>endpoints</em> land where it is
+    negative. Constant guidance either leaks into the negative region or, at strong
+    <span data-tex="\omega"></span>, over-repels the whole cloud (samples can leave the frame
+    entirely); the signed rule keeps every endpoint on the positive side.
   </div>
 
   <script type="module" src="2d.js"></script>

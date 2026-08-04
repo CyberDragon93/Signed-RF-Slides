@@ -1,6 +1,7 @@
 // Signed RF 1D playground — the (t, x) anatomy of Signed RF sampling.
 // Master version of the deck's "Working Example" page (RfPairEmission.vue),
-// driven entirely by the exact closed-form engine in lib/signedRfMath.js.
+// driven by the closed-form engine in lib/signedRfMath.js. All line work is
+// SVG (vector-crisp at any zoom); only the density heatmap is an image.
 
 import {
   ALPHA_DETENTS,
@@ -10,7 +11,6 @@ import {
   TWIN,
   gaussianPdf,
   quantileSeeds,
-  reachFrontiers,
   signedDensity,
   simulateAdaptive,
   simulateTrajectories,
@@ -18,7 +18,6 @@ import {
   zeroCrossings,
 } from './lib/signedRfMath.js'
 
-// ---- Worlds ---------------------------------------------------------------
 // ---- Candidate toy worlds (same Gaussian-mixture form as the engine setups) --
 // comb: broad positive sheet, three narrow negative teeth. The teeth are born
 // in sequence (outer pair first, centre last) and slice the flow into four
@@ -111,7 +110,7 @@ function makeY(domain) {
   return x => panelY + (hi - x) * k
 }
 
-// ---- Slice recipes (exact ports of RfPairEmission.vue) -----------------------
+// ---- Slice recipes -----------------------------------------------------------
 
 function frontAt(curve, t) {
   const { ts, xs } = curve
@@ -163,8 +162,7 @@ function buildEmissions(a, su, zeroLines) {
       const above = simulateAdaptive(xb + eps, t0, a, su)
       const sideSign = c => Math.sign(signedDensity(c.xs[c.xs.length - 1], 1, a, su))
       const sb = sideSign(below)
-      const sa = sideSign(above)
-      if (sb === sa) continue // degenerate seed: both sides slid to one regime
+      if (sb === sideSign(above)) continue // degenerate seed: one regime
       pairs.push({
         id: `z${k}-${dt}`,
         t: t0,
@@ -176,6 +174,57 @@ function buildEmissions(a, su, zeroLines) {
   }
   pairs.sort((a2, b2) => a2.t - b2.t)
   return pairs
+}
+
+// Wedge frontiers for every birth event. Scan the zero-root count over t;
+// each time it grows, pair the sorted roots into consecutive candidate
+// wedges, validate (negative just inside; frontier landings inside the reach
+// envelope; not already tracked) and start an adaptive frontier pair.
+function allFrontiers(a, su, reachLo, reachHi) {
+  const eps = 1e-4
+  const NT = 220
+  const out = []
+  let prevCount = 0
+  for (let i = 1; i <= NT; i += 1) {
+    const t = 0.01 + (i / NT) * 0.985
+    const roots = zeroCrossings(t, a, su)
+    if (roots.length > prevCount) {
+      // Refine the birth time by bisection on the root count.
+      let lo = 0.01 + ((i - 1) / NT) * 0.985
+      let hi = t
+      for (let k = 0; k < 26; k += 1) {
+        const m = 0.5 * (lo + hi)
+        if (zeroCrossings(m, a, su).length > prevCount) hi = m
+        else lo = m
+      }
+      const t0 = Math.min(hi + 2e-3, 1)
+      const rr = zeroCrossings(t0, a, su)
+      for (let j = 0; j + 1 < rr.length; j += 2) {
+        const rl = rr[j]
+        const ru = rr[j + 1]
+        const mid = 0.5 * (rl + ru)
+        if (signedDensity(mid, Math.min(t0 + 0.01, 1), a, su) >= 0) continue
+        let tracked = false
+        for (const f of out) {
+          const gl = frontAt(f.left, t0)
+          const gh = frontAt(f.right, t0)
+          if (Number.isFinite(gl) && mid >= gl && mid <= gh) {
+            tracked = true
+            break
+          }
+        }
+        if (tracked) continue
+        const left = simulateAdaptive(rl - eps, t0, a, su)
+        const right = simulateAdaptive(ru + eps, t0, a, su)
+        const lEnd = left.xs[left.xs.length - 1]
+        const rEnd = right.xs[right.xs.length - 1]
+        if (lEnd < reachLo - 0.05 || rEnd > reachHi + 0.05) continue
+        out.push({ tTip: t0, left, right })
+      }
+    }
+    prevCount = roots.length
+  }
+  return out
 }
 
 // Terminal zones, robust to any topology: negative where pi_1^sign < 0;
@@ -193,7 +242,7 @@ function buildZones1(a, su, frontiers, reachLo, reachHi) {
     }
     return 'reach'
   }
-  const n = 320
+  const n = 640
   const segs = []
   let cur = null
   for (let i = 0; i <= n; i += 1) {
@@ -210,9 +259,8 @@ function buildZones1(a, su, frontiers, reachLo, reachHi) {
 }
 
 // Heatmap = the pointwise signed density, nothing else: blue where
-// pi_t^sign > 0, magenta where < 0, opacity by |value|. Region structure
-// (ghost/reach) is carried by the boundary-curve layers, not baked in here —
-// the zone recipe silently breaks on tail-negative topologies (twin, skew).
+// pi_t^sign > 0, magenta where < 0, opacity by |value|. The ghost zone gets
+// no tint of its own — region structure lives in the boundary-curve layers.
 function renderHeat(a, su) {
   const HW = 300
   const HH = 220
@@ -247,19 +295,18 @@ function renderHeat(a, su) {
     img.data[o + 3] = Math.round(255 * clamp(aPix))
   }
   hctx.putImageData(img, 0, 0)
-  return canvas
+  return canvas.toDataURL('image/png')
 }
 
-// ---- Path builders -----------------------------------------------------------
+// ---- d-string path builders ---------------------------------------------------
 
-function curvePath2D(c, y, targetPts = 220) {
+function curveD(c, y, targetPts = 260) {
   const n = c.ts.length
   const stride = Math.max(1, Math.floor(n / targetPts))
-  const p = new Path2D()
-  p.moveTo(tX(c.ts[0]), y(c.xs[0]))
-  for (let i = stride; i < n; i += stride) p.lineTo(tX(c.ts[i]), y(c.xs[i]))
-  p.lineTo(tX(c.ts[n - 1]), y(c.xs[n - 1]))
-  return p
+  let d = `M${tX(c.ts[0]).toFixed(2)},${y(c.xs[0]).toFixed(2)}`
+  for (let i = stride; i < n; i += stride) d += `L${tX(c.ts[i]).toFixed(2)},${y(c.xs[i]).toFixed(2)}`
+  d += `L${tX(c.ts[n - 1]).toFixed(2)},${y(c.xs[n - 1]).toFixed(2)}`
+  return d
 }
 
 // ---- Slice cache: everything deterministic per (world, alpha) ------------------
@@ -273,45 +320,57 @@ function sliceFor(wid, a) {
   const y = makeY(su.domain)
   const [dLo, dHi] = su.domain
 
-  // Interior-wedge frontiers, validated: a real wedge is NEGATIVE just inside
-  // its birth roots. Tail-negative topologies (twin, skew at large alpha) make
-  // reachFrontiers pair the roots across the positive bulk — discard those.
-  const frontiers = reachFrontiers(a, su).filter((f) => {
-    const mid = 0.5 * (f.left.xs[0] + f.right.xs[0])
-    return signedDensity(mid, Math.min(f.tTip + 0.01, 1), a, su) < 0
-  })
   // True reach envelope: transported images of extreme source quantiles.
   const extL = simulateAdaptive(-4.2, 0, a, su)
   const extR = simulateAdaptive(4.2, 0, a, su)
   const reachLo = extL.xs[extL.xs.length - 1]
   const reachHi = extR.xs[extR.xs.length - 1]
+  const frontiers = allFrontiers(a, su, reachLo, reachHi)
 
   const zeroLines = zeroBranches(a, su, 160)
   const transported = simulateTrajectories(quantileSeeds(17), a, su, 480)
   const pairs = buildEmissions(a, su, zeroLines)
   const zones1 = buildZones1(a, su, frontiers, reachLo, reachHi)
-  const heat = renderHeat(a, su)
+  const heatUrl = renderHeat(a, su)
 
-  // -- geometry in stage coordinates --
-  const zeroPaths = zeroLines.map((line) => {
-    const p = new Path2D()
-    line.forEach(([t, xv], i) => (i ? p.lineTo(tX(t), y(xv)) : p.moveTo(tX(t), y(xv))))
-    return p
+  // -- geometry as SVG path data --
+  const zeroD = zeroLines.map((line) => {
+    let d = ''
+    for (const [t, xv] of line) d += (d ? 'L' : 'M') + tX(t).toFixed(2) + ',' + y(xv).toFixed(2)
+    return d
   })
   // Ghost-boundary display: validated wedge frontiers, plus the reach
   // envelope itself whenever it converges to the panel interior (twin-style
   // worlds — for interior-wedge worlds it hugs the domain edge, so skip it).
   const edgeCut = 0.88 * Math.max(Math.abs(dLo), Math.abs(dHi))
-  const frontierPaths = frontiers.flatMap(f => [curvePath2D(f.left, y, 260), curvePath2D(f.right, y, 260)])
-  if (Math.abs(reachLo) < edgeCut) frontierPaths.push(curvePath2D(extL, y, 260))
-  if (Math.abs(reachHi) < edgeCut) frontierPaths.push(curvePath2D(extR, y, 260))
+  const ghostCurves = frontiers.flatMap(f => [f.left, f.right])
+  if (Math.abs(reachLo) < edgeCut) ghostCurves.push(extL)
+  if (Math.abs(reachHi) < edgeCut) ghostCurves.push(extR)
+  const ghostD = ghostCurves.map(c => curveD(c, y))
+
   const { times, paths } = transported
-  const trajPaths = paths.map((arr) => {
-    const p = new Path2D()
-    p.moveTo(tX(times[0]), y(arr[0]))
-    for (let i = 3; i < arr.length; i += 3) p.lineTo(tX(times[i]), y(arr[i]))
-    p.lineTo(tX(times[times.length - 1]), y(arr[arr.length - 1]))
-    return p
+  // Truncate at annihilation: a measure-zero seed on a symmetry axis rides
+  // v = 0 straight into the wedge born there; in exact math it terminates at
+  // the tip, so clip the drawn curve there and mark it.
+  const trajData = paths.map((arr) => {
+    let cut = arr.length - 1
+    for (let i = 1; i < arr.length; i += 1) {
+      if (signedDensity(arr[i], times[i], a, su) < -1e-12) {
+        cut = Math.max(1, i - 1)
+        break
+      }
+    }
+    let d = `M${tX(times[0]).toFixed(2)},${y(arr[0]).toFixed(2)}`
+    for (let i = 3; i < cut; i += 3) d += `L${tX(times[i]).toFixed(2)},${y(arr[i]).toFixed(2)}`
+    d += `L${tX(times[cut]).toFixed(2)},${y(arr[cut]).toFixed(2)}`
+    return {
+      d,
+      arr,
+      cut,
+      annihilated: cut < arr.length - 1,
+      tEnd: times[cut],
+      xEnd: arr[cut],
+    }
   })
   const pairGeo = pairs.map(p => ({
     id: p.id,
@@ -320,55 +379,50 @@ function sliceFor(wid, a) {
     cy: y(p.xb),
     ghost: p.ghost,
     reject: p.reject,
-    ghostPath: curvePath2D(p.ghost, y),
-    rejectPath: curvePath2D(p.reject, y),
+    ghostD: curveD(p.ghost, y),
+    rejectD: curveD(p.reject, y),
   }))
 
   // -- source strip (pi_0 = N(0,1) silhouette bulging left) --
-  const srcArea = new Path2D()
-  const srcLine = new Path2D()
   const srcK = 58 / 0.42
+  let srcLineD = ''
+  let srcAreaD = `M${stripRight},${y(dLo).toFixed(2)}`
   for (let i = 0; i <= 180; i += 1) {
     const x = dLo + (i / 180) * (dHi - dLo)
-    const px = stripRight - srcK * gaussianPdf(x, 0, 1)
-    const py = y(x)
-    if (i === 0) {
-      srcLine.moveTo(px, py)
-      srcArea.moveTo(stripRight, py)
-    } else {
-      srcLine.lineTo(px, py)
-    }
-    srcArea.lineTo(px, py)
+    const px = (stripRight - srcK * gaussianPdf(x, 0, 1)).toFixed(2)
+    const py = y(x).toFixed(2)
+    srcLineD += (srcLineD ? 'L' : 'M') + px + ',' + py
+    srcAreaD += `L${px},${py}`
   }
-  srcArea.lineTo(stripRight, y(dHi))
-  srcArea.closePath()
+  srcAreaD += `L${stripRight},${y(dHi).toFixed(2)}Z`
 
-  // -- right strip: terminal signed profile per zone segment --
+  // -- right strip: ONE continuous dense terminal profile + zone fills --
   let maxAbs = 1e-9
-  for (let i = 0; i <= 200; i += 1) {
-    const x = dLo + (i / 200) * (dHi - dLo)
+  for (let i = 0; i <= 640; i += 1) {
+    const x = dLo + (i / 640) * (dHi - dLo)
     maxAbs = Math.max(maxAbs, Math.abs(signedDensity(x, 1, a, su)))
   }
   const baseX = RSTRIP_X + 34
   const rk = (RSTRIP_W - 40) / maxAbs
+  let profileD = ''
+  for (let i = 0; i <= 700; i += 1) {
+    const x = dLo + (i / 700) * (dHi - dLo)
+    const px = (baseX + rk * signedDensity(x, 1, a, su)).toFixed(2)
+    profileD += (profileD ? 'L' : 'M') + px + ',' + y(x).toFixed(2)
+  }
   const rsegs = zones1.map((seg) => {
-    const line = new Path2D()
-    const area = new Path2D()
-    area.moveTo(baseX, y(seg.x0))
-    for (let i = 0; i <= 40; i += 1) {
-      const x = seg.x0 + (i / 40) * (seg.x1 - seg.x0)
-      const px = baseX + rk * signedDensity(x, 1, a, su)
-      const py = y(x)
-      if (i === 0) line.moveTo(px, py)
-      else line.lineTo(px, py)
-      area.lineTo(px, py)
+    // Sampling density proportional to the segment's share of the domain, so
+    // narrow features (comb teeth) stay smooth inside wide segments too.
+    const nS = Math.max(24, Math.round(((seg.x1 - seg.x0) / (dHi - dLo)) * 700))
+    let areaD = `M${baseX},${y(seg.x0).toFixed(2)}`
+    for (let i = 0; i <= nS; i += 1) {
+      const x = seg.x0 + (i / nS) * (seg.x1 - seg.x0)
+      areaD += `L${(baseX + rk * signedDensity(x, 1, a, su)).toFixed(2)},${y(x).toFixed(2)}`
     }
-    area.lineTo(baseX, y(seg.x1))
-    area.closePath()
+    areaD += `L${baseX},${y(seg.x1).toFixed(2)}Z`
     return {
       type: seg.type,
-      line,
-      area,
+      areaD,
       yTop: y(seg.x1),
       yBot: y(seg.x0),
       midY: y(0.5 * (seg.x0 + seg.x1)),
@@ -394,8 +448,7 @@ function sliceFor(wid, a) {
   {
     const tg = 0.78
     let gx = NaN
-    if (frontiers.length) gx = frontAt(frontiers[frontiers.length - 1].right, tg)
-    else if (Math.abs(reachHi) < edgeCut) gx = frontAt(extR, tg)
+    if (ghostCurves.length) gx = frontAt(ghostCurves[ghostCurves.length - 1], tg)
     if (Number.isFinite(gx)) labels.ghost = { x: cxc(tX(tg) + 8), y: cyc(y(gx) - 24) }
   }
 
@@ -414,17 +467,17 @@ function sliceFor(wid, a) {
   const slice = {
     setup: su,
     y,
-    heat,
-    frontiers,
+    heatUrl,
     transported,
     geom: {
-      zeroPaths,
-      frontierPaths,
-      trajPaths,
+      zeroD,
+      ghostD,
+      trajData,
       pairs: pairGeo,
-      srcArea,
-      srcLine,
+      srcAreaD,
+      srcLineD,
       baseX,
+      profileD,
       rsegs,
       zoneLabels,
       labels,
@@ -450,270 +503,281 @@ let refTs = 0
 let phase0 = SWEEP // hold-first: open on the complete t = 1 picture
 let raf = 0
 let needsDraw = false
-let hiddenAt = 0
 
 const cycleSweep = () => SWEEP / speed
 const isRunning = () => playing && !manual && !document.hidden
 
-// ---- Canvas ------------------------------------------------------------------------
+// ---- SVG scaffolding ---------------------------------------------------------------
+// Built once; slices swap path data, frames only touch the reveal clip, the
+// cursor, the riding dots and the flashes.
 
-const stage = document.getElementById('stage')
-const canvas = document.getElementById('cv')
-const ctx = canvas.getContext('2d')
-let sf = 1 // device scale factor: canvas px per stage unit
+const SVG_NS = 'http://www.w3.org/2000/svg'
+const svg = document.getElementById('sv')
 
-function makePanelPath() {
-  const p = new Path2D()
-  if (p.roundRect) p.roundRect(panelX, panelY, panelW, panelH, 8)
-  else p.rect(panelX, panelY, panelW, panelH)
-  return p
-}
-const panelPath = makePanelPath()
-
-function resizeCanvas() {
-  const cssW = stage.clientWidth || 900
-  const dpr = Math.min(2, window.devicePixelRatio || 1)
-  const pw = Math.max(1, Math.round(cssW * dpr))
-  const ph = Math.round(pw * H / W)
-  if (canvas.width !== pw || canvas.height !== ph) {
-    canvas.width = pw
-    canvas.height = ph
-  }
-  sf = pw / W
+function mk(tag, attrs = {}, parent = svg) {
+  const el = document.createElementNS(SVG_NS, tag)
+  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v)
+  parent.appendChild(el)
+  return el
 }
 
-function strokeSeg(x1, y1, x2, y2) {
-  ctx.beginPath()
-  ctx.moveTo(x1, y1)
-  ctx.lineTo(x2, y2)
-  ctx.stroke()
+const defs = mk('defs')
+const clipPanel = mk('clipPath', { id: 'pg1dPanel' }, defs)
+mk('rect', { x: panelX, y: panelY, width: panelW, height: panelH }, clipPanel)
+const clipReveal = mk('clipPath', { id: 'pg1dReveal' }, defs)
+const revealRect = mk('rect', { x: panelX, y: panelY, width: 0, height: panelH }, clipReveal)
+
+mk('rect', { x: panelX, y: panelY, width: panelW, height: panelH, fill: '#FBFCFF' })
+const heatImg = mk('image', {
+  x: panelX, y: panelY, width: panelW, height: panelH,
+  preserveAspectRatio: 'none', 'clip-path': 'url(#pg1dPanel)',
+})
+const gGhost = mk('g', {
+  'clip-path': 'url(#pg1dPanel)', fill: 'none',
+  stroke: PALETTE.buffer, 'stroke-width': 1.5, 'stroke-opacity': 0.95, 'stroke-linejoin': 'round',
+})
+const gZero = mk('g', {
+  'clip-path': 'url(#pg1dPanel)', fill: 'none',
+  stroke: PALETTE.negative, 'stroke-width': 1.6, 'stroke-opacity': 0.9, 'stroke-linejoin': 'round',
+})
+// Forward-swept content: revealed up to the cursor only.
+const gTraj = mk('g', {
+  'clip-path': 'url(#pg1dReveal)', fill: 'none',
+  stroke: PALETTE.traj, 'stroke-width': 0.9, 'stroke-opacity': 0.5, 'stroke-linejoin': 'round',
+})
+const gPairTrails = mk('g', { 'clip-path': 'url(#pg1dReveal)', fill: 'none', 'stroke-linejoin': 'round' })
+const gEmDots = mk('g')
+const cursorLine = mk('line', {
+  y1: panelY, y2: panelY1,
+  stroke: 'rgba(32, 33, 36, 0.42)', 'stroke-width': 1.4, 'stroke-dasharray': '5 4',
+})
+const gFlash = mk('g', { fill: 'none' })
+const gDots = mk('g')
+const gPairDots = mk('g', { 'font-family': 'KaTeX_Main, Georgia, serif', 'font-size': 10.5, 'font-weight': 800 })
+mk('rect', {
+  x: panelX, y: panelY, width: panelW, height: panelH,
+  fill: 'none', stroke: '#D6DDF3', 'stroke-width': 1,
+})
+
+// Left strip: pi_0 silhouette.
+const srcArea = mk('path', { fill: 'rgba(73, 105, 226, 0.14)' })
+const srcLine = mk('path', { fill: 'none', stroke: PALETTE.sampling, 'stroke-width': 2, 'stroke-linecap': 'round' })
+mk('line', { x1: stripRight, y1: panelY, x2: stripRight, y2: panelY1, stroke: 'rgba(37, 58, 136, 0.35)', 'stroke-width': 1 })
+
+// Right strip: baseline + zone fills + one continuous profile + brackets.
+const gStrip = mk('g')
+const stripBase = mk('line', { stroke: 'rgba(83, 96, 115, 0.45)', 'stroke-width': 0.9, y1: panelY, y2: panelY1 }, gStrip)
+const gZoneFills = mk('g', {}, gStrip)
+const profilePath = mk('path', { fill: 'none', stroke: '#202124', 'stroke-width': 1.6, 'stroke-linejoin': 'round' }, gStrip)
+const gBrackets = mk('g', { 'stroke-width': 1.2, 'stroke-opacity': 0.75 }, gStrip)
+
+// Callout arrow (labels + pair layers).
+const calloutPath = mk('path', { fill: 'none', stroke: '#202124', 'stroke-width': 1.1 })
+const calloutHead = mk('path', { fill: '#202124' })
+
+const ZONE_FILL = { reach: PALETTE.sampling, ghost: PALETTE.bufferDark, neg: PALETTE.negative }
+const ZONE_LINE_OP = { reach: 0.2, ghost: 0.3, neg: 0.2 }
+
+// Per-slice dynamic node pools.
+let trajDots = []
+let annMarks = []
+let pairDotGs = []
+let flashRings = []
+
+function clearChildren(g) {
+  while (g.firstChild) g.removeChild(g.firstChild)
 }
 
-// ---- Scene -----------------------------------------------------------------------
-
-function drawScene() {
-  needsDraw = false
+function applySlice() {
   const g = slice.geom
-  ctx.setTransform(sf, 0, 0, sf, 0, 0)
-  ctx.clearRect(0, 0, W, H)
-  ctx.lineJoin = 'round'
+  heatImg.setAttribute('href', slice.heatUrl)
 
-  // Source strip: pi_0
-  ctx.fillStyle = 'rgba(73, 105, 226, 0.14)'
-  ctx.fill(g.srcArea)
-  ctx.strokeStyle = PALETTE.sampling
-  ctx.lineWidth = 2
-  ctx.lineCap = 'round'
-  ctx.stroke(g.srcLine)
-  ctx.strokeStyle = 'rgba(37, 58, 136, 0.35)'
-  ctx.lineWidth = 1
-  strokeSeg(stripRight, panelY, stripRight, panelY1)
+  clearChildren(gGhost)
+  for (const d of g.ghostD) mk('path', { d }, gGhost)
+  clearChildren(gZero)
+  for (const d of g.zeroD) mk('path', { d }, gZero)
 
-  // Main (t, x) panel
-  ctx.fillStyle = '#FBFCFF'
-  ctx.fill(panelPath)
+  clearChildren(gTraj)
+  for (const td of g.trajData) mk('path', { d: td.d }, gTraj)
 
-  ctx.save()
-  ctx.clip(panelPath)
-
-  if (layers.heat) ctx.drawImage(slice.heat, panelX, panelY, panelW, panelH)
-
-  if (layers.ghost) {
-    ctx.globalAlpha = 0.95
-    ctx.strokeStyle = PALETTE.buffer
-    ctx.lineWidth = 1.5
-    for (const p of g.frontierPaths) ctx.stroke(p)
-    ctx.globalAlpha = 1
-  }
-  if (layers.zero) {
-    ctx.globalAlpha = 0.9
-    ctx.strokeStyle = PALETTE.negative
-    ctx.lineWidth = 1.6
-    for (const p of g.zeroPaths) ctx.stroke(p)
-    ctx.globalAlpha = 1
+  clearChildren(gPairTrails)
+  for (const p of g.pairs) {
+    mk('path', { d: p.rejectD, stroke: PALETTE.negative, 'stroke-width': 4.8, 'stroke-opacity': 0.14 }, gPairTrails)
+    mk('path', { d: p.ghostD, stroke: PALETTE.buffer, 'stroke-width': 4.8, 'stroke-opacity': 0.14 }, gPairTrails)
+    mk('path', { d: p.rejectD, stroke: PALETTE.negative, 'stroke-width': 2.4, 'stroke-opacity': 0.95, 'stroke-dasharray': '2.2 1.6' }, gPairTrails)
+    mk('path', { d: p.ghostD, stroke: PALETTE.buffer, 'stroke-width': 2.4, 'stroke-opacity': 0.95, 'stroke-dasharray': '2.2 1.6' }, gPairTrails)
   }
 
-  const c = clamp(cursor)
-  const cx = tX(c)
-
-  // Forward-swept content: only times <= cursor t are revealed.
-  ctx.save()
-  ctx.beginPath()
-  ctx.rect(panelX, panelY, Math.max(0, cx - panelX), panelH)
-  ctx.clip()
-  if (layers.traj) {
-    ctx.globalAlpha = 0.5
-    ctx.strokeStyle = PALETTE.traj
-    ctx.lineWidth = 0.9
-    for (const p of g.trajPaths) ctx.stroke(p)
-    ctx.globalAlpha = 1
+  clearChildren(gEmDots)
+  for (const p of g.pairs) {
+    mk('circle', {
+      cx: p.cx, cy: p.cy, r: 2.9,
+      fill: '#FFFFFF', stroke: PALETTE.negativeDark, 'stroke-width': 0.9, visibility: 'hidden',
+    }, gEmDots)
   }
-  if (layers.pairs) {
-    for (const p of g.pairs) {
-      ctx.globalAlpha = 0.14
-      ctx.lineWidth = 4.8
-      ctx.strokeStyle = PALETTE.negative
-      ctx.stroke(p.rejectPath)
-      ctx.strokeStyle = PALETTE.buffer
-      ctx.stroke(p.ghostPath)
-      ctx.globalAlpha = 0.95
-      ctx.lineWidth = 2.4
-      ctx.setLineDash([2.2, 1.6])
-      ctx.strokeStyle = PALETTE.negative
-      ctx.stroke(p.rejectPath)
-      ctx.strokeStyle = PALETTE.buffer
-      ctx.stroke(p.ghostPath)
-      ctx.setLineDash([])
-      ctx.globalAlpha = 1
+
+  clearChildren(gDots)
+  trajDots = slice.geom.trajData.map(() => mk('circle', {
+    r: 3.2, fill: PALETTE.trajMarkerFill, stroke: PALETTE.trajMarkerEdge, 'stroke-width': 0.8,
+  }, gDots))
+  annMarks = slice.geom.trajData.map(td => mk('circle', {
+    cx: tX(td.tEnd), cy: slice.y(td.xEnd), r: 3.4,
+    fill: '#FFFFFF', stroke: PALETTE.negativeDark, 'stroke-width': 1.1,
+    visibility: 'hidden',
+  }, gDots))
+
+  clearChildren(gPairDots)
+  pairDotGs = g.pairs.map((p) => {
+    const grp = mk('g', { visibility: 'hidden' }, gPairDots)
+    const mkDot = (fill, sign) => {
+      const c = mk('circle', { r: 7, fill, stroke: '#FFFFFF', 'stroke-width': 1.6 }, grp)
+      const t = mk('text', {
+        fill: '#FFFFFF', 'text-anchor': 'middle', dy: 3.6,
+      }, grp)
+      t.textContent = sign
+      return { c, t }
     }
+    return { p, ghost: mkDot(PALETTE.buffer, '+'), reject: mkDot(PALETTE.negative, '−') }
+  })
+
+  clearChildren(gFlash)
+  flashRings = g.pairs.map(p => ({
+    p,
+    outer: mk('circle', { cx: p.cx, cy: p.cy, stroke: PALETTE.negativeDark, 'stroke-width': 2.4, opacity: 0 }, gFlash),
+    inner: mk('circle', { cx: p.cx, cy: p.cy, stroke: PALETTE.bufferDark, 'stroke-width': 2, opacity: 0 }, gFlash),
+  }))
+
+  srcArea.setAttribute('d', g.srcAreaD)
+  srcLine.setAttribute('d', g.srcLineD)
+
+  stripBase.setAttribute('x1', g.baseX)
+  stripBase.setAttribute('x2', g.baseX)
+  clearChildren(gZoneFills)
+  for (const seg of g.rsegs) {
+    mk('path', { d: seg.areaD, fill: ZONE_FILL[seg.type], 'fill-opacity': ZONE_LINE_OP[seg.type] }, gZoneFills)
   }
-  ctx.restore()
-
-  // Emission points, visible once the sweep passes them
-  if (layers.pairs) {
-    for (const p of g.pairs) {
-      if (c < p.t) continue
-      ctx.beginPath()
-      ctx.arc(p.cx, p.cy, 2.9, 0, 2 * Math.PI)
-      ctx.fillStyle = '#FFFFFF'
-      ctx.fill()
-      ctx.strokeStyle = PALETTE.negativeDark
-      ctx.lineWidth = 0.9
-      ctx.stroke()
-    }
-  }
-
-  // Time cursor
-  ctx.strokeStyle = 'rgba(32, 33, 36, 0.42)'
-  ctx.lineWidth = 1.4
-  ctx.setLineDash([5, 4])
-  strokeSeg(cx, panelY, cx, panelY1)
-  ctx.setLineDash([])
-
-  // Pair-production flashes
-  if (layers.pairs) {
-    for (const p of g.pairs) {
-      const d = c - p.t
-      if (d <= 0 || d > FLASH) continue
-      const prog = d / FLASH
-      ctx.globalAlpha = 0.65 * (1 - prog)
-      ctx.strokeStyle = PALETTE.negativeDark
-      ctx.lineWidth = 2.4
-      ctx.beginPath()
-      ctx.arc(p.cx, p.cy, 5 + 22 * prog, 0, 2 * Math.PI)
-      ctx.stroke()
-      ctx.strokeStyle = PALETTE.bufferDark
-      ctx.lineWidth = 2
-      ctx.beginPath()
-      ctx.arc(p.cx, p.cy, 3 + 15 * prog, 0, 2 * Math.PI)
-      ctx.stroke()
-      ctx.globalAlpha = 1
-    }
+  profilePath.setAttribute('d', g.profileD)
+  clearChildren(gBrackets)
+  const bx = RSTRIP_X + RSTRIP_W - 22
+  for (const seg of g.rsegs) {
+    if (seg.span <= 6) continue
+    const yT = clamp(seg.yTop + 1, panelY, panelY1)
+    const yB = clamp(seg.yBot - 1, panelY, panelY1)
+    mk('path', {
+      d: `M${bx - 4},${yT.toFixed(1)}L${bx},${yT.toFixed(1)}L${bx},${yB.toFixed(1)}L${bx - 4},${yB.toFixed(1)}`,
+      fill: 'none', stroke: ZONE_DARK[seg.type],
+    }, gBrackets)
   }
 
-  // Particles riding forward along their exact curves
-  if (layers.traj) {
-    const { times, paths } = slice.transported
-    const last = times.length - 1
-    const idx = Math.max(0, Math.min(last, Math.round(c * last)))
-    const y = slice.y
-    ctx.lineWidth = 0.8
-    ctx.strokeStyle = PALETTE.trajMarkerEdge
-    ctx.fillStyle = PALETTE.trajMarkerFill
-    for (const arr of paths) {
-      ctx.beginPath()
-      ctx.arc(cx, y(arr[idx]), 3.2, 0, 2 * Math.PI)
-      ctx.fill()
-      ctx.stroke()
-    }
-  }
-  if (layers.pairs) {
-    const y = slice.y
-    ctx.font = '800 10.5px "KaTeX_Main", Georgia, serif'
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    for (const p of g.pairs) {
-      if (c < p.t) continue
-      const pg = [
-        { xv: frontAt(p.ghost, c), fill: PALETTE.buffer, sign: '+' },
-        { xv: frontAt(p.reject, c), fill: PALETTE.negative, sign: '−' },
-      ]
-      for (const d of pg) {
-        if (!Number.isFinite(d.xv)) continue
-        const py = y(d.xv)
-        ctx.beginPath()
-        ctx.arc(cx, py, 7, 0, 2 * Math.PI)
-        ctx.fillStyle = d.fill
-        ctx.fill()
-        ctx.strokeStyle = '#FFFFFF'
-        ctx.lineWidth = 1.6
-        ctx.stroke()
-        ctx.fillStyle = '#FFFFFF'
-        ctx.fillText(d.sign, cx, py + 0.5)
-      }
-    }
-  }
-
-  ctx.restore()
-
-  // Panel border on top for a crisp edge
-  ctx.strokeStyle = '#D6DDF3'
-  ctx.lineWidth = 1
-  ctx.stroke(panelPath)
-
-  // Right strip: terminal signed density with zone fills + brackets
-  if (layers.strip) {
-    ctx.strokeStyle = 'rgba(83, 96, 115, 0.45)'
-    ctx.lineWidth = 0.9
-    strokeSeg(g.baseX, panelY, g.baseX, panelY1)
-    for (const seg of g.rsegs) {
-      ctx.globalAlpha = seg.type === 'ghost' ? 0.3 : 0.2
-      ctx.fillStyle = seg.type === 'reach' ? PALETTE.sampling : seg.type === 'ghost' ? PALETTE.bufferDark : PALETTE.negative
-      ctx.fill(seg.area)
-      ctx.globalAlpha = 1
-      ctx.strokeStyle = seg.type === 'reach' ? PALETTE.sampling : seg.type === 'ghost' ? PALETTE.buffer : PALETTE.negative
-      ctx.lineWidth = 1.7
-      ctx.stroke(seg.line)
-    }
-    // zone brackets on the right edge (annotation: labels layer)
-    const bx = RSTRIP_X + RSTRIP_W - 22
-    for (const seg of layers.labels ? g.rsegs : []) {
-      if (seg.span <= 6) continue
-      const yT = clamp(seg.yTop + 1, panelY, panelY1)
-      const yB = clamp(seg.yBot - 1, panelY, panelY1)
-      ctx.globalAlpha = 0.75
-      ctx.strokeStyle = ZONE_DARK[seg.type]
-      ctx.lineWidth = 1.2
-      strokeSeg(bx, yT, bx, yB)
-      strokeSeg(bx, yT, bx - 4, yT)
-      strokeSeg(bx, yB, bx - 4, yB)
-      ctx.globalAlpha = 1
-    }
-  }
-
-  // Callout arrow: the forward reading of the boundary event
-  if (layers.labels && layers.pairs && g.callout) {
-    const { bx, by, mx, my } = g.callout
-    const sx = bx + 30
+  if (g.callout) {
+    const { bx: cbx, by, mx, my } = g.callout
+    const sx = cbx + 30
     const sy = by + 12
     const qx = mx - 30
     const qy = (by + my) / 2 + 12
     const ex = mx - 4
     const ey = my - 12
-    ctx.strokeStyle = '#202124'
-    ctx.lineWidth = 1.1
-    ctx.beginPath()
-    ctx.moveTo(sx, sy)
-    ctx.quadraticCurveTo(qx, qy, ex, ey)
-    ctx.stroke()
+    calloutPath.setAttribute('d', `M${sx},${sy}Q${qx},${qy} ${ex},${ey}`)
     const ang = Math.atan2(ey - qy, ex - qx)
-    ctx.fillStyle = '#202124'
-    ctx.beginPath()
-    ctx.moveTo(ex, ey)
-    ctx.lineTo(ex - 7 * Math.cos(ang - 0.42), ey - 7 * Math.sin(ang - 0.42))
-    ctx.lineTo(ex - 7 * Math.cos(ang + 0.42), ey - 7 * Math.sin(ang + 0.42))
-    ctx.closePath()
-    ctx.fill()
+    calloutHead.setAttribute('d', [
+      `M${ex},${ey}`,
+      `L${(ex - 7 * Math.cos(ang - 0.42)).toFixed(1)},${(ey - 7 * Math.sin(ang - 0.42)).toFixed(1)}`,
+      `L${(ex - 7 * Math.cos(ang + 0.42)).toFixed(1)},${(ey - 7 * Math.sin(ang + 0.42)).toFixed(1)}`,
+      'Z',
+    ].join(''))
+  }
+
+  applyLayerVisibility()
+}
+
+function applyLayerVisibility() {
+  const show = (el, on) => el.setAttribute('display', on ? '' : 'none')
+  show(heatImg, layers.heat)
+  show(gGhost, layers.ghost)
+  show(gZero, layers.zero)
+  show(gTraj, layers.traj)
+  show(gDots, layers.traj)
+  show(gPairTrails, layers.pairs)
+  show(gEmDots, layers.pairs)
+  show(gPairDots, layers.pairs)
+  show(gFlash, layers.pairs)
+  show(gStrip, layers.strip)
+  show(gBrackets, layers.strip && layers.labels)
+  const co = layers.pairs && layers.labels && slice && slice.geom.callout
+  show(calloutPath, co)
+  show(calloutHead, co)
+}
+
+// ---- Frame updates ---------------------------------------------------------------
+
+function updateFrame() {
+  needsDraw = false
+  const c = clamp(cursor)
+  const cx = tX(c)
+  const g = slice.geom
+  const y = slice.y
+
+  revealRect.setAttribute('width', Math.max(0, cx - panelX))
+  cursorLine.setAttribute('x1', cx)
+  cursorLine.setAttribute('x2', cx)
+
+  const { times } = slice.transported
+  const last = times.length - 1
+  const idx = Math.max(0, Math.min(last, Math.round(c * last)))
+  for (let i = 0; i < g.trajData.length; i += 1) {
+    const td = g.trajData[i]
+    if (idx > td.cut) {
+      trajDots[i].setAttribute('visibility', 'hidden')
+      annMarks[i].setAttribute('visibility', td.annihilated ? 'visible' : 'hidden')
+    } else {
+      trajDots[i].setAttribute('visibility', 'visible')
+      trajDots[i].setAttribute('cx', cx)
+      trajDots[i].setAttribute('cy', y(td.arr[idx]))
+      annMarks[i].setAttribute('visibility', 'hidden')
+    }
+  }
+
+  const emCircles = gEmDots.childNodes
+  for (let i = 0; i < g.pairs.length; i += 1) {
+    emCircles[i].setAttribute('visibility', c >= g.pairs[i].t ? 'visible' : 'hidden')
+  }
+
+  for (const pd of pairDotGs) {
+    if (c < pd.p.t) {
+      pd.grpVisible = false
+      pd.ghost.c.parentNode.setAttribute('visibility', 'hidden')
+      continue
+    }
+    const grp = pd.ghost.c.parentNode
+    grp.setAttribute('visibility', 'visible')
+    const gxv = frontAt(pd.p.ghost, c)
+    const rxv = frontAt(pd.p.reject, c)
+    for (const [node, xv] of [[pd.ghost, gxv], [pd.reject, rxv]]) {
+      const ok = Number.isFinite(xv)
+      node.c.setAttribute('visibility', ok ? 'visible' : 'hidden')
+      node.t.setAttribute('visibility', ok ? 'visible' : 'hidden')
+      if (ok) {
+        const py = y(xv)
+        node.c.setAttribute('cx', cx)
+        node.c.setAttribute('cy', py)
+        node.t.setAttribute('x', cx)
+        node.t.setAttribute('y', py)
+      }
+    }
+  }
+
+  for (const fr of flashRings) {
+    const d = c - fr.p.t
+    if (d <= 0 || d > FLASH) {
+      fr.outer.setAttribute('opacity', 0)
+      fr.inner.setAttribute('opacity', 0)
+      continue
+    }
+    const prog = d / FLASH
+    fr.outer.setAttribute('opacity', (0.65 * (1 - prog)).toFixed(3))
+    fr.outer.setAttribute('r', (5 + 22 * prog).toFixed(2))
+    fr.inner.setAttribute('opacity', (0.65 * (1 - prog)).toFixed(3))
+    fr.inner.setAttribute('r', (3 + 15 * prog).toFixed(2))
   }
 }
 
@@ -733,7 +797,6 @@ function setMath(el, tex, fallback) {
 // ---- Overlays -----------------------------------------------------------------------
 
 const $ = id => document.getElementById(id)
-const overlay = $('overlay')
 const ovSrc = $('ovSrc')
 const ovStripTitle = $('ovStripTitle')
 const ovZero = $('ovZero')
@@ -886,11 +949,11 @@ function frame(now) {
     const cs = cycleSweep()
     const ph = ((now - refTs) / 1000 + phase0) % (cs + HOLD)
     cursor = ph < cs ? ph / cs : 1
-    drawScene()
+    updateFrame()
     updateTimeUI()
     raf = requestAnimationFrame(frame)
   } else if (needsDraw) {
-    drawScene()
+    updateFrame()
     updateTimeUI()
   }
 }
@@ -916,6 +979,7 @@ function commitAlpha(v) {
   // Synchronous recompute (memoized): the previous slice stays painted until
   // the new one is ready, so there is no flicker.
   slice = sliceFor(worldId, alphaSel)
+  applySlice()
   updateOverlays()
   restartSweep()
   scheduleDraw()
@@ -925,6 +989,7 @@ function selectWorld(id) {
   if (id === worldId) return
   worldId = id
   slice = sliceFor(worldId, alphaSel)
+  applySlice()
   updateOverlays()
   restartSweep()
   scheduleDraw()
@@ -952,6 +1017,7 @@ function prewarmDetents() {
 
 function init() {
   slice = sliceFor(worldId, alphaSel)
+  applySlice()
 
   // world chips
   for (const btn of document.querySelectorAll('#worldChips .pg-chip')) {
@@ -983,6 +1049,7 @@ function init() {
       const k = btn.dataset.layer
       layers[k] = !layers[k]
       btn.classList.toggle('on', layers[k])
+      applyLayerVisibility()
       updateOverlays()
       scheduleDraw()
     })
@@ -1028,22 +1095,8 @@ function init() {
   updateOverlays()
   updatePlayIcon()
 
-  // canvas sizing
-  resizeCanvas()
-  window.addEventListener('resize', () => {
-    resizeCanvas()
-    scheduleDraw()
-  })
-  if (window.ResizeObserver) {
-    new ResizeObserver(() => {
-      resizeCanvas()
-      scheduleDraw()
-    }).observe(stage)
-  }
-
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
-      hiddenAt = performance.now()
       snapshotPhase()
       if (raf) {
         cancelAnimationFrame(raf)
