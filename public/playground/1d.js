@@ -4,7 +4,6 @@
 
 import {
   ALPHA_DETENTS,
-  CORE,
   DENSITY,
   PALETTE,
   SKEW,
@@ -20,11 +19,68 @@ import {
 } from './lib/signedRfMath.js'
 
 // ---- Worlds ---------------------------------------------------------------
+// ---- Candidate toy worlds (same Gaussian-mixture form as the engine setups) --
+// comb: broad positive sheet, three narrow negative teeth. The teeth are born
+// in sequence (outer pair first, centre last) and slice the flow into four
+// channels; at small alpha no tooth opens at all.
+const COMB = {
+  plus: [{ w: 1.0, mu: 0.0, vr: 2.6 }],
+  minus: [
+    { w: 1 / 3, mu: -1.8, vr: 0.05 },
+    { w: 1 / 3, mu: 0.0, vr: 0.05 },
+    { w: 1 / 3, mu: 1.8, vr: 0.05 },
+  ],
+  alpha: 0.85,
+  domain: [-4.5, 4.5],
+}
+
+// needle: an ultra-narrow negative spike off-centre. At small alpha it is a
+// late-born lancet the flow forks around; at larger alpha its boundary sweeps
+// early and shoves every trajectory to one side — a one-sided exclusion with
+// a huge stranded ghost tail.
+const NEEDLE = {
+  plus: [{ w: 1.0, mu: -0.3, vr: 1.1 }],
+  minus: [{ w: 1.0, mu: 1.1, vr: 0.015 }],
+  alpha: 0.85,
+  domain: [-3.8, 3.8],
+}
+
+// canyon: two far positive banks, one broad negative river between them.
+// The wedge opens early and wide; the flow must commit to a bank at once.
+const CANYON = {
+  plus: [
+    { w: 0.5, mu: -2.5, vr: 0.35 },
+    { w: 0.5, mu: 2.5, vr: 0.35 },
+  ],
+  minus: [{ w: 1.0, mu: 0.0, vr: 1.1 }],
+  alpha: 0.85,
+  domain: [-4.6, 4.6],
+}
+
+// island: a sharp positive core inside a broad negative sea, with two shores.
+// Below alpha ~ 1 the core is a reachable channel threaded between the two
+// wedges; at larger alpha the sea is born first and the island splits later
+// inside it — the whole core strands as ghost mass. A phase transition on
+// the alpha slider.
+const ISLAND = {
+  plus: [
+    { w: 0.30, mu: 0.0, vr: 0.06 },
+    { w: 0.35, mu: -2.6, vr: 0.35 },
+    { w: 0.35, mu: 2.6, vr: 0.35 },
+  ],
+  minus: [{ w: 1.0, mu: 0.0, vr: 1.0 }],
+  alpha: 0.9,
+  domain: [-4.6, 4.6],
+}
+
 const WORLDS = [
   { id: 'paper', setup: DENSITY },
-  { id: 'lens', setup: CORE },
   { id: 'twin', setup: TWIN },
   { id: 'skew', setup: SKEW },
+  { id: 'comb', setup: COMB },
+  { id: 'needle', setup: NEEDLE },
+  { id: 'canyon', setup: CANYON },
+  { id: 'island', setup: ISLAND },
 ]
 
 // ---- Internal layout (fixed 900 x 560 coordinate system) --------------------
