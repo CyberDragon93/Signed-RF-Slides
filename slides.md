@@ -629,7 +629,7 @@ class: signed-mixture-rf-slide
 
 # Rectified Flow for Signed Mixture
 
-- Let us formally substitute ${\color{#c43d4d}\omega=-\alpha}$, even though it may not "make sense":
+- Let us formally substitute ${\color{#c43d4d}\omega=-\alpha}$, even though it may not “make sense”:
 
   $$
   {\color{#c43d4d}\pi_1^{\mathtt{sign}}}
@@ -660,7 +660,7 @@ class: signed-mixture-rf-slide
 
 - Regardless of theory, we get an  (singular) ODE.
 - Physicists use such tricks a lot.
-- Curious to run it anway, and see what it gives?
+- Curious to run it anyway, and see what it gives?
 
 ---
 
