@@ -1613,6 +1613,8 @@ $$
 A simple practical modification, empirically robust to moderate choices of the cap $\lambda_{\max}$.
 
 ---
+disabled: true
+---
 
 # What It Does in Practice
 
@@ -1630,6 +1632,8 @@ A simple practical modification, empirically robust to moderate choices of the c
 
 One framework — the negative branch is whatever you must avoid: a region, a dataset, a concept.
 
+---
+disabled: true
 ---
 
 # KL-Regularized Flow RL Is Exponential Tilting
@@ -1659,6 +1663,8 @@ $$
 
 Flow RL is therefore distribution matching toward a **positive exponential tilt** of the base endpoint.
 
+---
+disabled: true
 ---
 
 # The Tilt Is an Exact Weighted RF Loss
@@ -1694,6 +1700,8 @@ $$
 
 At the population optimum, one positive weighted RF loss learns the exact Flow-RL tilt.
 
+---
+disabled: true
 ---
 
 # Generalize the Terminal Weight
@@ -1759,6 +1767,8 @@ $$
 
 This is Signed RF in trainable loss form: two nonnegative regressions followed by a ratio. The field remains singular where $m_t^\star=0$.
 
+---
+disabled: true
 ---
 
 # Why Use a Signed Reward Weight?
