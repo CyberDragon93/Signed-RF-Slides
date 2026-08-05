@@ -1322,6 +1322,12 @@ Explore live: <a href="./playground/1d.html" target="_blank">**1D playground ↗
 
 # The Physical Picture: Charged Particles
 
+<div style="position: absolute; top: 3.45rem; right: 3.2rem; font-size: 0.8em; opacity: 0.75;">
+
+Explore live: <a href="./playground/1d.html" target="_blank">**1D playground ↗**</a>
+
+</div>
+
 <RfPairEmission :height="430" autoplay />
 
 <div class="mt-2"></div>
@@ -1699,7 +1705,7 @@ Base reproduces its match down to borders and watermarks; Signed RF breaks the c
 
 # ImageNet-256: Against Tuned Guidance
 
-<RfImagenetFid :height="410" />
+<RfImagenetFid :height="445" />
 
 <div class="mt-1" style="font-size: 0.76em; color: #536073; text-align: center;">
 

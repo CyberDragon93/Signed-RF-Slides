@@ -361,11 +361,11 @@ const aSlider = computed(() => ({ x: 540, y: layout.value.sliderY, w: 175 }))
 // ---- KaTeX labels ---------------------------------------------------------------
 const sourceLabel = mathHtml('\\pi_0=\\mathcal{N}(0,1)')
 const zeroChipHtml = `zero set ${mathHtml('\\Omega_t^0')}`
-const ghostChipHtml = 'ghost boundary'
+const ghostChipHtml = 'buffer boundary'
 const stripTitle = mathHtml('\\pi_1^{\\mathtt{sign}}')
 const zoneHtml = {
   reach: mathHtml('\\Omega^{r}'),
-  ghost: mathHtml('\\Omega^{g}'),
+  ghost: mathHtml('\\Omega^{b}'),
   neg: mathHtml('\\Omega^{-}'),
 }
 const zoneColor = {
