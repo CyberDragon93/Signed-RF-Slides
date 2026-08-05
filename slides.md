@@ -1459,18 +1459,6 @@ $$
 Two ingredients: the branch velocities $v_t^{\pm}$ and the density ratio $r_t(x)$.
 
 ---
-disabled: true
----
-
-# An Adaptive Scale, Not a Schedule
-
-<AdaptiveScaleCurve :height="340" autoplay />
-
-- $r_t(x)$ small — the state looks positive — guidance nearly vanishes
-- $r_t(x)$ large — the state leans negative — repulsion grows without bound
-- The pole $(1+\alpha)-\alpha\, r_t(x)=0$ **is** the signed boundary $\pi_t^{\mathtt{sign}}(x)=0$
-
----
 class: signed-rf-2d-playground-slide
 ---
 
