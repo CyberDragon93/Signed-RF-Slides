@@ -223,7 +223,7 @@ function sliceFor(datasetId) {
 
 // ---- DOM -----------------------------------------------------------------------
 const stage = document.getElementById('stage')
-const cv = document.getElementById('cv')
+const svParts = document.getElementById('svParts')
 const svBase = document.getElementById('svBase')
 const svTop = document.getElementById('svTop')
 const titlesEl = document.getElementById('titles')
@@ -247,12 +247,17 @@ function mkSvg(tag, attrs, parent) {
 }
 
 svBase.setAttribute('viewBox', `0 0 ${WIDTH} ${HEIGHT}`)
+svParts.setAttribute('viewBox', `0 0 ${WIDTH} ${HEIGHT}`)
 svTop.setAttribute('viewBox', `0 0 ${WIDTH} ${HEIGHT}`)
 
 const bgImages = []
 const gridPaths = []
 const markPaths = []
+// Particles are vector too: one path per panel holding every dot as a pair of
+// arcs — a single attribute swap per panel per frame keeps the DOM cost flat.
+const partPaths = []
 {
+  const partDefs = mkSvg('defs', {}, svParts)
   const topDefs = mkSvg('defs', {}, svTop)
   for (let row = 0; row < 2; row += 1) {
     for (let col = 0; col < COLS; col += 1) {
@@ -274,6 +279,12 @@ const markPaths = []
       markPaths.push(mkSvg('path', {
         fill: 'none', stroke: NEG_MARK, 'stroke-width': 0.85, 'clip-path': `url(#g2dClip${k})`,
       }, svTop))
+      const pcp = mkSvg('clipPath', { id: `g2dPClip${k}` }, partDefs)
+      mkSvg('rect', { x: rect.x, y: rect.y, width: rect.w, height: rect.h }, pcp)
+      partPaths.push(mkSvg('path', {
+        fill: PARTICLE_FILL, stroke: PARTICLE_EDGE, 'stroke-width': 0.42,
+        'clip-path': `url(#g2dPClip${k})`,
+      }, svParts))
     }
   }
 }
@@ -373,27 +384,23 @@ function buildTitles() {
   }
 }
 
-// ---- Canvas sizing -----------------------------------------------------------------
+// ---- Sizing: every layer is SVG and scales itself; only the HTML title
+// overlay needs its font matched to the stage width.
 function resize() {
   const cwCss = stage.clientWidth
   if (!cwCss) return
-  const ss = Math.min(2, window.devicePixelRatio || 1)
-  const w = Math.round(cwCss * ss)
-  const h = Math.round(cwCss * ss * (HEIGHT / WIDTH))
-  if (cv.width !== w || cv.height !== h) {
-    cv.width = w
-    cv.height = h
-  }
   titlesEl.style.fontSize = `${(12.5 * cwCss / WIDTH).toFixed(2)}px`
   invalidate()
 }
 
 // ---- Drawing ------------------------------------------------------------------------
+// Every dot is two SVG arcs inside its panel's single path: one path-data swap
+// per panel per frame, vector-crisp at any zoom.
+const DOT_R = 1.55
+const DOT_A1 = `a${DOT_R},${DOT_R} 0 1,0 ${(-2 * DOT_R).toFixed(2)},0`
+const DOT_A2 = `a${DOT_R},${DOT_R} 0 1,0 ${(2 * DOT_R).toFixed(2)},0`
+
 function draw() {
-  const ctx = cv.getContext('2d')
-  const k = cv.width / WIDTH
-  ctx.setTransform(k, 0, 0, k, 0, 0)
-  ctx.clearRect(0, 0, WIDTH, HEIGHT)
   const { view, panels } = sliceFor(datasetId)
   const c = clamp(cursor)
   const fpos = c * N_STEPS_2D
@@ -405,31 +412,22 @@ function draw() {
   for (const gp of gridPaths) gp.setAttribute('display', show.grid ? '' : 'none')
   svTop.style.display = show.marks && c > 0.985 ? '' : 'none'
 
-  // Canvas layer: the moving particles only.
   for (const p of panels) {
     const rect = panelRect(p.row, p.col)
     const A = p.frames[k0]
     const B = p.frames[k0 + 1]
-    const sx = x => rect.x + ((x - view.xLo) / (view.xHi - view.xLo)) * rect.w
-    const sy = y => rect.y + ((view.yHi - y) / (view.yHi - view.yLo)) * rect.h
-    ctx.save()
-    ctx.beginPath()
-    ctx.rect(rect.x, rect.y, rect.w, rect.h)
-    ctx.clip()
-    ctx.lineWidth = 0.42
-    ctx.strokeStyle = PARTICLE_EDGE
-    ctx.fillStyle = PARTICLE_FILL
-    const r = 1.55
+    const kx = rect.w / (view.xHi - view.xLo)
+    const ky = rect.h / (view.yHi - view.yLo)
     const nP = A.length >> 1
+    let d = ''
     for (let i = 0; i < nP; i += 1) {
       const x = A[2 * i] + (B[2 * i] - A[2 * i]) * fr
       const y = A[2 * i + 1] + (B[2 * i + 1] - A[2 * i + 1]) * fr
-      ctx.beginPath()
-      ctx.arc(sx(x), sy(y), r, 0, 2 * Math.PI)
-      ctx.fill()
-      ctx.stroke()
+      const px = rect.x + (x - view.xLo) * kx
+      const py = rect.y + (view.yHi - y) * ky
+      d += `M${(px + DOT_R).toFixed(2)},${py.toFixed(2)}${DOT_A1}${DOT_A2}`
     }
-    ctx.restore()
+    partPaths[p.row * COLS + p.col].setAttribute('d', d)
   }
 }
 
