@@ -380,3 +380,10 @@ body.laser-cursor #slide-container * {
   font-weight: 700;
   white-space: nowrap;
 }
+
+/* Slides never scroll/pan: any overflow past the slide box is clipped
+   (the theme's .content-wrapper ships as overflow-auto). */
+.slidev-layout .content-wrapper,
+#slide-content .content-wrapper {
+  overflow: hidden !important;
+}
