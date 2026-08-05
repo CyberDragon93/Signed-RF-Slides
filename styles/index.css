@@ -86,3 +86,15 @@
   font-weight: 700;
   letter-spacing: 0;
 }
+
+/* Compact data tables: shrink to content so columns sit close together. */
+.tight-table table {
+  width: auto;
+  margin: 0 auto;
+}
+
+.tight-table td,
+.tight-table th {
+  padding: 3px 15px !important;
+  white-space: nowrap;
+}

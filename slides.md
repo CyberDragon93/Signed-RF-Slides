@@ -683,7 +683,6 @@ Same positive prompt in both rows; the negative prompt names the concept — it 
   white-space: nowrap;
 }
 .abs-label-ours { color: #253a88; }
-.memo-table td, .memo-table th { padding: 2px 12px !important; }
 </style>
 
 <div class="mt-2 text-center" style="font-size: 0.75em; opacity: 0.8;">
@@ -692,7 +691,7 @@ Same seed per column, each generation above its nearest training match — Base 
 
 </div>
 
-<div class="mt-1 flex justify-center memo-table" style="font-size: 0.62em;">
+<div class="mt-1 tight-table" style="font-size: 0.66em;">
 
 | Method | FID $\downarrow$ | $P_{05}\uparrow$ | $P_{10}\uparrow$ | $P_{25}\uparrow$ | Mean $\uparrow$ |
 |---|---|---|---|---|---|
@@ -710,7 +709,7 @@ Same seed per column, each generation above its nearest training match — Base 
 
 <div class="h-8"></div>
 
-<div class="grid grid-cols-2 gap-10" style="font-size: 0.85em;">
+<div class="grid grid-cols-2 gap-10 tight-table" style="font-size: 0.85em;">
 
 <div>
 
