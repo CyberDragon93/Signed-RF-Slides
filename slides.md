@@ -35,6 +35,7 @@ themeConfig:
 Negativity-Controlled Generation
 
 <div class="title-author">Qiang Liu</div>
+<div class="title-affiliation">UT Austin &amp; Microsoft</div>
 
 <style>
 .title-author {
@@ -42,6 +43,13 @@ Negativity-Controlled Generation
   color: #3156b3;
   font-size: 1.15rem;
   font-weight: 650;
+  letter-spacing: 0.01em;
+}
+.title-affiliation {
+  margin-top: 0.35rem;
+  color: #536073;
+  font-size: 0.92rem;
+  font-weight: 500;
   letter-spacing: 0.01em;
 }
 </style>
