@@ -471,7 +471,19 @@ onUnmounted(() => {
       </g>
 
       <!-- Dataset chips (the paper's full preset library) -->
-      <g v-for="m in CHIP_META" :key="`ds-${m.id}`" class="g2d-chip" @pointerdown.prevent="selectDataset(m.id)">
+      <g
+        v-for="m in CHIP_META"
+        :key="`ds-${m.id}`"
+        class="g2d-chip"
+        :data-dataset-id="m.id"
+        role="button"
+        :aria-label="m.label"
+        :aria-pressed="m.id === datasetId"
+        tabindex="0"
+        @pointerdown.prevent="selectDataset(m.id)"
+        @keydown.enter.prevent="selectDataset(m.id)"
+        @keydown.space.prevent="selectDataset(m.id)"
+      >
         <rect
           :x="m.x" :y="CHIPS_Y" :width="m.w" height="21" rx="10.5"
           :fill="m.id === datasetId ? '#EAF0FF' : '#FFFFFF'"
@@ -486,7 +498,15 @@ onUnmounted(() => {
       </g>
 
       <!-- Play / pause -->
-      <g class="g2d-play" @pointerdown.prevent="togglePlay">
+      <g
+        class="g2d-play"
+        role="button"
+        :aria-label="isRunning ? 'Pause animation' : 'Play animation'"
+        tabindex="0"
+        @pointerdown.prevent="togglePlay"
+        @keydown.enter.prevent="togglePlay"
+        @keydown.space.prevent="togglePlay"
+      >
         <circle :cx="270" :cy="controlsY" r="11" fill="#FFFFFF" stroke="#253A88" stroke-width="1.9" />
         <g v-if="isRunning">
           <rect :x="265.8" :y="controlsY - 4.6" width="3" height="9.2" rx="1" fill="#253A88" />

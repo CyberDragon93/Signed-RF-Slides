@@ -1188,27 +1188,34 @@ Two ingredients: the branch velocities $v_t^{\pm}$ and the density ratio $r_t(x)
 - The pole $(1+\alpha)-\alpha\, r_t(x)=0$ **is** the signed boundary $\pi_t^{\mathtt{sign}}(x)=0$
 
 ---
-layout: full
 class: signed-rf-2d-playground-slide
 ---
 
-<iframe
-  src="./playground/2d.html"
-  title="Signed Rectified Flow 2D playground"
-  class="signed-rf-2d-playground-frame"
-></iframe>
+# Signed RF in 2D — Interactive Playground
+
+<Rf2DGuidance :height="420" autoplay />
+
+<div class="signed-rf-2d-playground-link">
+  <a href="./playground/2d.html" target="_blank">Open the full playground ↗</a>
+</div>
 
 <style>
-.signed-rf-2d-playground-slide {
-  padding: 0 !important;
-  overflow: hidden;
+.signed-rf-2d-playground-slide h1 {
+  margin-bottom: 0.1rem;
+  font-size: 1.85rem !important;
+  white-space: nowrap;
 }
-.signed-rf-2d-playground-frame {
-  display: block;
-  width: 100%;
-  height: calc(100% - 30px);
-  border: 0;
-  background: #fdfbf7;
+.signed-rf-2d-playground-link {
+  margin-top: -0.2rem;
+  font-size: 0.78rem;
+  text-align: right;
+}
+.signed-rf-2d-playground-link a {
+  color: #3156b3;
+  text-decoration: none;
+}
+.signed-rf-2d-playground-link a:hover {
+  text-decoration: underline;
 }
 </style>
 
