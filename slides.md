@@ -1865,13 +1865,26 @@ The guarantee follows the sign of $w$: avoiding a negative-reward region require
 
 # Thank You
 
-<div class="h-16"></div>
+<div class="mt-6 text-lg leading-8">
 
-- Rectified flow formally extended to the signed target $(1+\alpha)\,\pi^+ - \alpha\,\pi^-$
+- **Slides:** [https://rectifiedflow.github.io/Signed-RF/1](https://rectifiedflow.github.io/Signed-RF/1)
 
-- Yields sampling within the positive region of the signed mixture.
+- **arXiv:** [https://arxiv.org/abs/2607.18516](https://arxiv.org/abs/2607.18516)
 
-- Yields an adaptive guidance algorithm for practical applications.
+</div>
+
+<div class="mt-5 flex justify-center">
+  <BaseImg
+    src="figures/signed-rf-paper-summary.png"
+    alt="Signed Rectified Flow paper title, authors, and abstract"
+    style="width: 96%; border: 1px solid rgba(49, 86, 179, 0.18); border-radius: 0.3rem; box-shadow: 0 2px 8px rgba(37, 58, 136, 0.08);"
+  />
+</div>
+
+<!--
+[Sources]
+- User-provided screenshot of the Signed Rectified Flow paper title, authors, and abstract (2026-08-05).
+-->
 
 ---
 
