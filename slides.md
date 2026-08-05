@@ -667,7 +667,7 @@ class: signed-mixture-rf-slide
 # Signed Rectified Flow 
 
 <BaseImg
-  src="figures/paper/signed_density_evolution.png"
+  src="figures/paper/signed_density_evolution.svg"
   alt="Figure 2 showing signed-density evolution across time"
   style="display: block; width: 94%; margin: 0.1rem auto 0.3rem;"
 />
