@@ -626,6 +626,12 @@ class: signed-mixture-rf-slide
   = (1+\alpha)\pi_t^+(x)-\alpha\pi_t^-(x).
   $$
 
+<div class="mt-2 text-center" style="font-size: 0.85em; opacity: 0.7;">
+
+Explore live: <a href="./playground/1d.html" target="_blank">**1D playground ↗**</a>
+
+</div>
+
 ---
 
 # Always the Positive Side
