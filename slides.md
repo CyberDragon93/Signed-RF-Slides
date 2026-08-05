@@ -653,7 +653,7 @@ One framework — the negative branch is whatever you must avoid: a region, a da
 
 <div class="mt-2 text-center" style="font-size: 0.82em; opacity: 0.75;">
 
-Same positive prompt in both rows; the negative prompt names the concept — it goes, pose and composition stay.
+One pretrained model (Z-Image): $v^+$ conditions on the positive prompt, $v^-$ on the negative prompt naming the concept; ratio tracked online. The concept goes — pose and composition stay.
 
 </div>
 
@@ -691,7 +691,9 @@ Same positive prompt in both rows; the negative prompt names the concept — it 
 
 <div class="mt-2 text-center" style="font-size: 0.75em; opacity: 0.8;">
 
-Same seed per column, each generation above its nearest training match — Base copies borders and watermarks; Signed RF ($\pi^-$ = training set) breaks the match.
+Same seed per column, each generation above its nearest training match — Base copies borders and watermarks; Signed RF breaks it.
+$\pi^+$ = the pretrained class-conditional flow; $\pi^-$ = the class's training latents themselves, $\frac{1}{N}\sum_i \delta_{x^{(i)}}$ —
+a Dirac mixture whose RF velocity is **closed form** (the analytic flow): no negative network, just the stored latents.
 
 </div>
 
@@ -715,7 +717,7 @@ Same seed per column, each generation above its nearest training match — Base 
 
 <div class="mt-2 text-center" style="font-size: 0.8em; opacity: 0.75;">
 
-solid = Euler &nbsp;·&nbsp; dashed = second-order solvers &nbsp;·&nbsp; same 320-epoch backbone, every method's scale swept, best-FID protocol.
+$\pi^+$ = class-conditional, $\pi^-$ = unconditional (the CFG pair) &nbsp;·&nbsp; solid = Euler, dashed = second-order &nbsp;·&nbsp; same 320-epoch backbone, every scale swept, best-FID protocol.
 
 </div>
 
@@ -738,7 +740,7 @@ Lowest FID at **every** NFE, with first- *and* second-order solvers — at 32 NF
 
 <div class="mt-8" style="font-size: 0.95em;">
 
-- A positive-only planner crosses walls (a) — the wall interiors are **missing negative data**; Signed RF models them as $\pi^-$.
+- A planner trained only on feasible paths ($\pi^+$) crosses walls (a) — the wall interiors are **missing negative data**; Signed RF models them explicitly: $\pi^-$ = wall-interior points, with a trained $v^-$ and ratio classifier.
 - Constant guidance trades safety for diversity: weak leaves violations (b), strong collapses the paths (<span>c</span>).
 - Signed RF removes wall crossings **while keeping diverse feasible paths** (d); the Pareto front (e) compares failures vs. diversity.
 
