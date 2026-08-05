@@ -1334,6 +1334,8 @@ the rest run into the **moving zero set** $\Omega_t^0$ and stop there, meeting i
 - **In practice:** An ordinary sampler cannot generate negative-probability particles. This is why the buffer and negative regions contain no sampled particles.
 
 ---
+hide: true
+---
 
 # Where the Trajectories Go
 
