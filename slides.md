@@ -629,6 +629,138 @@ One framework — the negative branch is whatever you must avoid: a region, a da
 
 ---
 
+# Concept Suppression
+
+<div class="mt-1"></div>
+
+<div class="grid gap-x-3 gap-y-1 items-center" style="grid-template-columns: 6rem repeat(4, 1fr);">
+  <div></div>
+  <div class="text-center text-sm" style="font-weight: 650;">&ldquo;Mickey Mouse&rdquo;</div>
+  <div class="text-center text-sm" style="font-weight: 650;">&ldquo;trees &amp; grass&rdquo;</div>
+  <div class="text-center text-sm" style="font-weight: 650;">&ldquo;red / crimson&rdquo;</div>
+  <div class="text-center text-sm" style="font-weight: 650;">&ldquo;old white man&rdquo;</div>
+  <div class="text-sm text-right pr-2" style="opacity: 0.75;">Baseline CFG</div>
+  <BaseImg src="figures/concept/mouse-base.jpg" class="w-full rounded" />
+  <BaseImg src="figures/concept/greenery-base.jpg" class="w-full rounded" />
+  <BaseImg src="figures/concept/red-base.jpg" class="w-full rounded" />
+  <BaseImg src="figures/concept/man-base.jpg" class="w-full rounded" />
+  <div class="text-sm text-right pr-2" style="font-weight: 650; color: #253A88;">Signed RF</div>
+  <BaseImg src="figures/concept/mouse-ours.jpg" class="w-full rounded" />
+  <BaseImg src="figures/concept/greenery-ours.jpg" class="w-full rounded" />
+  <BaseImg src="figures/concept/red-ours.jpg" class="w-full rounded" />
+  <BaseImg src="figures/concept/man-ours.jpg" class="w-full rounded" />
+</div>
+
+<div class="mt-2 text-center" style="font-size: 0.82em; opacity: 0.75;">
+
+Same positive prompt in both rows (Z-Image, online ratio tracking); the negative prompt names the concept to suppress —
+the concept goes, pose and composition stay.
+
+</div>
+
+---
+
+# Anti-Memorization on ImageNet
+
+<div class="mt-1"></div>
+
+<div class="flex justify-center">
+  <BaseImg src="figures/imagenet_memorization_examples.jpg" class="rounded shadow-sm" style="max-width: 63%;" />
+</div>
+
+<div class="mt-2"></div>
+
+<div style="font-size: 0.7em;">
+
+| Method | FID $\downarrow$ | IS $\uparrow$ | Prec. $\uparrow$ | Rec. $\uparrow$ | $P_{05}\uparrow$ | $P_{10}\uparrow$ | $P_{25}\uparrow$ | Mean $\uparrow$ |
+|---|---|---|---|---|---|---|---|---|
+| Base | 2.07 | 242.4 | 0.790 | **0.627** | 0.921 | 0.944 | 0.982 | 0.993 |
+| $\alpha=1.0$ | **2.03** | 246.0 | 0.796 | 0.624 | 0.939 | 0.962 | 0.992 | 1.024 |
+| $\alpha=3.0$ | 2.11 | **246.2** | **0.799** | 0.614 | 0.956 | 0.975 | 1.005 | 1.045 |
+| $\alpha=7.5$ | 2.47 | 245.9 | 0.797 | 0.600 | **0.964** | **0.987** | **1.020** | **1.066** |
+| SPELL-45 | 2.59 | 233.2 | 0.771 | 0.614 | 0.919 | 0.943 | 0.981 | 0.994 |
+| SPELL-50 | 7.41 | 189.7 | 0.680 | 0.563 | 0.940 | 0.963 | 1.003 | 1.049 |
+
+</div>
+
+<div class="mt-1 text-center" style="font-size: 0.75em; opacity: 0.75;">
+
+$\pi^-$ = the training set (analytic flow). Left columns: 50K-sample quality; right columns: SSCD $L_2$ quantiles on high-risk seeds for class 248 (higher = less copying).
+
+</div>
+
+---
+
+# ImageNet-256: Against Tuned Guidance
+
+<div class="h-6"></div>
+
+All methods share the backbone (320 epochs, no VFM alignment), each with its own scale swept; best-FID protocol.
+
+<div class="grid grid-cols-2 gap-8 mt-4" style="font-size: 0.82em;">
+
+<div>
+
+**Euler sampler** — FID $\downarrow$ by NFE
+
+| Method | 16 | 32 | 64 |
+|---|---|---|---|
+| CFG | 2.38 | 1.87 | 1.73 |
+| ADG | 2.32 | 2.00 | 1.85 |
+| CFG++ | 2.62 | 1.71 | 3.39 |
+| MG | 1.85 | 1.71 | 1.60 |
+| **Signed RF** | **1.82** | **1.51** | **1.41** |
+
+</div>
+
+<div>
+
+**Second-order solvers** — FID $\downarrow$ by NFE
+
+| Method | 16 | 32 | 64 |
+|---|---|---|---|
+| CFG | 1.86 | 1.66 | 1.67 |
+| **Signed RF** | **1.52** | **1.39** | **1.36** |
+
+<div class="mt-3" style="font-size: 0.92em; opacity: 0.8;">
+
+Reference: REPA — FID 1.42 at 250 NFE
+(800 epochs, DINOv2-aligned, tuned schedule).
+
+</div>
+
+</div>
+
+</div>
+
+<div class="mt-4" style="font-size: 0.9em;">
+
+- Lowest FID at **every** evaluated NFE under matched tuning — with first- *and* second-order solvers.
+- At 32 NFE the second-order Signed RF (1.39) already beats CFG at 64 and REPA at 250 NFE.
+
+</div>
+
+---
+
+# The Missing Negative Data: 2D Maze
+
+<div class="mt-2"></div>
+
+<div class="flex items-center justify-center gap-4 mt-6">
+  <BaseImg src="figures/pointmaze_trajectories.svg" style="width: 71%;" />
+  <BaseImg src="figures/pointmaze_pareto_front.svg" style="width: 25%;" />
+</div>
+
+<div class="mt-8" style="font-size: 0.95em;">
+
+- A positive-only planner crosses walls (a) — the wall interiors are **missing negative data**; Signed RF models them as $\pi^-$.
+- Constant guidance trades safety for diversity: weak leaves violations (b), strong collapses the paths (<span>c</span>).
+- Signed RF removes wall crossings **while keeping diverse feasible paths** (d); the Pareto front (e) compares failures vs. diversity.
+
+</div>
+
+---
+
 # KL-Regularized Flow RL Is Exponential Tilting
 
 <div class="h-10"></div>
