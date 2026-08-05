@@ -736,6 +736,128 @@ class: buffer-zone-slide
 </style>
 
 ---
+class: continuity-proof-slide
+---
+
+# Signed Continuity Equation
+
+<div class="continuity-proof-copy">
+
+- Like regular RF, the signed marginal also satisfies the **continuity equation:**
+
+$$
+\partial_t \pi_t^{\mathtt{sign}}
+= -\nabla\!\cdot\!\left(\pi_t^{\mathtt{sign}}v_t\right).
+$$
+
+<div class="continuity-proof-box">
+
+<div class="continuity-proof-label">Proof.</div>
+
+Each branch obeys $\partial_t\pi_t^\pm=-\nabla\!\cdot(\pi_t^\pm v_t^\pm)$. By linearity,
+
+$$
+\begin{aligned}
+\partial_t\pi_t^{\mathtt{sign}}
+&= (1+\alpha)\,\partial_t\pi_t^+ - \alpha\,\partial_t\pi_t^- \\
+&= -\nabla\!\cdot\!\left[(1+\alpha)\pi_t^+v_t^+-\alpha\pi_t^-v_t^-\right] \\
+&= -\nabla\!\cdot\!\left(\pi_t^{\mathtt{sign}}v_t\right).
+\end{aligned}
+$$
+
+</div>
+
+- But once $\pi_t^{\mathtt{sign}}$ takes negative values, it can no longer be the probability density of
+  $\dot Z_t=v_t(Z_t)$ on the whole space.
+
+- If the continuity equation holds and $\pi_0>0$, then the ODE density
+  $\pi_t^{\mathtt{flow}}$ matches $\pi_t^{\mathtt{sign}}$ on the reachable region:
+
+  $$
+  \textcolor{blue}{\boxed{
+  \pi_t^{\mathtt{flow}}(x)
+  =\pi_t^{\mathtt{sign}}(x)\,\mathbb{I}(x\in\Omega_t^r)}}.
+  $$
+
+<div class="continuity-tv-optimal">
+
+This is one of the **total-variation-optimal** nonnegative approximations:
+
+$$
+\pi_t^{\mathtt{signRF}}
+\;\in\;
+\arg\min_{\rho\in\mathcal P}\;
+\mathrm{TV}\!\left(\rho,\;\pi_t^{\mathtt{sign}}\right).
+$$
+
+</div>
+
+</div>
+
+<style>
+.continuity-proof-copy {
+  margin: 0.72rem auto 0;
+  max-width: 1000px;
+  color: #465168;
+  font-size: 1.02rem;
+  line-height: 1.22;
+}
+.continuity-proof-copy > ul {
+  margin: 0;
+  padding-left: 1.45rem;
+}
+.continuity-proof-copy li {
+  margin-bottom: 0.48rem;
+}
+.continuity-proof-copy .katex-display {
+  margin: 0.22rem 0 0.3rem;
+  font-size: 0.94em;
+}
+.continuity-proof-box {
+  margin: 0.22rem 0.75rem 0.58rem;
+  padding: 0.52rem 0.82rem 0.28rem;
+  border: 1.5px solid #b9c7e8;
+  border-left: 0.28rem solid #3156b3;
+  border-radius: 0.45rem;
+  background: rgba(49, 86, 179, 0.045);
+}
+.continuity-proof-label {
+  margin-bottom: 0.08rem;
+  color: #3156b3;
+  font-weight: 750;
+}
+.continuity-proof-box p {
+  margin: 0.12rem 0 0;
+}
+.continuity-proof-box .katex-display {
+  margin: 0.18rem 0 0.02rem;
+  font-size: 0.9em;
+}
+.continuity-proof-copy li:last-child .katex-display:last-child {
+  margin-top: 0.36rem;
+  font-size: 1.05em;
+}
+.continuity-tv-optimal {
+  margin-top: 0.3rem;
+  color: #26334d;
+  text-align: center;
+}
+.continuity-tv-optimal .katex-display {
+  margin: 0.18rem 0 0;
+  font-size: 1em;
+}
+.continuity-proof-copy strong {
+  color: #26334d;
+}
+</style>
+
+<!--
+[Sources]
+- `Signed_Rectified_Flow_Overleaf_Paper/contents/appendix_theory.tex`, signed continuity equation and proof of the Signed RF sampling law.
+- `Signed_Rectified_Flow_Overleaf_Paper/contents/methods.tex`, TV-optimal approximation remark; see also Proposition `prop:tv_optimal_probability_approximation` in `appendix_theory.tex`.
+-->
+
+---
 disabled: true
 ---
 
