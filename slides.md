@@ -653,7 +653,7 @@ One framework — the negative branch is whatever you must avoid: a region, a da
 
 <div class="mt-2 text-center" style="font-size: 0.82em; opacity: 0.75;">
 
-One pretrained model (Z-Image): $v^+$ conditions on the positive prompt, $v^-$ on the negative prompt naming the concept; ratio tracked online. The concept goes — pose and composition stay.
+Both velocities come from one pretrained model (Z-Image): $v^+$ conditioned on the positive prompt, $v^-$ on the concept to remove; the density ratio is tracked online. Signed RF erases the concept while preserving the requested appearance, pose, and composition.
 
 </div>
 
@@ -691,9 +691,10 @@ One pretrained model (Z-Image): $v^+$ conditions on the positive prompt, $v^-$ o
 
 <div class="mt-2 text-center" style="font-size: 0.75em; opacity: 0.8;">
 
-Same seed per column, each generation above its nearest training match — Base copies borders and watermarks; Signed RF breaks it.
-$\pi^+$ = the pretrained class-conditional flow; $\pi^-$ = the class's training latents themselves, $\frac{1}{N}\sum_i \delta_{x^{(i)}}$ —
-a Dirac mixture whose RF velocity is **closed form** (the analytic flow): no negative network, just the stored latents.
+Each column shares one seed, and every generation sits above its nearest training image. The base model reproduces
+training data down to borders and watermarks. Take $\pi^-$ to be the training set itself, $\frac{1}{N}\sum_i \delta_{x^{(i)}}$:
+for a mixture of Diracs the RF velocity is available in closed form — the analytic flow — so the negative branch is
+computed from stored latents, with nothing to train. $\pi^+$ is the pretrained class-conditional flow.
 
 </div>
 
@@ -723,7 +724,7 @@ $\pi^+$ = class-conditional, $\pi^-$ = unconditional (the CFG pair) &nbsp;·&nbs
 
 <div class="mt-3" style="font-size: 0.92em;">
 
-Lowest FID at **every** NFE, with first- *and* second-order solvers — at 32 NFE (1.39) already below CFG at 64 and REPA at 250.
+Signed RF attains the lowest FID at every step count, under both solvers. At 32 steps it reaches 1.39 — below CFG at 64 steps and REPA at 250.
 
 </div>
 
@@ -740,9 +741,9 @@ Lowest FID at **every** NFE, with first- *and* second-order solvers — at 32 NF
 
 <div class="mt-8" style="font-size: 0.95em;">
 
-- A planner trained only on feasible paths ($\pi^+$) crosses walls (a) — the wall interiors are **missing negative data**; Signed RF models them explicitly: $\pi^-$ = wall-interior points, with a trained $v^-$ and ratio classifier.
-- Constant guidance trades safety for diversity: weak leaves violations (b), strong collapses the paths (<span>c</span>).
-- Signed RF removes wall crossings **while keeping diverse feasible paths** (d); the Pareto front (e) compares failures vs. diversity.
+- The demonstrations contain only feasible paths ($\pi^+$), so the planner has never seen a wall interior and crosses them freely (a). Signed RF supplies the missing negatives: $\pi^-$ = wall-interior points, with a trained $v^-$ and a ratio classifier.
+- Constant guidance buys safety with diversity: a weak scale leaves violations (b), a strong one collapses the paths onto a single route (<span>c</span>).
+- Signed RF eliminates wall crossings and keeps the full spread of feasible paths (d); the Pareto front (e) makes the trade-off explicit.
 
 </div>
 
