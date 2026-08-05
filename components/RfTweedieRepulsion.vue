@@ -37,7 +37,7 @@ const upperRootAt = (t) => {
 const XB = upperRootAt(TC)
 
 // source window in world coordinates (biased to the positive side above the wall)
-const SRC = { t0: TC - 0.11, t1: TC + 0.11, x0: XB - 0.5, x1: XB + 0.95 }
+const SRC = { t0: TC - 0.13, t1: TC + 0.13, x0: XB - 0.55, x1: XB + 1.05 }
 
 // ---- panel geometry -----------------------------------------------------------
 const PX0 = 150
@@ -74,8 +74,8 @@ const boundaryPaths = computed(() => {
 
 // ---- loupe geometry -----------------------------------------------------------
 const loupe = computed(() => {
-  const r = Math.min(97, (props.height - 26) / 2)
-  return { cx: 742, cy: props.height / 2 - 3, r }
+  const r = Math.min(116, (props.height - 24) / 2)
+  return { cx: 736, cy: props.height / 2 - 3, r }
 })
 
 // map world (t, x) inside SRC -> loupe-local coordinates (square inscribed in circle)
@@ -124,10 +124,10 @@ const arrows = computed(() => {
   const s = lp.r * 1.35
   const st = s / (SRC.t1 - SRC.t0)
   const sx = s / (SRC.x1 - SRC.x0)
-  const L = 16.5
+  const L = 18
   const out = []
-  for (let i = 0; i < 6; i += 1) {
-    const t = SRC.t0 + ((i + 0.5) / 6) * (SRC.t1 - SRC.t0)
+  for (let i = 0; i < 7; i += 1) {
+    const t = SRC.t0 + ((i + 0.5) / 7) * (SRC.t1 - SRC.t0)
     const xb = upperRootAt(t)
     for (let j = 0; j < 6; j += 1) {
       const x = SRC.x0 + ((j + 0.5) / 6) * (SRC.x1 - SRC.x0)
@@ -227,8 +227,8 @@ const labelT = 'time t'
     <RfFigLabel :x="tx(0.4) - 30" :y="xy(upperRootAt(0.42)) - 26" :w="60" :vb-h="height">
       <div class="twz-math twz-center" :style="{ color: PALETTE.negativeDark }" v-html="labelZero"></div>
     </RfFigLabel>
-    <RfFigLabel :x="loupe.cx - 110" :y="loupe.cy + loupe.r + 4" :w="220" :vb-h="height">
-      <div class="twz-math twz-center" :style="{ color: PALETTE.samplingDark }" v-html="labelBlow"></div>
+    <RfFigLabel :x="PX0 + 2" :y="1" :w="300" :vb-h="height">
+      <div class="twz-math" :style="{ color: PALETTE.textMuted }" v-html="labelBlow"></div>
     </RfFigLabel>
   </div>
 </template>
