@@ -532,6 +532,7 @@ let blendW = 1
 
 let cursor = 1
 let playing = true
+let direction = 1 // +1 forward, -1 reverse
 let manual = false
 let speed = 1
 let refTs = 0
@@ -975,8 +976,10 @@ const alphaTicks = $('alphaTicks')
 const timeRange = $('timeRange')
 const timeReadout = $('timeReadout')
 const playBtn = $('playBtn')
+const revBtn = $('revBtn')
 
 const PLAY_SVG = '<svg width="12" height="12" viewBox="0 0 12 12"><path d="M3 1.4 L10.6 6 L3 10.6 Z" fill="#253A88"/></svg>'
+const REV_SVG = '<svg width="12" height="12" viewBox="0 0 12 12"><path d="M9 1.4 L1.4 6 L9 10.6 Z" fill="#253A88"/></svg>'
 const PAUSE_SVG = '<svg width="12" height="12" viewBox="0 0 12 12"><rect x="2.2" y="1.6" width="2.9" height="8.8" rx="1" fill="#253A88"/><rect x="6.9" y="1.6" width="2.9" height="8.8" rx="1" fill="#253A88"/></svg>'
 
 function setFill(input) {
@@ -1004,7 +1007,9 @@ function updateTimeUI(force) {
 }
 
 function updatePlayIcon() {
-  playBtn.innerHTML = playing && !manual ? PAUSE_SVG : PLAY_SVG
+  const running = playing && !manual
+  playBtn.innerHTML = running && direction > 0 ? PAUSE_SVG : PLAY_SVG
+  revBtn.innerHTML = running && direction < 0 ? PAUSE_SVG : REV_SVG
 }
 
 // ---- Animation loop ----------------------------------------------------------------------
@@ -1019,7 +1024,8 @@ function scheduleDraw() {
 }
 
 function snapshotPhase() {
-  phase0 = cursor < 1 ? cycleSweep() * cursor : cycleSweep()
+  const prog = direction > 0 ? cursor : 1 - cursor
+  phase0 = prog < 1 ? cycleSweep() * prog : cycleSweep()
   refTs = 0
 }
 
@@ -1040,7 +1046,8 @@ function frame(now) {
     if (!refTs) refTs = now
     const cs = cycleSweep()
     const ph = ((now - refTs) / 1000 + phase0) % (cs + HOLD)
-    cursor = ph < cs ? ph / cs : 1
+    const prog = ph < cs ? ph / cs : 1
+    cursor = direction > 0 ? prog : 1 - prog
     updateFrame()
     updateTimeUI()
     raf = requestAnimationFrame(frame)
@@ -1054,6 +1061,7 @@ function frame(now) {
 function restartSweep() {
   manual = false
   playing = true
+  direction = 1
   cursor = 0
   refTs = 0
   phase0 = 0
@@ -1219,18 +1227,21 @@ function init() {
   }
 
   // motion
-  playBtn.addEventListener('click', () => {
-    if (playing && !manual) {
+  const engagePlay = (dir) => {
+    if (playing && !manual && direction === dir) {
       snapshotPhase()
       playing = false
     } else {
       manual = false
       playing = true
+      direction = dir
       snapshotPhase()
     }
     updatePlayIcon()
     schedule()
-  })
+  }
+  playBtn.addEventListener('click', () => engagePlay(1))
+  revBtn.addEventListener('click', () => engagePlay(-1))
   for (const btn of document.querySelectorAll('#speedChips .pg-chip')) {
     btn.addEventListener('click', () => {
       for (const b of document.querySelectorAll('#speedChips .pg-chip')) b.classList.toggle('on', b === btn)
