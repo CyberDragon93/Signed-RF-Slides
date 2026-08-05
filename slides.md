@@ -404,8 +404,8 @@ class: exponential-tilting-slide
 
 - Avoidance can be represented by assigning zero probability, $p_f(x)=0$.
 
-- It cannot represent degrees of avoidance beyond complete exclusion.
-- In learning settings, it is difficult to distinguish missing data from explicit avoidance.
+    - It cannot represent degrees of avoidance beyond complete exclusion.
+    - In learning settings, it is difficult to distinguish missing data from explicit avoidance.
 
 - **Normalization is global**
 
