@@ -141,10 +141,10 @@ const tgTicks = [-4, -2, 0, 2, 4]
 // ======================================================================
 const EV_PY0 = 34
 const EV_CX0 = 100
-const EV_CX1 = 700
+const EV_CX1 = 742
 const EV_SRC_BASE = 100
-const EV_STRIP_X = 706
-const EV_STRIP_W = 158
+const EV_STRIP_X = 748
+const EV_STRIP_W = 132
 
 const evPy1 = computed(() => props.height - 72)
 const evPh = computed(() => evPy1.value - EV_PY0)
@@ -487,7 +487,7 @@ const refLabelMinus = mathHtml('\\pi_1^-')
 const particles = ref(null)
 let particleJob = 0
 
-// Chunked 800-path ensemble; results are cached per (world, alpha) so a
+// Chunked 3000-path ensemble; results are cached per (world, alpha) so a
 // revisited detent resolves synchronously. `cancelled` lets the view job
 // abandon stale work; prewarm jobs always run to completion.
 function buildParticles(alpha, cancelled, done) {
@@ -498,7 +498,7 @@ function buildParticles(alpha, cancelled, done) {
   }
   const rand = lcg(97)
   const seeds = []
-  for (let i = 0; i < 800; i += 1) seeds.push(randn(rand))
+  for (let i = 0; i < 3000; i += 1) seeds.push(randn(rand))
   const paths = []
   let times = null
   let i = 0
@@ -554,7 +554,7 @@ function prewarmDetents() {
 // Temporal smoothing: raw per-frame bins flicker as samples hop between the
 // fine bins. Blend the displayed densities toward the current target with a
 // plain EMA (~150 ms settle) — no animation machinery, just calmer bars.
-const HIST_BINS = 64
+const HIST_BINS = 96
 const histDisp = new Float64Array(HIST_BINS)
 const histTick = ref(0)
 
@@ -1019,7 +1019,7 @@ onUnmounted(() => {
       <!-- ============================ mode = evolution ============================ -->
       <g v-else>
         <rect
-          x="24" :y="EV_PY0 - 8" width="848" :height="evPh + 16" rx="10"
+          x="14" :y="EV_PY0 - 8" width="872" :height="evPh + 16" rx="10"
           :fill="PALETTE.panel" :stroke="PALETTE.panelBorder" :filter="`url(#${uid}-shadow)`"
         />
 
@@ -1215,7 +1215,7 @@ onUnmounted(() => {
       <RfFigLabel :x="30" :y="4" :w="120" :vb-h="height">
         <div class="srf-title" v-html="titleLeft"></div>
       </RfFigLabel>
-      <RfFigLabel :x="250" :y="4" :w="300" :vb-h="height">
+      <RfFigLabel :x="271" :y="4" :w="300" :vb-h="height">
         <div class="srf-title srf-center" v-html="titleCenter"></div>
       </RfFigLabel>
       <RfFigLabel :x="EV_STRIP_X" :y="4" :w="180" :vb-h="height">

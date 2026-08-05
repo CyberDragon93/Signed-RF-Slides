@@ -672,7 +672,7 @@ class: signed-mixture-rf-slide
   style="display: block; width: 94%; margin: 0.1rem auto 0.3rem;"
 />
 
-<RfSigned1D mode="overlay" :height="285" autoplay />
+<RfSigned1D mode="overlay" world="density" :height="285" autoplay />
 
 <div class="mt-1"></div>
 
