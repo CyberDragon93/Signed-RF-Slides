@@ -117,8 +117,11 @@ function viewOf(w2) {
 }
 
 // Background canvas for one panel: signed density at t = 1, paper recipe.
+// 384x384 is near 1:1 device pixels for a ~200-px panel at 2x dpr — crisp
+// without stalling world switches (~0.15-0.25 s for all ten panels, hidden
+// by the prewarm for every world after the first).
 function renderPanelBg(w2, a, view, maxAbs) {
-  const G = 132
+  const G = 384
   const canvas = document.createElement('canvas')
   canvas.width = G
   canvas.height = G
