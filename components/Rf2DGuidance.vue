@@ -1,13 +1,12 @@
 <script>
 // Module-scope caches: per-dataset slices (simulations + background renders)
-// are deterministic — compute once, share across instances, prewarm.
+// are deterministic — computed lazily on first use and shared across instances.
 let g2dUidCounter = 0
 const g2dMemo = new Map()
 function g2dMemoGet(key, fn) {
   if (!g2dMemo.has(key)) g2dMemo.set(key, fn())
   return g2dMemo.get(key)
 }
-let g2dPrewarmed = false
 </script>
 
 <script setup>
@@ -350,7 +349,6 @@ function selectDataset(id) {
   cursor.value = 0
   refTs = 0
   phase0 = 0
-  prewarm()
 }
 
 // ---- Interaction ----------------------------------------------------------------------
@@ -391,19 +389,6 @@ function togglePlay() {
   }
 }
 
-function prewarm() {
-  if (typeof window === 'undefined' || g2dPrewarmed) return
-  g2dPrewarmed = true
-  const queue = DATASETS.map(d => d.id).filter(id => id !== datasetId.value)
-  const next = () => {
-    const id = queue.shift()
-    if (!id) return
-    sliceFor(id)
-    setTimeout(next, 250)
-  }
-  setTimeout(next, 2500)
-}
-
 watch(slice, () => draw())
 
 onMounted(() => {
@@ -415,7 +400,6 @@ onMounted(() => {
     return
   }
   raf = requestAnimationFrame(tick)
-  prewarm()
 })
 
 onUnmounted(() => {

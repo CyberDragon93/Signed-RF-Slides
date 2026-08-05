@@ -493,7 +493,6 @@ function selectDataset(id) {
   lastTs = 0
   updatePlayBtn()
   invalidate()
-  prewarm()
 }
 
 for (const d of DATASETS) {
@@ -555,20 +554,9 @@ document.addEventListener('visibilitychange', () => {
 
 window.addEventListener('resize', resize)
 
-// ---- Prewarm the other datasets in the background --------------------------------------------
-let prewarmed = false
-function prewarm() {
-  if (prewarmed) return
-  prewarmed = true
-  const queue = DATASETS.map(d => d.id).filter(id => id !== datasetId)
-  const next = () => {
-    const id = queue.shift()
-    if (!id) return
-    sliceFor(id)
-    setTimeout(next, 250)
-  }
-  setTimeout(next, 2500)
-}
+// Datasets build lazily: the first click on a chip computes that world once
+// (~0.2 s), and the slice cache keeps it for instant revisits. No background
+// prewarm — it stalled the running animation on weaker machines.
 
 // ---- Boot --------------------------------------------------------------------------------------
 whenKatex(() => {
@@ -583,4 +571,3 @@ sliceFor(datasetId)
 applyWorld()
 updateTimeUI()
 schedule()
-prewarm()
