@@ -342,6 +342,14 @@ aside.pg-controls .katex {
     padding: 12px 14px 32px;
   }
 
+  /* In the stacked layout the stage must NOT flex-grow: with the column
+     direction that stretches it vertically past its content and letterboxes
+     the SVG inside a tall empty card. Size it by its own aspect ratio. */
+  .pg-stage {
+    flex: 0 0 auto;
+    width: 100%;
+  }
+
   aside.pg-controls {
     flex-basis: auto;
     width: 100%;
