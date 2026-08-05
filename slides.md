@@ -238,7 +238,7 @@ class: rf-cmu-projection-slide
 
 <div class="rf-cmu-copy rf-projection-copy">
 
-- Projecting the Interpolation Process $\{X_t\}$ to the ODE $\{Z_t\}$:
+- Rectified flow: Projecting the Interpolation Process $\{X_t\}$ to the ODE $\{Z_t\}$:
 
   $$
   \min_v\;\mathbb E_{(X_0,X_1,t)}
