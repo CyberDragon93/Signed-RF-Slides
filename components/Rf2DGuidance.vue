@@ -238,7 +238,7 @@ const titles = computed(() => slice.value.panels.map(p => ({
   row: p.row,
   col: p.col,
   html: p.mode === 'cfg'
-    ? `Constant ${mathHtml(`\\omega=${p.scale.toFixed(1)}`)}`
+    ? `Constant CFG ${mathHtml(`= ${p.scale.toFixed(1)}`)}`
     : `Ours ${mathHtml(`\\alpha=${p.scale.toFixed(1)}`)}`,
 })))
 

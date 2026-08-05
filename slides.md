@@ -1654,9 +1654,17 @@ One framework — the negative branch is whatever you must avoid: a region, a da
   <BaseImg src="figures/concept/man-ours.jpg" class="w-full rounded" />
 </div>
 
-<div class="mt-2 text-center" style="font-size: 0.82em; opacity: 0.75;">
+<div class="mt-1" style="font-size: 0.76em; color: #536073; text-align: center;">
 
-Both velocities come from one pretrained model (Z-Image): $v^+$ conditioned on the positive prompt, $v^-$ on the concept to remove; the density ratio is tracked online. Signed RF erases the concept while preserving the requested appearance, pose, and composition.
+**Concept suppression** — same seed and prompt per column; the quoted concept is what must disappear.
+
+</div>
+
+<div class="mt-1" style="font-size: 0.9em;">
+
+- **One pretrained model** (Z-Image): $v^+$ conditioned on the prompt, $v^-$ on the concept to remove — no retraining.
+- **Online ratio tracking** along the trajectory sets the adaptive scale $\lambda_t^\alpha(x)$.
+- **The concept is erased**; the requested appearance, pose, and composition survive.
 
 </div>
 
@@ -1707,17 +1715,18 @@ Base reproduces its match down to borders and watermarks; Signed RF breaks the c
 
 # ImageNet-256: Against Tuned Guidance
 
-<RfImagenetFid :height="430" />
+<RfImagenetFid :height="410" />
 
-<div class="mt-2 text-center" style="font-size: 0.8em; opacity: 0.75;">
+<div class="mt-1" style="font-size: 0.76em; color: #536073; text-align: center;">
 
-$\pi^+$ = class-conditional, $\pi^-$ = unconditional (the CFG pair) &nbsp;·&nbsp; solid = Euler, dashed = second-order &nbsp;·&nbsp; same 320-epoch backbone, every scale swept, best-FID protocol.
+solid = Euler &nbsp;·&nbsp; dashed = second-order &nbsp;·&nbsp; one 320-epoch backbone, every guidance scale swept, best-FID protocol
 
 </div>
 
-<div class="mt-3" style="font-size: 0.92em;">
+<div class="mt-2" style="font-size: 0.9em;">
 
-Signed RF attains the lowest FID at every step count, under both solvers. At 32 steps it reaches 1.39 — below CFG at 64 steps and REPA at 250.
+- **The CFG pair, reused**: $\pi^+$ = the class-conditional flow, $\pi^-$ = the unconditional flow — nothing new to train.
+- **Lowest FID at every NFE, both solvers** — 1.39 at 32 steps, below CFG at 64 and REPA at 250.
 
 </div>
 
