@@ -788,6 +788,8 @@ class: tweedie-barrier-slide
 
   Hence, trajectories are repelled from the zero boundary and remain in the positive region $\Omega_t^+$.
 
+<RfTweedieRepulsion :height="250" />
+
 
 </div>
 
