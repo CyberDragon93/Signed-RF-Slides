@@ -1717,39 +1717,6 @@ wherever the denominator is nonzero.
 - If $w$ changes sign, $\pi_1^w$ is a signed endpoint and the same ratio is exactly the **Signed RF field**, now written with one terminal weight.
 
 ---
-
-# Negative Weights Need Two Regressions
-
-**What fails is the training objective, not the signed target.** At fixed $(x,t)$, the quadratic coefficient of the direct weighted MSE is
-
-$$
-m_t^\star(x)\coloneqq\mathbb E\!\left[w(X_1)\mid X_t=x\right].
-$$
-
-Where $m_t^\star(x)<0$, that objective is **unbounded below**. Instead, regress the numerator and denominator with two ordinary MSEs:
-
-$$
-\begin{aligned}
-\mathcal L_g
-&=\mathbb E\!\left[\left\|g_t(X_t)-w(X_1)(X_1-X_0)\right\|^2\right],\\[2pt]
-\mathcal L_m
-&=\mathbb E\!\left[\left(m_t(X_t)-w(X_1)\right)^2\right].
-\end{aligned}
-$$
-
-At the population optimum,
-
-$$
-g_t^\star(x)=\mathbb E\!\left[w(X_1)(X_1-X_0)\mid X_t=x\right],
-\qquad
-m_t^\star(x)=\mathbb E\!\left[w(X_1)\mid X_t=x\right],
-\qquad
-v_t^w(x)=\frac{g_t^\star(x)}{m_t^\star(x)}.
-$$
-
-This is Signed RF in trainable loss form: two nonnegative regressions followed by a ratio. The field remains singular where $m_t^\star=0$.
-
----
 disabled: true
 ---
 
