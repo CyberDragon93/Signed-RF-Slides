@@ -1609,7 +1609,7 @@ class: signed-rf-2d-playground-slide
 }
 .signed-rf-2d-playground-notes {
   margin-top: -0.35rem;
-  font-size: 0.76rem;
+  font-size: 0.9rem;
   line-height: 1.25;
 }
 .signed-rf-2d-playground-notes ul {
