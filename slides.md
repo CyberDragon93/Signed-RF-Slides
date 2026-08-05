@@ -1651,26 +1651,18 @@ One framework — the negative branch is whatever you must avoid: a region, a da
 # Anti-Memorization on ImageNet
 
 <div class="flex justify-center mt-1">
-  <div class="relative" style="width: 78%;">
-    <BaseImg src="figures/imagenet_memorization_7col.jpg" class="rounded shadow-sm w-full block" />
-    <div class="abs-label" style="top: 12.5%;">Base</div>
-    <div class="abs-label" style="top: 37.5%; opacity: 0.72;">top match</div>
-    <div class="abs-label abs-label-ours" style="top: 62.5%;">Signed RF</div>
-    <div class="abs-label" style="top: 87.5%; opacity: 0.72;">top match</div>
+  <div class="relative" style="width: 62%;">
+    <BaseImg src="figures/imagenet_memorization_pairs.jpg" class="rounded shadow-sm w-full block" />
+    <div class="abs-label" style="top: 12.3%;">Base model</div>
+    <div class="abs-label" style="top: 37%; opacity: 0.72;">closest data</div>
+    <div class="abs-label abs-label-ours" style="top: 63%;">Signed RF</div>
+    <div class="abs-label" style="top: 87.7%; opacity: 0.72;">closest data</div>
   </div>
-</div>
-
-<div class="mt-1" style="font-size: 0.76em; color: #536073; text-align: center;">
-
-**Anti-memorization** — each column shares one seed; every generation sits above its nearest training image.
-Base reproduces its match down to borders and watermarks; Signed RF breaks the copy.
-
 </div>
 
 <div class="mt-1" style="font-size: 0.9em;">
 
-- **Negative branch is the training set itself**: $\pi^- = \frac{1}{N}\sum_i \delta_{x^{(i)}}$ over the class's stored training latents.
-- **Analytic flow** — for a mixture of Diracs, $v_t^-$ and $\pi_t^-$ are available in closed form: nothing to train.
+- **Negative branch is the training set itself**: $\pi^- = \frac{1}{N}\sum_i \delta_{x^{(i)}}$ — a Dirac mixture, so $v_t^-$ and $\pi_t^-$ are closed-form (the analytic flow): nothing to train.
 - **Positive branch** $\pi^+$ is the pretrained class-conditional flow; the ratio is tracked online along the trajectory.
 
 </div>
