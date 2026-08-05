@@ -754,9 +754,7 @@ Explore live: <a href="./playground/1d.html" target="_blank">**1D playground ↗
 
 # Signed Rectified Flow
 
-<RfSignedGallery :height="430" />
-
-<div class="mt-2"></div>
+<RfSignedGallery :height="580" />
 
 ---
 class: tweedie-barrier-slide
