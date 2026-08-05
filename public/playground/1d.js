@@ -522,6 +522,13 @@ let worldId = 'paper'
 let alphaSel = 0.85
 const layers = { heat: true, zero: true, ghost: true, traj: true, pairs: false, strip: true, labels: false }
 let slice = null
+// Smooth alpha morphs: commits snap the DATA, the visuals glide — the heat
+// and buffer curves crossfade, zero curves and the terminal profile are
+// re-evaluated live at an eased alphaAnim, and the 17 trajectories (shared
+// seeds and time grid across every cached slice) lerp point-wise.
+let morphFrom = null
+let alphaAnim = 0.85
+let blendW = 1
 
 let cursor = 1
 let playing = true
@@ -534,6 +541,34 @@ let needsDraw = false
 
 const cycleSweep = () => SWEEP / speed
 const isRunning = () => playing && !manual && !document.hidden
+
+// ---- Live morph evaluators ----------------------------------------------------
+// Cheap enough for one evaluation per frame: ~13k density evals for the
+// low-res zero curves + ~1.4k for the terminal profile.
+function liveZeroD(a, su, y) {
+  return zeroBranches(a, su, 60, 0.35, 220).map((line) => {
+    let d = ''
+    for (const [t, xv] of line) d += (d ? 'L' : 'M') + tX(t).toFixed(2) + ',' + y(xv).toFixed(2)
+    return d
+  })
+}
+
+function liveProfileD(a, su, y) {
+  const [dLo, dHi] = su.domain
+  let maxAbs = 1e-9
+  for (let i = 0; i <= 320; i += 1) {
+    const x = dLo + (i / 320) * (dHi - dLo)
+    maxAbs = Math.max(maxAbs, Math.abs(signedDensity(x, 1, a, su)))
+  }
+  const baseX = RSTRIP_X + 34
+  const rk = (RSTRIP_W - 40) / maxAbs
+  let d = ''
+  for (let i = 0; i <= 480; i += 1) {
+    const x = dLo + (i / 480) * (dHi - dLo)
+    d += (d ? 'L' : 'M') + (baseX + rk * signedDensity(x, 1, a, su)).toFixed(2) + ',' + y(x).toFixed(2)
+  }
+  return d
+}
 
 // ---- SVG scaffolding ---------------------------------------------------------------
 // Built once; slices swap path data, frames only touch the reveal clip, the
@@ -556,9 +591,20 @@ const clipReveal = mk('clipPath', { id: 'pg1dReveal' }, defs)
 const revealRect = mk('rect', { x: panelX, y: panelY, width: 0, height: panelH }, clipReveal)
 
 mk('rect', { x: panelX, y: panelY, width: panelW, height: panelH, fill: '#FBFCFF' })
+// Outgoing heat/buffer layers: fade out under the incoming ones during a
+// smooth alpha morph.
+const heatImgPrev = mk('image', {
+  x: panelX, y: panelY, width: panelW, height: panelH,
+  preserveAspectRatio: 'none', 'clip-path': 'url(#pg1dPanel)', opacity: 0,
+})
 const heatImg = mk('image', {
   x: panelX, y: panelY, width: panelW, height: panelH,
   preserveAspectRatio: 'none', 'clip-path': 'url(#pg1dPanel)',
+})
+const gGhostPrev = mk('g', {
+  'clip-path': 'url(#pg1dPanel)', fill: 'none',
+  stroke: PALETTE.buffer, 'stroke-width': 1.5, 'stroke-opacity': 0.95, 'stroke-linejoin': 'round',
+  opacity: 0,
 })
 const gGhost = mk('g', {
   'clip-path': 'url(#pg1dPanel)', fill: 'none',
@@ -723,6 +769,7 @@ function applyLayerVisibility() {
   const show = (el, on) => el.setAttribute('display', on ? '' : 'none')
   show(heatImg, layers.heat)
   show(gGhost, layers.ghost)
+  show(gGhostPrev, layers.ghost)
   show(gZero, layers.zero)
   show(gTraj, layers.traj)
   show(gDots, layers.traj)
@@ -753,15 +800,20 @@ function updateFrame() {
   const { times } = slice.transported
   const last = times.length - 1
   const idx = Math.max(0, Math.min(last, Math.round(c * last)))
+  const lerpTraj = morphFrom && blendW < 1 && morphFrom.geom.trajData.length === g.trajData.length
   for (let i = 0; i < g.trajData.length; i += 1) {
     const td = g.trajData[i]
-    if (idx > td.cut) {
+    const cutI = lerpTraj ? Math.min(morphFrom.geom.trajData[i].cut, td.cut) : td.cut
+    if (idx > cutI) {
       trajDots[i].setAttribute('visibility', 'hidden')
-      annMarks[i].setAttribute('visibility', td.annihilated ? 'visible' : 'hidden')
+      annMarks[i].setAttribute('visibility', td.annihilated && !lerpTraj ? 'visible' : 'hidden')
     } else {
+      const xv = lerpTraj
+        ? morphFrom.geom.trajData[i].arr[idx] + (td.arr[idx] - morphFrom.geom.trajData[i].arr[idx]) * blendW
+        : td.arr[idx]
       trajDots[i].setAttribute('visibility', 'visible')
       trajDots[i].setAttribute('cx', cx)
-      trajDots[i].setAttribute('cy', y(td.arr[idx]))
+      trajDots[i].setAttribute('cy', y(xv))
       annMarks[i].setAttribute('visibility', 'hidden')
     }
   }
@@ -973,6 +1025,17 @@ function snapshotPhase() {
 
 function frame(now) {
   raf = 0
+  const morphing = blendW < 1
+  if (morphing) {
+    alphaAnim += (alphaSel - alphaAnim) * 0.18
+    const nb = blendW + (1 - blendW) * 0.16
+    if (nb > 0.99 && Math.abs(alphaSel - alphaAnim) < 2e-3) {
+      finalizeMorph()
+    } else {
+      blendW = nb
+      updateMorph()
+    }
+  }
   if (isRunning()) {
     if (!refTs) refTs = now
     const cs = cycleSweep()
@@ -981,9 +1044,10 @@ function frame(now) {
     updateFrame()
     updateTimeUI()
     raf = requestAnimationFrame(frame)
-  } else if (needsDraw) {
+  } else if (needsDraw || morphing) {
     updateFrame()
     updateTimeUI()
+    if (blendW < 1) raf = requestAnimationFrame(frame)
   }
 }
 
@@ -1004,20 +1068,85 @@ let alphaTimer = 0
 function commitAlpha(v) {
   const a = Math.round(v * 20) / 20
   if (a === alphaSel) return
+  const prev = slice
   alphaSel = a
-  // Synchronous recompute (memoized): the previous slice stays painted until
-  // the new one is ready, so there is no flicker.
   slice = sliceFor(worldId, alphaSel)
+  // Glide instead of snapping: remember the outgoing slice, crossfade its
+  // heat/buffer layers, and let frame() ease alphaAnim toward the target.
+  morphFrom = prev
+  blendW = 0
+  heatImgPrev.setAttribute('href', prev.heatUrl)
+  heatImgPrev.setAttribute('opacity', 1)
+  clearChildren(gGhostPrev)
+  for (const d of prev.geom.ghostD) mk('path', { d }, gGhostPrev)
   applySlice()
+  gGhost.setAttribute('opacity', 0)
+  gZoneFills.setAttribute('opacity', 0)
   updateOverlays()
-  restartSweep()
+  updateMorph()
   scheduleDraw()
+}
+
+function updateMorph() {
+  const y = slice.y
+  const su = slice.setup
+  heatImgPrev.setAttribute('opacity', (1 - blendW).toFixed(3))
+  gGhostPrev.setAttribute('opacity', (1 - blendW).toFixed(3))
+  gGhost.setAttribute('opacity', blendW.toFixed(3))
+  gZoneFills.setAttribute('opacity', blendW.toFixed(3))
+  // Zero curves + terminal profile track the eased alpha exactly.
+  clearChildren(gZero)
+  for (const d of liveZeroD(alphaAnim, su, y)) mk('path', { d }, gZero)
+  profilePath.setAttribute('d', liveProfileD(alphaAnim, su, y))
+  // Trajectories lerp point-wise between the cached slices.
+  if (morphFrom && morphFrom.geom.trajData.length === slice.geom.trajData.length) {
+    const A = morphFrom.geom.trajData
+    const B = slice.geom.trajData
+    const { times } = slice.transported
+    const paths = gTraj.childNodes
+    for (let i = 0; i < B.length; i += 1) {
+      const a1 = A[i].arr
+      const b1 = B[i].arr
+      const cut = Math.min(A[i].cut, B[i].cut)
+      let d = `M${tX(times[0]).toFixed(2)},${y(a1[0] + (b1[0] - a1[0]) * blendW).toFixed(2)}`
+      for (let k = 3; k < cut; k += 3) {
+        d += `L${tX(times[k]).toFixed(2)},${y(a1[k] + (b1[k] - a1[k]) * blendW).toFixed(2)}`
+      }
+      d += `L${tX(times[cut]).toFixed(2)},${y(a1[cut] + (b1[cut] - a1[cut]) * blendW).toFixed(2)}`
+      paths[i].setAttribute('d', d)
+    }
+  }
+}
+
+function finalizeMorph() {
+  morphFrom = null
+  blendW = 1
+  alphaAnim = alphaSel
+  heatImgPrev.setAttribute('opacity', 0)
+  clearChildren(gGhostPrev)
+  gGhost.setAttribute('opacity', 1)
+  gZoneFills.setAttribute('opacity', 1)
+  // Snap the live layers back to the committed full-resolution slice.
+  const g = slice.geom
+  clearChildren(gZero)
+  for (const d of g.zeroD) mk('path', { d }, gZero)
+  profilePath.setAttribute('d', g.profileD)
+  const paths = gTraj.childNodes
+  for (let i = 0; i < g.trajData.length; i += 1) paths[i].setAttribute('d', g.trajData[i].d)
+  needsDraw = true
 }
 
 function selectWorld(id) {
   if (id === worldId) return
   worldId = id
   slice = sliceFor(worldId, alphaSel)
+  morphFrom = null
+  blendW = 1
+  alphaAnim = alphaSel
+  heatImgPrev.setAttribute('opacity', 0)
+  clearChildren(gGhostPrev)
+  gGhost.setAttribute('opacity', 1)
+  gZoneFills.setAttribute('opacity', 1)
   applySlice()
   updateOverlays()
   restartSweep()
@@ -1169,6 +1298,8 @@ window.__pg1d = {
       speed,
       layers: { ...layers },
       cached: memo.size,
+      alphaAnim,
+      blendW,
     }
   },
 }
