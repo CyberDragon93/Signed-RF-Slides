@@ -27,7 +27,6 @@ const REF = '#B23A6F'
 
 const SERIES = [
   { name: 'CFG', vals: [2.38, 1.87, 1.73], color: CTX, dash: '', w: 1.6, hero: false },
-  { name: 'ADG', vals: [2.32, 2.00, 1.85], color: CTX, dash: '', w: 1.6, hero: false },
   { name: 'MG', vals: [1.85, 1.71, 1.60], color: CTX, dash: '', w: 1.6, hero: false },
   { name: 'CFG (2nd)', vals: [1.86, 1.66, 1.67], color: CTX, dash: '7 4', w: 1.6, hero: false },
   { name: 'Signed RF', vals: [1.82, 1.51, 1.41], color: HERO, dash: '', w: 2.6, hero: true },
