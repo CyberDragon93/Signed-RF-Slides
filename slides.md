@@ -1496,7 +1496,7 @@ class: signed-rf-2d-playground-slide
   white-space: nowrap;
 }
 .signed-rf-2d-playground-demo {
-  width: 92%;
+  width: 100%;
   margin: 0 auto;
 }
 .signed-rf-2d-playground-notes {
