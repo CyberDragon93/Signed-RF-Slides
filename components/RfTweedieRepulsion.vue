@@ -113,10 +113,13 @@ const loupeBoundary = computed(() => {
 // each arrow is the unit tangent of (dt, dx) = (1, v) in screen space, so
 // lengths never explode — near the wall the arrows simply turn vertical.
 // Magnitude is carried by shade instead: darker = larger log-magnitude.
-function shade(mag) {
-  const u = Math.min(1, Math.log1p(mag) / Math.log1p(250)) ** 1.7
+function magWeight(mag) {
+  return Math.min(1, Math.log1p(mag) / Math.log1p(250)) ** 1.6
+}
+
+function shade(u) {
   const mix = (a, b) => Math.round(a + (b - a) * u)
-  return `rgb(${mix(191, 10)}, ${mix(206, 21)}, ${mix(247, 92)})`
+  return `rgb(${mix(196, 8)}, ${mix(210, 18)}, ${mix(248, 84)})`
 }
 
 const arrows = computed(() => {
@@ -145,7 +148,11 @@ const arrows = computed(() => {
       dx = (dx / n) * (L / 2)
       dy = (dy / n) * (L / 2)
       const [px, py] = loupeMap(t, x, lp)
-      out.push({ x1: px - dx, y1: py - dy, x2: px + dx, y2: py + dy, dx, dy, color: shade(mag) })
+      const u = magWeight(mag)
+      out.push({
+        x1: px - dx, y1: py - dy, x2: px + dx, y2: py + dy, dx, dy,
+        color: shade(u), w: 1.3 + 2.3 * u, o: 0.5 + 0.5 * u,
+      })
     }
   }
   return out
@@ -211,11 +218,11 @@ const labelT = 'time t'
         <g v-for="(a, i) in arrows" :key="`ar-${i}`">
           <line
             :x1="a.x1" :y1="a.y1" :x2="a.x2" :y2="a.y2"
-            :style="{ stroke: a.color }" stroke-width="2" stroke-linecap="round"
+            :style="{ stroke: a.color, strokeOpacity: a.o }" :stroke-width="a.w" stroke-linecap="round"
           />
           <path
             :d="`M${a.x2 - (a.dx * 0.42 - a.dy * 0.3)},${a.y2 - (a.dy * 0.42 + a.dx * 0.3)} L${a.x2},${a.y2} L${a.x2 - (a.dx * 0.42 + a.dy * 0.3)},${a.y2 - (a.dy * 0.42 - a.dx * 0.3)}`"
-            fill="none" :style="{ stroke: a.color }" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+            fill="none" :style="{ stroke: a.color, strokeOpacity: a.o }" :stroke-width="a.w" stroke-linecap="round" stroke-linejoin="round"
           />
         </g>
       </g>
