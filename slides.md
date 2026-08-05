@@ -1451,6 +1451,8 @@ $$
 Two ingredients: the branch velocities $v_t^{\pm}$ and the density ratio $r_t(x)$.
 
 ---
+disabled: true
+---
 
 # An Adaptive Scale, Not a Schedule
 
