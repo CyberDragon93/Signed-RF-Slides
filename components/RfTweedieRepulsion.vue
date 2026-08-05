@@ -129,9 +129,14 @@ const arrows = computed(() => {
   for (let i = 0; i < 7; i += 1) {
     const t = SRC.t0 + ((i + 0.5) / 7) * (SRC.t1 - SRC.t0)
     const xb = upperRootAt(t)
+    // one row hugging the wall: |v| is enormous there, so the normalized
+    // arrow is essentially vertical — the singular repulsion made explicit
+    const xs = [xb + 0.025]
     for (let j = 0; j < 6; j += 1) {
-      const x = SRC.x0 + ((j + 0.5) / 6) * (SRC.x1 - SRC.x0)
-      if (x < xb + 0.05) continue
+      const g = SRC.x0 + ((j + 0.5) / 6) * (SRC.x1 - SRC.x0)
+      if (g >= xb + 0.16) xs.push(g)
+    }
+    for (const x of xs) {
       const v = signedVelocity(x, t, ALPHA, DENSITY)
       const mag = Math.abs(v)
       let dx = st
