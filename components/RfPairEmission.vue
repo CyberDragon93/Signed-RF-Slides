@@ -26,7 +26,6 @@ import {
   alphaDetentFrac,
   gaussianPdf,
   quantileSeeds,
-  reachFrontiers,
   signedDensity,
   simulateAdaptive,
   simulateTrajectories,
@@ -103,40 +102,111 @@ function frontAt(curve, t) {
   return span > 0 ? xs[lo] + ((t - ts[lo]) / span) * (xs[hi] - xs[lo]) : xs[lo]
 }
 
-function buildEmissions(a, su, frontiers) {
-  // One demo pair per wedge edge; single-wedge worlds get two production
-  // times, multi-wedge worlds one (keeps the picture readable).
-  const dts = frontiers.length > 1 ? [0.16] : [0.09, 0.33]
+// Interpolate a zero-branch line (array of [t, x] points, ascending t) at t.
+function lineAt(line, t) {
+  const n = line.length
+  if (t < line[0][0] || n < 2) return NaN
+  if (t >= line[n - 1][0]) return line[n - 1][1]
+  let lo = 0
+  let hi = n - 1
+  while (hi - lo > 1) {
+    const m = (lo + hi) >> 1
+    if (line[m][0] <= t) lo = m
+    else hi = m
+  }
+  const span = line[hi][0] - line[lo][0]
+  return span > 0 ? line[lo][1] + ((t - line[lo][0]) / span) * (line[hi][1] - line[lo][1]) : line[lo][1]
+}
+
+// Pair emissions seeded directly on the zero-set branches — topology-agnostic.
+// Which side is the ghost (+) and which the negative (-) particle is decided
+// by where each trajectory actually lands, not by an interior-wedge guess.
+function buildEmissions(a, su, zeroLines) {
+  const dts = zeroLines.length > 2 ? [0.16] : [0.09, 0.33]
   const eps = 0.07
   const pairs = []
-  for (let k = 0; k < frontiers.length; k += 1) {
-    const f = frontiers[k]
+  for (let k = 0; k < zeroLines.length; k += 1) {
+    const line = zeroLines[k]
+    if (line.length < 2) continue
     for (const dt of dts) {
-      const t0 = Math.min(0.97, f.tTip + dt)
-      const gl = frontAt(f.left, t0)
-      const gh = frontAt(f.right, t0)
-      const roots = zeroCrossings(t0, a, su).filter(r => r > gl && r < gh)
-      if (roots.length < 2) continue
-      const rl = roots[0]
-      const ru = roots[roots.length - 1]
-      pairs.push(
-        { id: `w${k}-lo-${dt}`, t: t0, xb: rl, ghost: simulateAdaptive(rl - eps, t0, a, su), reject: simulateAdaptive(rl + eps, t0, a, su) },
-        { id: `w${k}-hi-${dt}`, t: t0, xb: ru, ghost: simulateAdaptive(ru + eps, t0, a, su), reject: simulateAdaptive(ru - eps, t0, a, su) },
-      )
+      const t0 = Math.min(0.97, line[0][0] + dt)
+      const xb = lineAt(line, t0)
+      if (!Number.isFinite(xb)) continue
+      const below = simulateAdaptive(xb - eps, t0, a, su)
+      const above = simulateAdaptive(xb + eps, t0, a, su)
+      const sideSign = c => Math.sign(signedDensity(c.xs[c.xs.length - 1], 1, a, su))
+      const sb = sideSign(below)
+      if (sb === sideSign(above)) continue // degenerate: both sides one regime
+      pairs.push({
+        id: `z${k}-${dt}`,
+        t: t0,
+        xb,
+        ghost: sb > 0 ? below : above,
+        reject: sb > 0 ? above : below,
+      })
     }
   }
   pairs.sort((a2, b2) => a2.t - b2.t)
   return pairs
 }
 
-// Terminal (t = 1) zone segments for the annotated right strip: the ghost
-// region's extent is exactly the gap between each frontier pair minus the
-// negative wedge inside it.
-function buildZones1(a, su, frontiers) {
+// Wedge frontiers for every birth event (a later-born wedge gets its own
+// pair). Candidates must be negative just inside their roots — this discards
+// the spurious cross-bulk pairing of tail topologies (twin, skew at large
+// alpha) — and land inside the reach envelope.
+function allFrontiers(a, su, reachLo, reachHi) {
+  const eps = 1e-4
+  const NT = 220
+  const out = []
+  let prevCount = 0
+  for (let i = 1; i <= NT; i += 1) {
+    const t = 0.01 + (i / NT) * 0.985
+    const roots = zeroCrossings(t, a, su)
+    if (roots.length > prevCount) {
+      let lo = 0.01 + ((i - 1) / NT) * 0.985
+      let hi = t
+      for (let k = 0; k < 26; k += 1) {
+        const m = 0.5 * (lo + hi)
+        if (zeroCrossings(m, a, su).length > prevCount) hi = m
+        else lo = m
+      }
+      const t0 = Math.min(hi + 2e-3, 1)
+      const rr = zeroCrossings(t0, a, su)
+      for (let j = 0; j + 1 < rr.length; j += 2) {
+        const rl = rr[j]
+        const ru = rr[j + 1]
+        const mid = 0.5 * (rl + ru)
+        if (signedDensity(mid, Math.min(t0 + 0.01, 1), a, su) >= 0) continue
+        let tracked = false
+        for (const f of out) {
+          const gl = frontAt(f.left, t0)
+          const gh = frontAt(f.right, t0)
+          if (Number.isFinite(gl) && mid >= gl && mid <= gh) {
+            tracked = true
+            break
+          }
+        }
+        if (tracked) continue
+        const left = simulateAdaptive(rl - eps, t0, a, su)
+        const right = simulateAdaptive(ru + eps, t0, a, su)
+        if (left.xs[left.xs.length - 1] < reachLo - 0.05 || right.xs[right.xs.length - 1] > reachHi + 0.05) continue
+        out.push({ tTip: t0, left, right })
+      }
+    }
+    prevCount = roots.length
+  }
+  return out
+}
+
+// Terminal zones, robust to any topology: negative where pi_1^sign < 0;
+// ghost where positive but unreachable — outside the reach envelope or
+// inside a validated wedge-frontier gap; reachable otherwise.
+function buildZones1(a, su, frontiers, reachLo, reachHi) {
   const [lo, hi] = su.domain
   const gaps = frontiers.map(f => [f.left.xs[f.left.xs.length - 1], f.right.xs[f.right.xs.length - 1]])
   const typeOf = (x) => {
     if (signedDensity(x, 1, a, su) < 0) return 'neg'
+    if (x < reachLo || x > reachHi) return 'ghost'
     for (const [gl, gh] of gaps) {
       if (x >= gl && x <= gh) return 'ghost'
     }
@@ -158,7 +228,11 @@ function buildZones1(a, su, frontiers) {
   return segs
 }
 
-function renderHeat(a, su, frontiers) {
+// Heatmap: reach-aware pointwise signed density — blue where positive AND
+// reachable at that time, magenta where negative, PURE WHITE over the ghost
+// region (positive but unreachable). Boundaries come from the same exact
+// curves the overlay layers draw.
+function renderHeat(a, su, extL, extR, frontiers) {
   if (typeof document === 'undefined') return ''
   const W = 300
   const H = 220
@@ -169,15 +243,20 @@ function renderHeat(a, su, frontiers) {
   if (!ctx) return ''
   const [dLo, dHi] = su.domain
   const img = ctx.createImageData(W, H)
-  const cReach = [73, 105, 226]
-  const cGhost = [232, 232, 227]
+  const cPos = [73, 105, 226]
   const cNeg = [227, 74, 146]
   const vals = new Float64Array(W * H)
-  const gapsPerCol = []
   let maxAbs = 1e-12
+  const colL = new Float64Array(W)
+  const colU = new Float64Array(W)
+  const colGaps = []
   for (let px = 0; px < W; px += 1) {
     const t = px / (W - 1)
-    gapsPerCol.push(frontiers.map(f => [frontAt(f.left, t), frontAt(f.right, t)]))
+    const L = frontAt(extL, t)
+    const U = frontAt(extR, t)
+    colL[px] = Number.isFinite(L) ? L : -Infinity
+    colU[px] = Number.isFinite(U) ? U : Infinity
+    colGaps.push(frontiers.map(f => [frontAt(f.left, t), frontAt(f.right, t)]))
     for (let py = 0; py < H; py += 1) {
       const x = dHi - (py / (H - 1)) * (dHi - dLo)
       const v = signedDensity(x, t, a, su)
@@ -190,25 +269,28 @@ function renderHeat(a, su, frontiers) {
     const x = dHi - (py / (H - 1)) * (dHi - dLo)
     for (let px = 0; px < W; px += 1) {
       const v = vals[py * W + px]
-      let c = cReach
-      let aScale = 1
+      const o = 4 * (py * W + px)
+      let alpha = 0
+      let c = cPos
       if (v < 0) {
         c = cNeg
+        alpha = 0.02 + 0.28 * Math.pow(-v / maxAbs, 0.75)
       } else {
-        for (const [gl, gh] of gapsPerCol[px]) {
-          if (Number.isFinite(gl) && x >= gl && x <= gh) {
-            c = cGhost
-            aScale = 0.45
-            break
+        let ghost = x < colL[px] || x > colU[px]
+        if (!ghost) {
+          for (const [gl, gh] of colGaps[px]) {
+            if (Number.isFinite(gl) && x >= gl && x <= gh) {
+              ghost = true
+              break
+            }
           }
         }
+        if (!ghost) alpha = 0.02 + 0.28 * Math.pow(v / maxAbs, 0.75)
       }
-      const aPix = 0.02 + 0.28 * Math.pow(Math.abs(v) / maxAbs, 0.75)
-      const o = 4 * (py * W + px)
       img.data[o] = c[0]
       img.data[o + 1] = c[1]
       img.data[o + 2] = c[2]
-      img.data[o + 3] = Math.round(255 * clamp(aPix * aScale))
+      img.data[o + 3] = Math.round(255 * clamp(alpha))
     }
   }
   ctx.putImageData(img, 0, 0)
@@ -218,14 +300,45 @@ function renderHeat(a, su, frontiers) {
 function sliceFor(wid, a) {
   return peMemoGet(`pe|${wid}|${a}`, () => {
     const su = WORLDS.find(w => w.id === wid).setup
-    const frontiers = reachFrontiers(a, su)
+    // True reach envelope: transported images of extreme source quantiles.
+    const extL = simulateAdaptive(-4.2, 0, a, su)
+    const extR = simulateAdaptive(4.2, 0, a, su)
+    const reachLo = extL.xs[extL.xs.length - 1]
+    const reachHi = extR.xs[extR.xs.length - 1]
+    const frontiers = allFrontiers(a, su, reachLo, reachHi)
+    const zeroLines = zeroBranches(a, su, 160)
+    // Ghost-boundary display: wedge frontiers, plus the reach envelope itself
+    // when it converges to the panel interior (tail topologies like twin).
+    const [dLo, dHi] = su.domain
+    const edgeCut = 0.88 * Math.max(Math.abs(dLo), Math.abs(dHi))
+    const ghostCurves = frontiers.flatMap(f => [f.left, f.right])
+    if (Math.abs(reachLo) < edgeCut) ghostCurves.push(extL)
+    if (Math.abs(reachHi) < edgeCut) ghostCurves.push(extR)
+    const transported = simulateTrajectories(quantileSeeds(17), a, su, 480)
+    // Truncate transported curves at annihilation: a measure-zero seed on a
+    // symmetry axis has v = 0 forever and would be drawn straight through the
+    // wedge born on that axis; in exact math it terminates at the tip.
+    const trajCuts = transported.paths.map((arr) => {
+      let cut = arr.length - 1
+      for (let i = 1; i < arr.length; i += 1) {
+        if (signedDensity(arr[i], transported.times[i], a, su) < -1e-12) {
+          cut = Math.max(1, i - 1)
+          break
+        }
+      }
+      return { cut, annihilated: cut < arr.length - 1, tEnd: transported.times[cut], xEnd: arr[cut] }
+    })
     return {
       frontiers,
-      zeroLines: zeroBranches(a, su, 160),
-      transported: simulateTrajectories(quantileSeeds(17), a, su, 480),
-      pairs: buildEmissions(a, su, frontiers),
-      heat: renderHeat(a, su, frontiers),
-      zones1: buildZones1(a, su, frontiers),
+      ghostCurves,
+      reachLo,
+      reachHi,
+      zeroLines,
+      transported,
+      trajCuts,
+      pairs: buildEmissions(a, su, zeroLines),
+      heat: renderHeat(a, su, extL, extR, frontiers),
+      zones1: buildZones1(a, su, frontiers, reachLo, reachHi),
     }
   })
 }
@@ -248,11 +361,11 @@ const aSlider = computed(() => ({ x: 540, y: layout.value.sliderY, w: 175 }))
 // ---- KaTeX labels ---------------------------------------------------------------
 const sourceLabel = mathHtml('\\pi_0=\\mathcal{N}(0,1)')
 const zeroChipHtml = `zero set ${mathHtml('\\Omega_t^0')}`
-const ghostChipHtml = 'ghost boundary'
+const ghostChipHtml = 'buffer boundary'
 const stripTitle = mathHtml('\\pi_1^{\\mathtt{sign}}')
 const zoneHtml = {
   reach: mathHtml('\\Omega^{r}'),
-  ghost: mathHtml('\\Omega^{g}'),
+  ghost: mathHtml('\\Omega^{b}'),
   neg: mathHtml('\\Omega^{-}'),
 }
 const zoneColor = {
@@ -298,15 +411,15 @@ const zeroBranchPaths = computed(() => {
 
 const frontierPaths = computed(() => {
   const ys = yScale.value
-  const cur = slice.value.frontiers
+  const cur = slice.value.ghostCurves
   const w = blendW.value
   const prev = wedgeMorph && w < 1
-    ? sliceFor(worldId.value, alphaPrev.value).frontiers
+    ? sliceFor(worldId.value, alphaPrev.value).ghostCurves
     : null
-  return cur.flatMap((f, k) => [f.left, f.right].map((c, side) => {
+  return cur.map((c, k) => {
     if (prev && prev.length === cur.length) {
       // Continuous morph: lerp the resampled previous/current curves.
-      const A = resampleFrontier(prev[k][side === 0 ? 'left' : 'right'])
+      const A = resampleFrontier(prev[k])
       const B = resampleFrontier(c)
       const t0 = A.t0 + (B.t0 - A.t0) * w
       const n = B.xs.length - 1
@@ -323,7 +436,7 @@ const frontierPaths = computed(() => {
     for (let i = 0; i < nPts; i += stride) pts.push([tX(c.ts[i]), ys(c.xs[i])])
     pts.push([tX(c.ts[nPts - 1]), ys(c.xs[nPts - 1])])
     return polyPath(pts)
-  }))
+  })
 })
 
 function curvePathD(c, ys) {
@@ -338,9 +451,12 @@ function curvePathD(c, ys) {
 const transportedPaths = computed(() => {
   const ys = yScale.value
   const { times, paths } = slice.value.transported
-  return paths.map((arr) => {
+  const cuts = slice.value.trajCuts
+  return paths.map((arr, k) => {
+    const cut = cuts[k].cut
     let d = ''
-    for (let i = 0; i < arr.length; i += 3) d += (d ? 'L' : 'M') + tX(times[i]).toFixed(1) + ',' + ys(arr[i]).toFixed(1)
+    for (let i = 0; i < cut; i += 3) d += (d ? 'L' : 'M') + tX(times[i]).toFixed(1) + ',' + ys(arr[i]).toFixed(1)
+    d += (d ? 'L' : 'M') + tX(times[cut]).toFixed(1) + ',' + ys(arr[cut]).toFixed(1)
     return d
   })
 })
@@ -372,16 +488,23 @@ const rstrip = computed(() => {
   const baseX = RSTRIP_X + 34
   const k = (RSTRIP_W - 40) / maxAbs
   const sAt = x => signedDensity(x, 1, a, su)
-  const segs = slice.value.zones1.map(seg => ({
-    type: seg.type,
-    line: d3.line().x(x => baseX + k * sAt(x)).y(x => ys(x))(d3.range(41).map(i => seg.x0 + (i / 40) * (seg.x1 - seg.x0))),
-    area: d3.area()
-      .x0(baseX)
-      .x1(x => baseX + k * sAt(x))
-      .y(x => ys(x))(d3.range(41).map(i => seg.x0 + (i / 40) * (seg.x1 - seg.x0))),
-    midY: ys(0.5 * (seg.x0 + seg.x1)),
-    span: Math.abs(ys(seg.x1) - ys(seg.x0)),
-  }))
+  const segs = slice.value.zones1.map((seg) => {
+    // Sampling density proportional to the segment's share of the domain, so
+    // narrow features stay smooth and the profile reads as one continuous
+    // curve across zone boundaries (adjacent segments share exact endpoints).
+    const nS = Math.max(24, Math.min(400, Math.round(((seg.x1 - seg.x0) / (dHi - dLo)) * 700)))
+    const grid = d3.range(nS + 1).map(i => seg.x0 + (i / nS) * (seg.x1 - seg.x0))
+    return {
+      type: seg.type,
+      line: d3.line().x(x => baseX + k * sAt(x)).y(x => ys(x))(grid),
+      area: d3.area()
+        .x0(baseX)
+        .x1(x => baseX + k * sAt(x))
+        .y(x => ys(x))(grid),
+      midY: ys(0.5 * (seg.x0 + seg.x1)),
+      span: Math.abs(ys(seg.x1) - ys(seg.x0)),
+    }
+  })
   // one label per zone type, on its largest segment
   const py1 = panelY + layout.value.panelH
   const labels = []
@@ -401,19 +524,16 @@ const curveLabels = computed(() => {
   const cx = v => clamp(v, panelX + 6, panelX + panelW - 156)
   const cy = v => clamp(v, panelY + 4, py1 - 26)
   const out = []
-  const fs = slice.value.frontiers
-  if (fs.length) {
-    const f = fs[0]
-    const tz = f.tTip
-    const zr = zeroCrossings(Math.min(tz + 5e-3, 1), alphaSel.value, setup.value)
-    if (zr.length) {
-      const xTip = 0.5 * (zr[0] + zr[1])
-      out.push({ key: 'zero', x: cx(tX(tz) - 152), y: cy(ys(xTip) - 12), cls: 'pe-label-zero', html: zeroChipHtml })
-    }
-    // Anchor the ghost chip on the outermost frontier's outer curve.
+  const zl = slice.value.zeroLines
+  if (zl.length && zl[0].length) {
+    const [tz, xz] = zl[0][0]
+    out.push({ key: 'zero', x: cx(tX(tz) - 152), y: cy(ys(xz) - 12), cls: 'pe-label-zero', html: zeroChipHtml })
+  }
+  // Anchor the ghost chip on the outermost ghost-boundary curve.
+  const gcs = slice.value.ghostCurves
+  if (gcs.length) {
     const tg = 0.78
-    const fo = fs[fs.length - 1]
-    const gx = frontAt(fo.right, tg)
+    const gx = frontAt(gcs[gcs.length - 1], tg)
     if (Number.isFinite(gx)) {
       out.push({ key: 'ghost', x: cx(tX(tg) + 8), y: cy(ys(gx) - 24), cls: 'pe-label-ghost', html: ghostChipHtml })
     }
@@ -533,7 +653,13 @@ const dots = computed(() => {
   const last = times.length - 1
   const idx = Math.max(0, Math.min(last, Math.round(c * last)))
   for (let i = 0; i < paths.length; i += 1) {
-    out.push({ id: `src-${i}`, cx: tX(c), cy: ys(paths[i][idx]), sign: '', fill: PALETTE.trajMarkerFill, edge: PALETTE.trajMarkerEdge, r: 3.2, sw: 0.8 })
+    const tc = slice.value.trajCuts[i]
+    if (idx > tc.cut) {
+      // Annihilated at the wedge tip: hollow marker parked at the end point.
+      out.push({ id: `src-${i}`, cx: tX(tc.tEnd), cy: ys(tc.xEnd), sign: '', fill: '#FFFFFF', edge: PALETTE.negativeDark, r: 3.4, sw: 1.1 })
+    } else {
+      out.push({ id: `src-${i}`, cx: tX(c), cy: ys(paths[i][idx]), sign: '', fill: PALETTE.trajMarkerFill, edge: PALETTE.trajMarkerEdge, r: 3.2, sw: 0.8 })
+    }
   }
   for (const p of slice.value.pairs) {
     if (c < p.t) continue
@@ -794,8 +920,8 @@ onUnmounted(() => {
       <template v-for="(seg, si) in rstrip.segs" :key="`rs-${si}`">
         <path
           :d="seg.area"
-          :fill="seg.type === 'reach' ? PALETTE.sampling : seg.type === 'ghost' ? PALETTE.bufferDark : PALETTE.negative"
-          :fill-opacity="seg.type === 'ghost' ? 0.3 : 0.2"
+          :fill="seg.type === 'reach' ? PALETTE.sampling : seg.type === 'ghost' ? 'none' : PALETTE.negative"
+          :fill-opacity="seg.type === 'ghost' ? 0 : 0.2"
         />
         <path
           :d="seg.line" fill="none"

@@ -11,8 +11,8 @@ const props = defineProps({
 })
 
 const W = 900
-const PX0 = 96
-const PX1 = 742
+const PX0 = 200
+const PX1 = 630
 const PY0 = 42
 const PY1 = computed(() => props.height - 58)
 

@@ -85,13 +85,13 @@ let commitTimer = 0
 // ======================================================================
 // mode="target"  — paper_1d_density.py panel (c), DENSITY setup at t=1
 // ======================================================================
-const TG_X0 = 130
-const TG_W = 640
+const TG_X0 = 190
+const TG_W = 520
 const TG_Y0 = 36
 const TG_ALPHA_LO = 0.05
 const TG_ALPHA_HI = 2.0
 const tgY1 = computed(() => props.height - 64)
-const tgSlider = computed(() => ({ x: 316, y: props.height - 29, w: 280 }))
+const tgSlider = computed(() => ({ x: 330, y: props.height - 29, w: 240 }))
 
 const tgGrid = d3.range(0, 421).map(i => DENSITY.domain[0] + (i / 420) * (DENSITY.domain[1] - DENSITY.domain[0]))
 const tgXScale = d3.scaleLinear().domain(DENSITY.domain).range([TG_X0 + 14, TG_X0 + TG_W - 14])
@@ -124,10 +124,10 @@ const tgShapes = computed(() => {
     pos: d3.area().x(x => xs(x)).y0(ys(0)).y1(x => ys(Math.max(0, signed(x))))(tgGrid),
     neg: d3.area().x(x => xs(x)).y0(ys(0)).y1(x => ys(Math.min(0, signed(x))))(tgGrid),
     labels: {
-      // Anchor the (1+a)pi+ label in the empty pocket left of the visible
-      // dashed-blue bump (near x~0), not on the left hump where the dashed
-      // curve hides under the signed curve.
-      plus: { x: xs(-1.72), y: clamp(ys(0.34) - 13, TG_Y0 + 4, tgY1.value - 26) },
+      // Anchor the (1+a)pi+ label above the left hump's shoulder, riding the
+      // peak as alpha scales it: left of x~-3.4 every curve is ~0 at any
+      // alpha, so the label never collides with a stroke.
+      plus: { x: xs(-3.62), y: clamp(ys((1 + a) * tgPlusPdf(-2.45)) - 28, TG_Y0 + 4, tgY1.value - 26) },
       minus: { x: xs(0.98) + 4, y: clamp(ys(a * tgMinusPdf(0.98)) - 26, TG_Y0 + 4, tgY1.value - 26) },
       signed: { x: xs(2.78) + 16, y: clamp(ys(Math.max(signed(2.78), 0)) - 14, TG_Y0 + 4, tgY1.value - 26) },
     },
@@ -141,10 +141,10 @@ const tgTicks = [-4, -2, 0, 2, 4]
 // ======================================================================
 const EV_PY0 = 34
 const EV_CX0 = 100
-const EV_CX1 = 700
+const EV_CX1 = 742
 const EV_SRC_BASE = 100
-const EV_STRIP_X = 706
-const EV_STRIP_W = 158
+const EV_STRIP_X = 748
+const EV_STRIP_W = 132
 
 const evPy1 = computed(() => props.height - 72)
 const evPh = computed(() => evPy1.value - EV_PY0)
@@ -487,7 +487,7 @@ const refLabelMinus = mathHtml('\\pi_1^-')
 const particles = ref(null)
 let particleJob = 0
 
-// Chunked 800-path ensemble; results are cached per (world, alpha) so a
+// Chunked 3000-path ensemble; results are cached per (world, alpha) so a
 // revisited detent resolves synchronously. `cancelled` lets the view job
 // abandon stale work; prewarm jobs always run to completion.
 function buildParticles(alpha, cancelled, done) {
@@ -498,7 +498,7 @@ function buildParticles(alpha, cancelled, done) {
   }
   const rand = lcg(97)
   const seeds = []
-  for (let i = 0; i < 800; i += 1) seeds.push(randn(rand))
+  for (let i = 0; i < 3000; i += 1) seeds.push(randn(rand))
   const paths = []
   let times = null
   let i = 0
@@ -554,7 +554,7 @@ function prewarmDetents() {
 // Temporal smoothing: raw per-frame bins flicker as samples hop between the
 // fine bins. Blend the displayed densities toward the current target with a
 // plain EMA (~150 ms settle) — no animation machinery, just calmer bars.
-const HIST_BINS = 64
+const HIST_BINS = 96
 const histDisp = new Float64Array(HIST_BINS)
 const histTick = ref(0)
 
@@ -1019,7 +1019,7 @@ onUnmounted(() => {
       <!-- ============================ mode = evolution ============================ -->
       <g v-else>
         <rect
-          x="24" :y="EV_PY0 - 8" width="848" :height="evPh + 16" rx="10"
+          x="14" :y="EV_PY0 - 8" width="872" :height="evPh + 16" rx="10"
           :fill="PALETTE.panel" :stroke="PALETTE.panelBorder" :filter="`url(#${uid}-shadow)`"
         />
 
@@ -1199,7 +1199,7 @@ onUnmounted(() => {
     <!-- HTML label overlays (moved out of the SVG; see RfFigLabel.vue) -->
     <template v-if="isTargetMode">
       <RfFigLabel :x="tgShapes.labels.plus.x" :y="tgShapes.labels.plus.y" :w="118" :vb-h="height">
-        <div class="srf-math" :style="{ color: PALETTE.samplingDark }" v-html="tgLabelPlus"></div>
+        <div class="srf-math" :style="{ color: PALETTE.samplingDark, textAlign: 'right' }" v-html="tgLabelPlus"></div>
       </RfFigLabel>
       <RfFigLabel :x="tgShapes.labels.minus.x" :y="tgShapes.labels.minus.y" :w="70" :vb-h="height">
         <div class="srf-math" :style="{ color: PALETTE.negativeDark }" v-html="tgLabelMinus"></div>
@@ -1215,7 +1215,7 @@ onUnmounted(() => {
       <RfFigLabel :x="30" :y="4" :w="120" :vb-h="height">
         <div class="srf-title" v-html="titleLeft"></div>
       </RfFigLabel>
-      <RfFigLabel :x="250" :y="4" :w="300" :vb-h="height">
+      <RfFigLabel :x="271" :y="4" :w="300" :vb-h="height">
         <div class="srf-title srf-center" v-html="titleCenter"></div>
       </RfFigLabel>
       <RfFigLabel :x="EV_STRIP_X" :y="4" :w="180" :vb-h="height">

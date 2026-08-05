@@ -10,7 +10,10 @@ import {
   SKEW,
   TWIN,
   gaussianPdf,
+  histogramDensity,
+  lcg,
   quantileSeeds,
+  randn,
   signedDensity,
   simulateAdaptive,
   simulateTrajectories,
@@ -243,6 +246,44 @@ function buildZones1(a, su, frontiers, reachLo, reachHi) {
     return 'reach'
   }
   const n = 640
+  const segs = []
+  let cur = null
+  for (let i = 0; i <= n; i += 1) {
+    const x = lo + (i / n) * (hi - lo)
+    const ty = typeOf(x)
+    if (!cur || cur.type !== ty) {
+      cur = { type: ty, x0: x, x1: x }
+      segs.push(cur)
+    } else {
+      cur.x1 = x
+    }
+  }
+  return segs
+}
+
+// Time-t zone segmentation for the live strip: the same classification as
+// buildZones1, with the reach envelope and wedge gaps read off the exact
+// boundary curves at time t. At t = 1 it reproduces buildZones1.
+function buildZonesAt(t, a, su, frontiers, extL, extR) {
+  const [lo, hi] = su.domain
+  const gaps = []
+  for (const f of frontiers) {
+    const gl = frontAt(f.left, t)
+    const gh = frontAt(f.right, t)
+    if (Number.isFinite(gl) && Number.isFinite(gh)) gaps.push([gl, gh])
+  }
+  const reachLo = frontAt(extL, t)
+  const reachHi = frontAt(extR, t)
+  const typeOf = (x) => {
+    if (signedDensity(x, t, a, su) < 0) return 'neg'
+    if (Number.isFinite(reachLo) && x < reachLo) return 'ghost'
+    if (Number.isFinite(reachHi) && x > reachHi) return 'ghost'
+    for (const [gl, gh] of gaps) {
+      if (x >= gl && x <= gh) return 'ghost'
+    }
+    return 'reach'
+  }
+  const n = 320
   const segs = []
   let cur = null
   for (let i = 0; i <= n; i += 1) {
@@ -505,8 +546,10 @@ function sliceFor(wid, a) {
       srcAreaD,
       srcLineD,
       baseX,
+      rk,
       profileD,
       rsegs,
+      zoneCtx: { frontiers, extL, extR },
       zoneLabels,
       labels,
       callout,
@@ -516,15 +559,63 @@ function sliceFor(wid, a) {
   return slice
 }
 
+// ---- Empirical ensemble: many random source samples transported by the same
+// closed-form velocity field. Built asynchronously in chunks and cached per
+// (world, alpha); the right strip histograms the ensemble at the cursor time,
+// so the empirical density updates live against the analytic profile.
+const EMP_N = 2000
+const EMP_STEPS = 360
+const EMP_BINS = 84
+const empMemo = new Map()
+
+function ensureEnsemble(wid, a) {
+  const key = `${wid}|${a.toFixed(2)}`
+  if (empMemo.has(key)) return empMemo.get(key)
+  const su = WORLDS.find(w => w.id === wid).setup
+  const rand = lcg(97)
+  const seeds = []
+  for (let i = 0; i < EMP_N; i += 1) seeds.push(randn(rand))
+  const rec = { ready: false, times: null, paths: [] }
+  empMemo.set(key, rec)
+  const CHUNK = 125
+  let i = 0
+  const step = () => {
+    if (i >= EMP_N) {
+      rec.ready = true
+      scheduleDraw()
+      return
+    }
+    const part = simulateTrajectories(seeds.slice(i, i + CHUNK), a, su, EMP_STEPS)
+    if (!rec.times) rec.times = part.times
+    for (const p of part.paths) rec.paths.push(p)
+    i += CHUNK
+    if (rec.paths.length % 500 === 0) scheduleDraw()
+    setTimeout(step, 0)
+  }
+  setTimeout(step, 0)
+  return rec
+}
+
+const empVals = new Float64Array(EMP_N)
+const empDisp = new Float64Array(EMP_BINS)
+
 // ---- State ----------------------------------------------------------------------
 
 let worldId = 'paper'
 let alphaSel = 0.85
-const layers = { heat: true, zero: true, ghost: true, traj: true, pairs: false, strip: true, labels: false }
+const layers = { heat: true, zero: true, ghost: true, traj: true, pairs: false, strip: true, emp: true, labels: false }
 let slice = null
+// Smooth alpha morphs: commits snap the DATA, the visuals glide — the heat
+// and buffer curves crossfade, zero curves and the terminal profile are
+// re-evaluated live at an eased alphaAnim, and the 17 trajectories (shared
+// seeds and time grid across every cached slice) lerp point-wise.
+let morphFrom = null
+let alphaAnim = 0.85
+let blendW = 1
 
 let cursor = 1
 let playing = true
+let direction = 1 // +1 forward, -1 reverse
 let manual = false
 let speed = 1
 let refTs = 0
@@ -534,6 +625,34 @@ let needsDraw = false
 
 const cycleSweep = () => SWEEP / speed
 const isRunning = () => playing && !manual && !document.hidden
+
+// ---- Live morph evaluators ----------------------------------------------------
+// Cheap enough for one evaluation per frame: ~13k density evals for the
+// low-res zero curves + ~1.4k for the terminal profile.
+function liveZeroD(a, su, y) {
+  return zeroBranches(a, su, 60, 0.35, 220).map((line) => {
+    let d = ''
+    for (const [t, xv] of line) d += (d ? 'L' : 'M') + tX(t).toFixed(2) + ',' + y(xv).toFixed(2)
+    return d
+  })
+}
+
+function liveProfileD(a, su, y) {
+  const [dLo, dHi] = su.domain
+  let maxAbs = 1e-9
+  for (let i = 0; i <= 320; i += 1) {
+    const x = dLo + (i / 320) * (dHi - dLo)
+    maxAbs = Math.max(maxAbs, Math.abs(signedDensity(x, 1, a, su)))
+  }
+  const baseX = RSTRIP_X + 34
+  const rk = (RSTRIP_W - 40) / maxAbs
+  let d = ''
+  for (let i = 0; i <= 480; i += 1) {
+    const x = dLo + (i / 480) * (dHi - dLo)
+    d += (d ? 'L' : 'M') + (baseX + rk * signedDensity(x, 1, a, su)).toFixed(2) + ',' + y(x).toFixed(2)
+  }
+  return d
+}
 
 // ---- SVG scaffolding ---------------------------------------------------------------
 // Built once; slices swap path data, frames only touch the reveal clip, the
@@ -556,9 +675,20 @@ const clipReveal = mk('clipPath', { id: 'pg1dReveal' }, defs)
 const revealRect = mk('rect', { x: panelX, y: panelY, width: 0, height: panelH }, clipReveal)
 
 mk('rect', { x: panelX, y: panelY, width: panelW, height: panelH, fill: '#FBFCFF' })
+// Outgoing heat/buffer layers: fade out under the incoming ones during a
+// smooth alpha morph.
+const heatImgPrev = mk('image', {
+  x: panelX, y: panelY, width: panelW, height: panelH,
+  preserveAspectRatio: 'none', 'clip-path': 'url(#pg1dPanel)', opacity: 0,
+})
 const heatImg = mk('image', {
   x: panelX, y: panelY, width: panelW, height: panelH,
   preserveAspectRatio: 'none', 'clip-path': 'url(#pg1dPanel)',
+})
+const gGhostPrev = mk('g', {
+  'clip-path': 'url(#pg1dPanel)', fill: 'none',
+  stroke: PALETTE.buffer, 'stroke-width': 1.5, 'stroke-opacity': 0.95, 'stroke-linejoin': 'round',
+  opacity: 0,
 })
 const gGhost = mk('g', {
   'clip-path': 'url(#pg1dPanel)', fill: 'none',
@@ -596,6 +726,11 @@ mk('line', { x1: stripRight, y1: panelY, x2: stripRight, y2: panelY1, stroke: 'r
 const gStrip = mk('g')
 const stripBase = mk('line', { stroke: 'rgba(83, 96, 115, 0.45)', 'stroke-width': 0.9, y1: panelY, y2: panelY1 }, gStrip)
 const gZoneFills = mk('g', {}, gStrip)
+const gEmpBars = mk('g', {}, gStrip)
+const empBars = []
+for (let bI = 0; bI < EMP_BINS; bI += 1) {
+  empBars.push(mk('rect', { fill: PALETTE.sampleHist, opacity: 0.8, width: 0, height: 0 }, gEmpBars))
+}
 const profilePath = mk('path', { fill: 'none', stroke: '#202124', 'stroke-width': 1.6, 'stroke-linejoin': 'round' }, gStrip)
 const gBrackets = mk('g', { 'stroke-width': 1.2, 'stroke-opacity': 0.75 }, gStrip)
 
@@ -681,6 +816,20 @@ function applySlice() {
 
   stripBase.setAttribute('x1', g.baseX)
   stripBase.setAttribute('x2', g.baseX)
+  {
+    const [dLo, dHi] = slice.setup.domain
+    const y = slice.y
+    for (let bI = 0; bI < EMP_BINS; bI += 1) {
+      const x0 = dLo + (bI / EMP_BINS) * (dHi - dLo)
+      const x1 = dLo + ((bI + 1) / EMP_BINS) * (dHi - dLo)
+      const yT = y(x1)
+      empBars[bI].setAttribute('x', g.baseX)
+      empBars[bI].setAttribute('y', (yT + 0.35).toFixed(2))
+      empBars[bI].setAttribute('height', Math.max(0, y(x0) - yT - 0.7).toFixed(2))
+      empBars[bI].setAttribute('width', 0)
+    }
+    empDisp.fill(0)
+  }
   clearChildren(gZoneFills)
   for (const seg of g.rsegs) {
     mk('path', { d: seg.areaD, fill: ZONE_FILL[seg.type], 'fill-opacity': ZONE_LINE_OP[seg.type] }, gZoneFills)
@@ -723,6 +872,7 @@ function applyLayerVisibility() {
   const show = (el, on) => el.setAttribute('display', on ? '' : 'none')
   show(heatImg, layers.heat)
   show(gGhost, layers.ghost)
+  show(gGhostPrev, layers.ghost)
   show(gZero, layers.zero)
   show(gTraj, layers.traj)
   show(gDots, layers.traj)
@@ -731,6 +881,7 @@ function applyLayerVisibility() {
   show(gPairDots, layers.pairs)
   show(gFlash, layers.pairs)
   show(gStrip, layers.strip)
+  show(gEmpBars, layers.strip && layers.emp)
   show(gBrackets, layers.strip && layers.labels)
   const co = layers.pairs && layers.labels && slice && slice.geom.callout
   show(calloutPath, co)
@@ -753,16 +904,67 @@ function updateFrame() {
   const { times } = slice.transported
   const last = times.length - 1
   const idx = Math.max(0, Math.min(last, Math.round(c * last)))
+  const lerpTraj = morphFrom && blendW < 1 && morphFrom.geom.trajData.length === g.trajData.length
   for (let i = 0; i < g.trajData.length; i += 1) {
     const td = g.trajData[i]
-    if (idx > td.cut) {
+    const cutI = lerpTraj ? Math.min(morphFrom.geom.trajData[i].cut, td.cut) : td.cut
+    if (idx > cutI) {
       trajDots[i].setAttribute('visibility', 'hidden')
-      annMarks[i].setAttribute('visibility', td.annihilated ? 'visible' : 'hidden')
+      annMarks[i].setAttribute('visibility', td.annihilated && !lerpTraj ? 'visible' : 'hidden')
     } else {
+      const xv = lerpTraj
+        ? morphFrom.geom.trajData[i].arr[idx] + (td.arr[idx] - morphFrom.geom.trajData[i].arr[idx]) * blendW
+        : td.arr[idx]
       trajDots[i].setAttribute('visibility', 'visible')
       trajDots[i].setAttribute('cx', cx)
-      trajDots[i].setAttribute('cy', y(td.arr[idx]))
+      trajDots[i].setAttribute('cy', y(xv))
       annMarks[i].setAttribute('visibility', 'hidden')
+    }
+  }
+
+  if (layers.strip && layers.emp) {
+    const rec = ensureEnsemble(worldId, alphaSel)
+    const n = rec.paths.length
+    if (n >= 250 && rec.times) {
+      const li = rec.paths[0].length - 1
+      const k = Math.max(0, Math.min(li, Math.round(c * li)))
+      for (let i = 0; i < n; i += 1) empVals[i] = rec.paths[i][k]
+      const bins = histogramDensity(empVals.subarray(0, n), EMP_BINS, slice.setup.domain)
+      const rkS = g.rk
+      const wBlend = isRunning() ? 0.4 : 1
+      const maxW = RSTRIP_W + 26
+      for (let bI = 0; bI < EMP_BINS; bI += 1) {
+        empDisp[bI] += (bins[bI].density - empDisp[bI]) * wBlend
+        empBars[bI].setAttribute('width', Math.min(maxW, rkS * empDisp[bI]).toFixed(2))
+      }
+    }
+    // Analytic profile follows the cursor time on the same scale, so the
+    // histogram has its exact target at every t (they coincide at t = 1).
+    const aLive = blendW < 1 ? alphaAnim : alphaSel
+    const su = slice.setup
+    const [dLo, dHi] = su.domain
+    let d = ''
+    for (let i = 0; i <= 340; i += 1) {
+      const x = dLo + (i / 340) * (dHi - dLo)
+      d += (d ? 'L' : 'M') + (g.baseX + g.rk * signedDensity(x, Math.max(c, 1e-4), aLive, su)).toFixed(2) + ',' + y(x).toFixed(2)
+    }
+    profilePath.setAttribute('d', d)
+
+    // The zone fills follow the same live profile, so the coloured
+    // background tracks the cursor exactly like the curve; at t = 1 they
+    // coincide with the terminal fills.
+    const tv = Math.max(c, 1e-4)
+    const zc = g.zoneCtx
+    clearChildren(gZoneFills)
+    for (const seg of buildZonesAt(tv, aLive, su, zc.frontiers, zc.extL, zc.extR)) {
+      const nS = Math.max(12, Math.round(((seg.x1 - seg.x0) / (dHi - dLo)) * 340))
+      let areaD = `M${g.baseX},${y(seg.x0).toFixed(2)}`
+      for (let i = 0; i <= nS; i += 1) {
+        const x = seg.x0 + (i / nS) * (seg.x1 - seg.x0)
+        areaD += `L${(g.baseX + g.rk * signedDensity(x, tv, aLive, su)).toFixed(2)},${y(x).toFixed(2)}`
+      }
+      areaD += `L${g.baseX},${y(seg.x1).toFixed(2)}Z`
+      mk('path', { d: areaD, fill: ZONE_FILL[seg.type], 'fill-opacity': ZONE_LINE_OP[seg.type] }, gZoneFills)
     }
   }
 
@@ -826,6 +1028,16 @@ function setMath(el, tex, fallback) {
 // ---- Overlays -----------------------------------------------------------------------
 
 const $ = id => document.getElementById(id)
+const stageEl = $('stage')
+const overlayEl = $('overlay')
+
+// Scale overlay labels with the stage on narrow screens; clamped at 1 so
+// desktop rendering is pixel-identical.
+function scaleOverlay() {
+  const w = stageEl.clientWidth || 900
+  overlayEl.style.fontSize = `${(13 * Math.min(1, w / 900)).toFixed(2)}px`
+}
+
 const ovSrc = $('ovSrc')
 const ovStripTitle = $('ovStripTitle')
 const ovZero = $('ovZero')
@@ -842,9 +1054,13 @@ function posPct(el, x, y) {
   el.style.top = `${(y / H * 100).toFixed(3)}%`
 }
 
+function updateStripTitle() {
+  setMath(ovStripTitle, layers.emp ? '\\pi_t^{\\mathtt{sign}}' : '\\pi_1^{\\mathtt{sign}}')
+}
+
 function renderStaticMath() {
   setMath(ovSrc, '\\pi_0 = \\mathcal{N}(0,1)')
-  setMath(ovStripTitle, '\\pi_1^{\\mathtt{sign}}')
+  updateStripTitle()
   const om = mathHtml('\\Omega_t^0')
   if (om !== null) ovZeroChip.innerHTML = `zero set ${om}`
   setMath(ovT0, 't = 0', 't = 0')
@@ -923,8 +1139,10 @@ const alphaTicks = $('alphaTicks')
 const timeRange = $('timeRange')
 const timeReadout = $('timeReadout')
 const playBtn = $('playBtn')
+const revBtn = $('revBtn')
 
 const PLAY_SVG = '<svg width="12" height="12" viewBox="0 0 12 12"><path d="M3 1.4 L10.6 6 L3 10.6 Z" fill="#253A88"/></svg>'
+const REV_SVG = '<svg width="12" height="12" viewBox="0 0 12 12"><path d="M9 1.4 L1.4 6 L9 10.6 Z" fill="#253A88"/></svg>'
 const PAUSE_SVG = '<svg width="12" height="12" viewBox="0 0 12 12"><rect x="2.2" y="1.6" width="2.9" height="8.8" rx="1" fill="#253A88"/><rect x="6.9" y="1.6" width="2.9" height="8.8" rx="1" fill="#253A88"/></svg>'
 
 function setFill(input) {
@@ -952,7 +1170,9 @@ function updateTimeUI(force) {
 }
 
 function updatePlayIcon() {
-  playBtn.innerHTML = playing && !manual ? PAUSE_SVG : PLAY_SVG
+  const running = playing && !manual
+  playBtn.innerHTML = running && direction > 0 ? PAUSE_SVG : PLAY_SVG
+  revBtn.innerHTML = running && direction < 0 ? PAUSE_SVG : REV_SVG
 }
 
 // ---- Animation loop ----------------------------------------------------------------------
@@ -967,29 +1187,44 @@ function scheduleDraw() {
 }
 
 function snapshotPhase() {
-  phase0 = cursor < 1 ? cycleSweep() * cursor : cycleSweep()
+  const prog = direction > 0 ? cursor : 1 - cursor
+  phase0 = prog < 1 ? cycleSweep() * prog : cycleSweep()
   refTs = 0
 }
 
 function frame(now) {
   raf = 0
+  const morphing = blendW < 1
+  if (morphing) {
+    alphaAnim += (alphaSel - alphaAnim) * 0.18
+    const nb = blendW + (1 - blendW) * 0.16
+    if (nb > 0.99 && Math.abs(alphaSel - alphaAnim) < 2e-3) {
+      finalizeMorph()
+    } else {
+      blendW = nb
+      updateMorph()
+    }
+  }
   if (isRunning()) {
     if (!refTs) refTs = now
     const cs = cycleSweep()
     const ph = ((now - refTs) / 1000 + phase0) % (cs + HOLD)
-    cursor = ph < cs ? ph / cs : 1
+    const prog = ph < cs ? ph / cs : 1
+    cursor = direction > 0 ? prog : 1 - prog
     updateFrame()
     updateTimeUI()
     raf = requestAnimationFrame(frame)
-  } else if (needsDraw) {
+  } else if (needsDraw || morphing) {
     updateFrame()
     updateTimeUI()
+    if (blendW < 1) raf = requestAnimationFrame(frame)
   }
 }
 
 function restartSweep() {
   manual = false
   playing = true
+  direction = 1
   cursor = 0
   refTs = 0
   phase0 = 0
@@ -1004,20 +1239,85 @@ let alphaTimer = 0
 function commitAlpha(v) {
   const a = Math.round(v * 20) / 20
   if (a === alphaSel) return
+  const prev = slice
   alphaSel = a
-  // Synchronous recompute (memoized): the previous slice stays painted until
-  // the new one is ready, so there is no flicker.
   slice = sliceFor(worldId, alphaSel)
+  // Glide instead of snapping: remember the outgoing slice, crossfade its
+  // heat/buffer layers, and let frame() ease alphaAnim toward the target.
+  morphFrom = prev
+  blendW = 0
+  heatImgPrev.setAttribute('href', prev.heatUrl)
+  heatImgPrev.setAttribute('opacity', 1)
+  clearChildren(gGhostPrev)
+  for (const d of prev.geom.ghostD) mk('path', { d }, gGhostPrev)
   applySlice()
+  gGhost.setAttribute('opacity', 0)
+  gZoneFills.setAttribute('opacity', 0)
   updateOverlays()
-  restartSweep()
+  updateMorph()
   scheduleDraw()
+}
+
+function updateMorph() {
+  const y = slice.y
+  const su = slice.setup
+  heatImgPrev.setAttribute('opacity', (1 - blendW).toFixed(3))
+  gGhostPrev.setAttribute('opacity', (1 - blendW).toFixed(3))
+  gGhost.setAttribute('opacity', blendW.toFixed(3))
+  gZoneFills.setAttribute('opacity', blendW.toFixed(3))
+  // Zero curves + terminal profile track the eased alpha exactly.
+  clearChildren(gZero)
+  for (const d of liveZeroD(alphaAnim, su, y)) mk('path', { d }, gZero)
+  profilePath.setAttribute('d', liveProfileD(alphaAnim, su, y))
+  // Trajectories lerp point-wise between the cached slices.
+  if (morphFrom && morphFrom.geom.trajData.length === slice.geom.trajData.length) {
+    const A = morphFrom.geom.trajData
+    const B = slice.geom.trajData
+    const { times } = slice.transported
+    const paths = gTraj.childNodes
+    for (let i = 0; i < B.length; i += 1) {
+      const a1 = A[i].arr
+      const b1 = B[i].arr
+      const cut = Math.min(A[i].cut, B[i].cut)
+      let d = `M${tX(times[0]).toFixed(2)},${y(a1[0] + (b1[0] - a1[0]) * blendW).toFixed(2)}`
+      for (let k = 3; k < cut; k += 3) {
+        d += `L${tX(times[k]).toFixed(2)},${y(a1[k] + (b1[k] - a1[k]) * blendW).toFixed(2)}`
+      }
+      d += `L${tX(times[cut]).toFixed(2)},${y(a1[cut] + (b1[cut] - a1[cut]) * blendW).toFixed(2)}`
+      paths[i].setAttribute('d', d)
+    }
+  }
+}
+
+function finalizeMorph() {
+  morphFrom = null
+  blendW = 1
+  alphaAnim = alphaSel
+  heatImgPrev.setAttribute('opacity', 0)
+  clearChildren(gGhostPrev)
+  gGhost.setAttribute('opacity', 1)
+  gZoneFills.setAttribute('opacity', 1)
+  // Snap the live layers back to the committed full-resolution slice.
+  const g = slice.geom
+  clearChildren(gZero)
+  for (const d of g.zeroD) mk('path', { d }, gZero)
+  profilePath.setAttribute('d', g.profileD)
+  const paths = gTraj.childNodes
+  for (let i = 0; i < g.trajData.length; i += 1) paths[i].setAttribute('d', g.trajData[i].d)
+  needsDraw = true
 }
 
 function selectWorld(id) {
   if (id === worldId) return
   worldId = id
   slice = sliceFor(worldId, alphaSel)
+  morphFrom = null
+  blendW = 1
+  alphaAnim = alphaSel
+  heatImgPrev.setAttribute('opacity', 0)
+  clearChildren(gGhostPrev)
+  gGhost.setAttribute('opacity', 1)
+  gZoneFills.setAttribute('opacity', 1)
   applySlice()
   updateOverlays()
   restartSweep()
@@ -1031,7 +1331,7 @@ function prewarmDetents() {
   if (prewarmed.has(worldId)) return
   prewarmed.add(worldId)
   const wid = worldId
-  const queue = ALPHA_DETENTS.filter(a => a >= 0.05 && a !== alphaSel)
+  const queue = ALPHA_DETENTS.filter(a => a !== alphaSel)
     .sort((a, b) => Math.abs(a - alphaSel) - Math.abs(b - alphaSel))
   const next = () => {
     const a = queue.shift()
@@ -1056,14 +1356,19 @@ function init() {
     })
   }
 
-  // alpha slider + detent ticks
+  // alpha slider: instrument-style integer scale under the track
   setFill(alphaRange)
-  for (const d of ALPHA_DETENTS) {
-    if (d < 0.05 || d > 4) continue
-    const frac = (d - 0.05) / (4 - 0.05)
-    const dot = document.createElement('span')
-    dot.style.left = `${(frac * 100).toFixed(2)}%`
-    alphaTicks.appendChild(dot)
+  for (const v of [0, 1, 2, 3, 4]) {
+    const frac = v / 4
+    const tk = document.createElement('span')
+    tk.className = 'tk'
+    tk.style.left = `${(frac * 100).toFixed(2)}%`
+    const line = document.createElement('i')
+    const label = document.createElement('b')
+    label.textContent = String(v)
+    tk.appendChild(line)
+    tk.appendChild(label)
+    alphaTicks.appendChild(tk)
   }
   alphaRange.addEventListener('input', () => {
     setFill(alphaRange)
@@ -1078,6 +1383,14 @@ function init() {
       const k = btn.dataset.layer
       layers[k] = !layers[k]
       btn.classList.toggle('on', layers[k])
+      if (k === 'emp' && !layers.emp) {
+        profilePath.setAttribute('d', slice.geom.profileD)
+        clearChildren(gZoneFills)
+        for (const seg of slice.geom.rsegs) {
+          mk('path', { d: seg.areaD, fill: ZONE_FILL[seg.type], 'fill-opacity': ZONE_LINE_OP[seg.type] }, gZoneFills)
+        }
+      }
+      if (k === 'emp') updateStripTitle()
       applyLayerVisibility()
       updateOverlays()
       scheduleDraw()
@@ -1085,18 +1398,21 @@ function init() {
   }
 
   // motion
-  playBtn.addEventListener('click', () => {
-    if (playing && !manual) {
+  const engagePlay = (dir) => {
+    if (playing && !manual && direction === dir) {
       snapshotPhase()
       playing = false
     } else {
       manual = false
       playing = true
+      direction = dir
       snapshotPhase()
     }
     updatePlayIcon()
     schedule()
-  })
+  }
+  playBtn.addEventListener('click', () => engagePlay(1))
+  revBtn.addEventListener('click', () => engagePlay(-1))
   for (const btn of document.querySelectorAll('#speedChips .pg-chip')) {
     btn.addEventListener('click', () => {
       for (const b of document.querySelectorAll('#speedChips .pg-chip')) b.classList.toggle('on', b === btn)
@@ -1136,6 +1452,10 @@ function init() {
     }
   })
 
+  scaleOverlay()
+  window.addEventListener('resize', scaleOverlay)
+  if (window.ResizeObserver) new ResizeObserver(scaleOverlay).observe(stageEl)
+
   scheduleDraw()
   prewarmDetents()
 }
@@ -1169,6 +1489,10 @@ window.__pg1d = {
       speed,
       layers: { ...layers },
       cached: memo.size,
+      alphaAnim,
+      blendW,
+      empReady: (empMemo.get(`${worldId}|${alphaSel.toFixed(2)}`) || {}).ready || false,
+      empPaths: ((empMemo.get(`${worldId}|${alphaSel.toFixed(2)}`) || {}).paths || []).length,
     }
   },
 }

@@ -15,6 +15,10 @@
       display: block;
     }
 
+    #overlay {
+      font-size: 13px; /* scaled down by JS on narrow stages; never above 13px */
+    }
+
     .ov {
       position: absolute;
       pointer-events: none;
@@ -24,33 +28,33 @@
 
     .ov-chip {
       display: inline-block;
-      border-radius: 6px;
+      border-radius: 0.46em;
       background: rgba(255, 255, 255, 0.92);
-      padding: 1px 7px 2px;
+      padding: 0.08em 0.54em 0.15em;
       border: 1px solid;
-      font-size: 12px;
+      font-size: 0.923em;
       font-weight: 650;
     }
 
     .ov-zero { color: #9d2d64; border-color: #9d2d64; }
     .ov-ghostb { color: #666666; border-color: #666666; }
 
-    .ov-src { color: #253a88; font-size: 13px; font-weight: 650; }
+    .ov-src { color: #253a88; font-size: 1em; font-weight: 650; }
 
     .ov-striptitle {
       color: #202124;
-      font-size: 13px;
+      font-size: 1em;
       font-weight: 650;
       transform: translateX(-50%);
     }
 
     .ov-zone {
       display: inline-block;
-      padding: 0 5px 1px;
-      border-radius: 6px;
+      padding: 0 0.38em 0.08em;
+      border-radius: 0.46em;
       border: 1px solid;
       background: rgba(255, 255, 255, 0.92);
-      font-size: 11px;
+      font-size: 0.846em;
       font-weight: 700;
     }
 
@@ -59,9 +63,9 @@
     .ov-callout {
       border: 1px solid #202124;
       background: #ffffff;
-      border-radius: 6px;
-      padding: 1px 9px 2px;
-      font-size: 12px;
+      border-radius: 0.46em;
+      padding: 0.08em 0.69em 0.15em;
+      font-size: 0.923em;
       font-weight: 650;
       color: #202124;
       transform: translate(-50%, -50%);
@@ -69,16 +73,16 @@
 
     .ov-axis {
       color: var(--faint);
-      font-size: 11.5px;
+      font-size: 0.885em;
       transform: translateX(-50%);
     }
 
     .ov-legend {
       display: flex;
-      gap: 16px;
+      gap: 1.23em;
       align-items: center;
       color: #536073;
-      font-size: 12px;
+      font-size: 0.923em;
       font-weight: 600;
       transform: translateX(-50%);
     }
@@ -91,13 +95,13 @@
 
     .ov-legend .lg-chip {
       display: inline-flex;
-      width: 16px;
-      height: 16px;
+      width: 1.33em;
+      height: 1.33em;
       border-radius: 50%;
       align-items: center;
       justify-content: center;
       color: #ffffff;
-      font-size: 10.5px;
+      font-size: 0.875em;
       font-weight: 800;
     }
 
@@ -114,24 +118,42 @@
 
     .pg-range-wrap input[type='range'].pg-range { width: 100%; }
 
+    .pg-range-wrap {
+      padding-bottom: 14px;
+    }
+
     .pg-ticks {
       position: absolute;
       left: 10px;
       right: 10px;
-      top: 23px;
-      height: 5px;
+      top: 24px;
+      height: 16px;
       pointer-events: none;
     }
 
-    .pg-ticks span {
+    .pg-ticks .tk {
       position: absolute;
       top: 0;
-      width: 3.5px;
-      height: 3.5px;
-      border-radius: 50%;
-      background: var(--prim);
-      opacity: 0.4;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
       transform: translateX(-50%);
+    }
+
+    .pg-ticks .tk i {
+      width: 1px;
+      height: 4px;
+      background: rgba(48, 58, 73, 0.3);
+    }
+
+    .pg-ticks .tk b {
+      font-family: var(--serif);
+      font-size: 9.5px;
+      font-weight: 600;
+      font-style: normal;
+      line-height: 1;
+      color: var(--faint);
     }
 
     #speedChips { flex-wrap: nowrap; }
@@ -181,7 +203,7 @@
         <div class="pg-group-label">signed weight</div>
         <div class="pg-slider-row">
           <div class="pg-range-wrap">
-            <input type="range" class="pg-range" id="alphaRange" min="0.05" max="4" step="0.05" value="0.85" aria-label="signed weight alpha">
+            <input type="range" class="pg-range" id="alphaRange" min="0" max="4" step="0.05" value="0.85" aria-label="signed weight alpha">
             <div class="pg-ticks" id="alphaTicks"></div>
           </div>
           <div class="pg-readout" id="alphaReadout">&alpha; = 0.85</div>
@@ -197,6 +219,7 @@
           <button class="pg-chip pg-toggle on" data-layer="traj">trajectories</button>
           <button class="pg-chip pg-toggle" data-layer="pairs">pair emission</button>
           <button class="pg-chip pg-toggle on" data-layer="strip">terminal strip</button>
+          <button class="pg-chip pg-toggle on" data-layer="emp">empirical density</button>
           <button class="pg-chip pg-toggle" data-layer="labels">labels</button>
         </div>
       </div>
@@ -204,6 +227,7 @@
       <div class="pg-group">
         <div class="pg-group-label">motion</div>
         <div class="pg-btn-row">
+          <button class="pg-play" id="revBtn" aria-label="play in reverse"></button>
           <button class="pg-play" id="playBtn" aria-label="play or pause"></button>
           <div class="pg-chips" id="speedChips">
             <button class="pg-chip" data-speed="0.5">0.5&times;</button>

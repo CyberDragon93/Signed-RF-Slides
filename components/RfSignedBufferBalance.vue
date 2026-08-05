@@ -1,5 +1,6 @@
 <script setup>
 import * as d3 from 'd3'
+import katex from 'katex'
 import { computed } from 'vue'
 import {
   SCHEMA,
@@ -8,6 +9,7 @@ import {
   zeroCrossings,
   ghostCrossings,
 } from './signedRfMath.js'
+import RfFigLabel from './RfFigLabel.vue'
 
 const props = defineProps({
   height: { type: Number, default: 270 },
@@ -77,6 +79,27 @@ const histogramBars = computed(() => {
 })
 
 const ticks = [-3, -2, -1, 0, 1, 2, 3]
+
+// Every label is real KaTeX rendered into HTML overlays (RfFigLabel), so the
+// figure's typography matches the deck's LaTeX voice exactly.
+function mathHtml(tex) {
+  return katex.renderToString(tex, { throwOnError: false, output: 'html' })
+}
+
+const legendSigned = mathHtml('\\text{signed density }\\; \\pi_t^{\\mathtt{sign}}')
+const legendFlow = mathHtml('\\text{flow density }\\; \\pi_t^{\\mathtt{flow}}')
+const chipReach = mathHtml('\\text{Reachable zone } (\\Omega_t^r)')
+const chipBuffer = mathHtml('\\text{Buffer zone } (\\Omega_t^b)')
+const chipNeg = mathHtml('\\text{Negative zone } (\\Omega_t^-)')
+const plusA = mathHtml('+A')
+const minusA = mathHtml('-A')
+const axisX = mathHtml('x')
+
+const CHIPS = [
+  { w: 152, cx: (domainLo + bufferBoundary) / 2, html: chipReach, color: PALETTE.samplingDark },
+  { w: 132, cx: (bufferBoundary + zeroBoundary) / 2, html: chipBuffer, color: PALETTE.bufferDark },
+  { w: 146, cx: (zeroBoundary + domainHi) / 2, html: chipNeg, color: PALETTE.negativeDark },
+]
 </script>
 
 <template>
@@ -119,42 +142,58 @@ const ticks = [-3, -2, -1, 0, 1, 2, 3]
         :stroke="PALETTE.negative" stroke-width="1.4" stroke-dasharray="5 4"
       />
 
-      <g class="buffer-region-label" :transform="`translate(${xScale((domainLo + bufferBoundary) / 2) - 72}, 38)`">
-        <rect width="144" height="27" rx="7" fill="#FFFFFF" :stroke="PALETTE.samplingDark" />
-        <text x="72" y="18.5" text-anchor="middle" class="buffer-zone-text" :fill="PALETTE.samplingDark">Reachable zone (Ωₜʳ)</text>
-      </g>
+      <!-- chip frames; their text lives in the KaTeX overlays below -->
+      <rect
+        v-for="chip in CHIPS"
+        :key="chip.color"
+        :x="xScale(chip.cx) - chip.w / 2" y="38"
+        :width="chip.w" height="27" rx="7"
+        fill="#FFFFFF" :stroke="chip.color"
+      />
 
-      <g class="buffer-region-label" :transform="`translate(${xScale((bufferBoundary + zeroBoundary) / 2) - 65}, 38)`">
-        <rect width="130" height="27" rx="7" fill="#FFFFFF" :stroke="PALETTE.bufferDark" />
-        <text x="65" y="18.5" text-anchor="middle" class="buffer-zone-text" :fill="PALETTE.bufferDark">Buffer zone (Ωₜᵇ)</text>
+      <!-- legend swatches; text in overlays -->
+      <g transform="translate(73, 17)">
+        <line x1="0" y1="0" x2="28" y2="0" :stroke="PALETTE.ink" stroke-width="2.4" />
+        <rect x="216" y="-7" width="27" height="13" :fill="PALETTE.sampleHist" opacity="0.78" />
       </g>
-
-      <g class="buffer-region-label" :transform="`translate(${xScale((zeroBoundary + domainHi) / 2) - 68}, 38)`">
-        <rect width="136" height="27" rx="7" fill="#FFFFFF" :stroke="PALETTE.negativeDark" />
-        <text x="68" y="18.5" text-anchor="middle" class="buffer-zone-text" :fill="PALETTE.negativeDark">Negative zone (Ωₜ⁻)</text>
-      </g>
-
-      <text :x="xScale((bufferBoundary + zeroBoundary) / 2)" :y="baselineY - 15" text-anchor="middle" class="buffer-area-plus">+A</text>
-      <text :x="xScale((zeroBoundary + domainHi) / 2)" :y="baselineY + 31" text-anchor="middle" class="buffer-area-minus">−A</text>
 
       <g v-for="tick in ticks" :key="tick">
         <line :x1="xScale(tick)" :x2="xScale(tick)" :y1="baselineY" :y2="baselineY + 5" :stroke="PALETTE.textMuted" />
         <text :x="xScale(tick)" :y="baselineY + 20" text-anchor="middle" class="buffer-tick">{{ tick }}</text>
       </g>
-      <text :x="(x0 + x1) / 2" :y="height - 16" text-anchor="middle" class="buffer-axis-label">x</text>
-
-      <g transform="translate(73, 17)">
-        <line x1="0" y1="0" x2="28" y2="0" :stroke="PALETTE.ink" stroke-width="2.4" />
-        <text x="36" y="4.5" class="buffer-legend-text" :fill="PALETTE.ink">signed density  πₜˢⁱᵍⁿ</text>
-        <rect x="205" y="-7" width="27" height="13" :fill="PALETTE.sampleHist" opacity="0.78" />
-        <text x="241" y="4.5" class="buffer-legend-text" :fill="PALETTE.samplingDark">flow density  πₜᶠˡᵒʷ</text>
-      </g>
     </svg>
+
+    <RfFigLabel :x="109" :y="3.3" :w="200" :vb-h="height">
+      <div class="bb-math" :style="{ color: PALETTE.ink }" v-html="legendSigned"></div>
+    </RfFigLabel>
+    <RfFigLabel :x="325" :y="3.3" :w="200" :vb-h="height">
+      <div class="bb-math" :style="{ color: PALETTE.samplingDark }" v-html="legendFlow"></div>
+    </RfFigLabel>
+
+    <RfFigLabel
+      v-for="chip in CHIPS"
+      :key="`t-${chip.color}`"
+      :x="xScale(chip.cx) - chip.w / 2" :y="38.2" :w="chip.w" :vb-h="height"
+    >
+      <div class="bb-chip bb-math" :style="{ color: chip.color }" v-html="chip.html"></div>
+    </RfFigLabel>
+
+    <RfFigLabel :x="xScale((bufferBoundary + zeroBoundary) / 2) - 24" :y="baselineY - 32" :w="48" :vb-h="height">
+      <div class="bb-area bb-math" :style="{ color: PALETTE.bufferDark }" v-html="plusA"></div>
+    </RfFigLabel>
+    <RfFigLabel :x="xScale((zeroBoundary + domainHi) / 2) - 24" :y="baselineY + 34" :w="48" :vb-h="height">
+      <div class="bb-area bb-math" :style="{ color: PALETTE.negativeDark }" v-html="minusA"></div>
+    </RfFigLabel>
+
+    <RfFigLabel :x="(x0 + x1) / 2 - 12" :y="height - 27" :w="24" :vb-h="height">
+      <div class="bb-area bb-math" :style="{ color: PALETTE.textMuted }" v-html="axisX"></div>
+    </RfFigLabel>
   </div>
 </template>
 
 <style scoped>
 .buffer-balance-wrap {
+  position: relative;
   width: 100%;
   margin: 0.05rem auto 0;
 }
@@ -165,41 +204,34 @@ const ticks = [-3, -2, -1, 0, 1, 2, 3]
   height: auto;
 }
 
-.buffer-zone-text,
-.buffer-legend-text {
-  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-  font-size: 11.5px;
-  font-weight: 700;
+.bb-math {
+  white-space: nowrap;
 }
 
-.buffer-legend-text {
-  font-size: 11.5px;
+.bb-math :deep(.katex) {
+  font-size: 12.5px;
 }
 
-.buffer-area-plus,
-.buffer-area-minus {
-  font-family: KaTeX_Main, "Times New Roman", serif;
-  font-size: 17px;
-  font-weight: 700;
+.bb-chip {
+  text-align: center;
+  white-space: nowrap;
 }
 
-.buffer-area-plus {
-  fill: #666666;
+.bb-chip :deep(.katex) {
+  font-size: 12px;
 }
 
-.buffer-area-minus {
-  fill: #9D2D64;
+.bb-area {
+  text-align: center;
+}
+
+.bb-area :deep(.katex) {
+  font-size: 15.5px;
 }
 
 .buffer-tick {
   fill: #536073;
-  font-size: 11px;
-}
-
-.buffer-axis-label {
-  fill: #536073;
-  font-family: KaTeX_Math, "Times New Roman", serif;
-  font-size: 14px;
-  font-style: italic;
+  font-family: 'KaTeX_Main', 'Times New Roman', serif;
+  font-size: 11.5px;
 }
 </style>
