@@ -114,9 +114,9 @@ const loupeBoundary = computed(() => {
 // lengths never explode — near the wall the arrows simply turn vertical.
 // Magnitude is carried by shade instead: darker = larger log-magnitude.
 function shade(mag) {
-  const u = Math.min(1, Math.log1p(mag) / Math.log1p(300))
+  const u = Math.min(1, Math.log1p(mag) / Math.log1p(250)) ** 1.7
   const mix = (a, b) => Math.round(a + (b - a) * u)
-  return `rgb(${mix(169, 22)}, ${mix(189, 39)}, ${mix(242, 122)})`
+  return `rgb(${mix(191, 10)}, ${mix(206, 21)}, ${mix(247, 92)})`
 }
 
 const arrows = computed(() => {
@@ -160,7 +160,6 @@ const srcBox = computed(() => {
 })
 
 const labelZero = mathHtml('\\Omega_t^0')
-const labelBlow = `unit arrows &nbsp;\u00b7&nbsp; darker = larger ${mathHtml('\\|v_t\\|')}`
 const labelT = 'time t'
 </script>
 
@@ -231,9 +230,6 @@ const labelT = 'time t'
 
     <RfFigLabel :x="tx(0.4) - 30" :y="xy(upperRootAt(0.42)) - 26" :w="60" :vb-h="height">
       <div class="twz-math twz-center" :style="{ color: PALETTE.negativeDark }" v-html="labelZero"></div>
-    </RfFigLabel>
-    <RfFigLabel :x="PX0 + 2" :y="1" :w="300" :vb-h="height">
-      <div class="twz-math" :style="{ color: PALETTE.textMuted }" v-html="labelBlow"></div>
     </RfFigLabel>
   </div>
 </template>
