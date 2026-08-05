@@ -1713,11 +1713,17 @@ solid = Euler &nbsp;·&nbsp; dashed = second-order &nbsp;·&nbsp; one 320-epoch 
 
 <div class="mt-8" style="font-size: 0.95em;">
 
-- The demonstrations contain only feasible paths ($\pi^+$), so the planner has never seen a wall interior and crosses them freely (a). Signed RF supplies the missing negatives: $\pi^-$ = wall-interior points, with a trained $v^-$ and a ratio classifier.
-- Constant guidance buys safety with diversity: a weak scale leaves violations (b), a strong one collapses the paths onto a single route (<span>c</span>).
-- Signed RF eliminates wall crossings and keeps the full spread of feasible paths (d); the Pareto front (e) makes the trade-off explicit.
+- **Train:** $v^+$ on collision-free demonstrations; $v^-$ on sampled wall points; plus a ratio classifier.
+- **Compare:** positive-only, weak/strong constant guidance, and Signed RF.
+- **Result:** Signed RF avoids walls without collapsing path diversity.
 
 </div>
+
+<!--
+[Sources]
+- `Signed_Rectified_Flow_Overleaf_Paper/contents/experiments.tex`, paragraph “PointMaze navigation.”
+- `Signed_Rectified_Flow_Overleaf_Paper/figs/pointmaze_results.tex`, figure “The missing negative data.”
+-->
 
 ---
 disabled: true
