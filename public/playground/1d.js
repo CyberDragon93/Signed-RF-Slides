@@ -879,6 +879,16 @@ function setMath(el, tex, fallback) {
 // ---- Overlays -----------------------------------------------------------------------
 
 const $ = id => document.getElementById(id)
+const stageEl = $('stage')
+const overlayEl = $('overlay')
+
+// Scale overlay labels with the stage on narrow screens; clamped at 1 so
+// desktop rendering is pixel-identical.
+function scaleOverlay() {
+  const w = stageEl.clientWidth || 900
+  overlayEl.style.fontSize = `${(13 * Math.min(1, w / 900)).toFixed(2)}px`
+}
+
 const ovSrc = $('ovSrc')
 const ovStripTitle = $('ovStripTitle')
 const ovZero = $('ovZero')
@@ -1280,6 +1290,10 @@ function init() {
       scheduleDraw()
     }
   })
+
+  scaleOverlay()
+  window.addEventListener('resize', scaleOverlay)
+  if (window.ResizeObserver) new ResizeObserver(scaleOverlay).observe(stageEl)
 
   scheduleDraw()
   prewarmDetents()
