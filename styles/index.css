@@ -87,6 +87,18 @@
   letter-spacing: 0;
 }
 
+/* Compact experiment tables imported from the main-branch results slides. */
+.tight-table table {
+  width: auto;
+  margin: 0 auto;
+}
+
+.tight-table td,
+.tight-table th {
+  padding: 3px 15px !important;
+  white-space: nowrap;
+}
+
 /* CMU rectified-flow reproductions: static lecture figures in the local deck. */
 .slidev-layout:has(.rf-projection-copy) h1 {
   margin-bottom: 0.28rem;
@@ -102,22 +114,6 @@
 .rf-cmu-copy {
   font-size: 1rem;
   line-height: 1.18;
-}
-
-.rf-cmu-copy ul {
-  margin: 0.05rem 0 0;
-  padding-left: 1.25rem;
-  list-style-type: disc;
-}
-
-.rf-cmu-copy li {
-  margin-bottom: 0.34rem;
-  padding-left: 0.12rem;
-}
-
-.rf-cmu-copy li::marker {
-  color: #344fc2;
-  font-size: 1.1em;
 }
 
 .rf-cmu-copy .katex-display {
@@ -137,42 +133,6 @@
 .rf-cmu-projection-slide .projection-marginal-copy {
   font-size: 1.07rem;
   line-height: 1.2;
-}
-
-.rf-cmu-projection-slide .rf-projection-copy > ul,
-.rf-cmu-projection-slide .projection-marginal-copy > ul {
-  margin: 0;
-  padding-left: 1.35rem;
-  list-style: none;
-}
-
-.rf-cmu-projection-slide .rf-projection-copy > ul {
-  padding-left: 0;
-}
-
-.rf-cmu-projection-slide .rf-projection-copy > ul > li,
-.rf-cmu-projection-slide .projection-marginal-copy > ul > li {
-  position: relative;
-  margin-bottom: 0.32rem;
-  padding-left: 0.1rem;
-}
-
-.rf-cmu-projection-slide .rf-projection-copy > ul > li {
-  padding-left: 1.15rem;
-}
-
-.rf-cmu-projection-slide .rf-projection-copy > ul > li::before,
-.rf-cmu-projection-slide .projection-marginal-copy > ul > li::before {
-  position: absolute;
-  top: 0;
-  left: -1.05rem;
-  color: #3156b3;
-  font-weight: 700;
-  content: "-";
-}
-
-.rf-cmu-projection-slide .rf-projection-copy > ul > li::before {
-  left: 0;
 }
 
 .rf-cmu-projection-slide .rf-projection-copy .katex-display,
@@ -203,15 +163,6 @@
   color: #465168;
   font-size: 1.07rem;
   line-height: 1.2;
-}
-
-.projection-marginal-copy ul {
-  margin: 0;
-  padding-left: 1.25rem;
-}
-
-.projection-marginal-copy li {
-  margin: 0;
 }
 
 .projection-marginal-copy .katex-display {
@@ -335,13 +286,14 @@
 
 .signed-measures-visual {
   position: relative;
-  margin-top: 0.35rem;
+  margin-top: 0.85rem;
+  padding-top: 1.35rem;
 }
 
 .signed-measures-question {
   position: absolute;
   z-index: 2;
-  top: 0.1rem;
+  top: 0;
   right: 0;
   left: 0;
   color: #c43d4d;
@@ -380,4 +332,40 @@
 .warmup-mixture-slide ul ul li,
 .signed-mixture-rf-slide ul ul li {
   margin-bottom: 0.75rem;
+}
+
+/* Tweedie barrier: one derivation, followed by the normal-direction limit. */
+.tweedie-barrier-slide h1 {
+  margin-bottom: 0.45rem;
+}
+
+.tweedie-barrier-copy {
+  max-width: 945px;
+  margin: 0.2rem auto 0;
+  color: #465168;
+  font-size: 0.96rem;
+  line-height: 1.16;
+}
+
+.tweedie-barrier-copy .katex-display {
+  margin: 0.72rem 0;
+  color: #243f91;
+  font-size: 0.96em;
+}
+
+.tweedie-barrier-takeaway {
+  margin: 0.7rem auto 0;
+  padding-top: 0.55rem;
+  border-top: 1px solid rgba(49, 86, 179, 0.22);
+  color: #26334d;
+  font-size: 1.02rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.tweedie-omega {
+  color: #243f91;
+  font-family: 'KaTeX_Math', 'KaTeX_Main', serif;
+  font-weight: 700;
+  white-space: nowrap;
 }
