@@ -188,9 +188,9 @@ clicks: 2
   position: relative;
   display: grid;
   grid-template-rows: repeat(3, 144px);
-  gap: 10px;
+  gap: 24px;
   align-content: start;
-  height: 452px;
+  height: 480px;
   margin-top: -0.2rem;
 }
 .rf-nutshell-visual-slot {
@@ -215,10 +215,10 @@ clicks: 2
   filter: drop-shadow(0 1px 1px rgba(15, 23, 42, 0.08));
 }
 .rf-nutshell-cartoon-interpolation {
-  top: 125px;
+  top: 132px;
 }
 .rf-nutshell-cartoon-flow {
-  top: 279px;
+  top: 300px;
 }
 </style>
 
