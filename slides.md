@@ -1425,6 +1425,8 @@ Now restrict it to the reachable region: $\;\bar\pi_t(x) \coloneqq \pi_t^{\matht
 - Under standard regularity, it must coincide with the law of the ODE: $\;\pi_t^{\mathtt{signRF}} = \bar\pi_t$.
 
 ---
+disabled: true
+---
 
 # Guarantees
 
