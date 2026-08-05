@@ -619,7 +619,7 @@ $$
 
   - ${\color{#2f855a}v_t^\pm}$ are the RF velocity fields for rectified flows with targets ${\color{#3156b3}\pi_1^\pm}$.
 
-  - ${\color{#3156b3}\pi_t^\pm}$ are the corresponding path marginals at time $t$.
+  - ${\color{#3156b3}\pi_t^\pm}$ are the corresponding path marginals of $X_t^\pm = t X_1^\pm + (1-t) X_0$ at time $t$.
 
 
 
