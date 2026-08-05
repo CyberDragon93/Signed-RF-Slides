@@ -167,10 +167,6 @@ clicks: 2
   margin-bottom: 0.34rem;
   padding-left: 0.1rem;
 }
-.rf-nutshell-copy li::marker {
-  color: #344fc2;
-  font-size: 1.2em;
-}
 .rf-nutshell-copy strong {
   font-size: 1.08em;
 }
@@ -423,22 +419,11 @@ class: exponential-tilting-slide
   color: #4b5568;
   font-size: 1.14rem;
   line-height: 1.28;
-  list-style: none;
 }
 
 .exponential-tilting-slide > ul > li {
-  position: relative;
   margin-bottom: 1.4rem;
   padding-left: 0.35rem;
-}
-
-.exponential-tilting-slide > ul > li::before {
-  position: absolute;
-  top: 0;
-  left: -1.15rem;
-  color: #3156b3;
-  font-weight: 700;
-  content: "-";
 }
 
 .exponential-tilting-slide > ul > li > ul {
@@ -448,16 +433,11 @@ class: exponential-tilting-slide
   color: #6b7280;
   font-size: 0.92em;
   line-height: 1.3;
-  list-style: disc;
 }
 
 .exponential-tilting-slide > ul > li > ul > li {
   margin-bottom: 0.25rem;
   padding-left: 0.1rem;
-}
-
-.exponential-tilting-slide > ul > li > ul > li::marker {
-  color: #3156b3;
 }
 
 .exponential-tilting-slide > ul > li strong {

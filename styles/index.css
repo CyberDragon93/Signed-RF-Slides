@@ -134,17 +134,11 @@ body.laser-cursor #slide-container * {
 .rf-cmu-copy ul {
   margin: 0.05rem 0 0;
   padding-left: 1.25rem;
-  list-style-type: disc;
 }
 
 .rf-cmu-copy li {
   margin-bottom: 0.34rem;
   padding-left: 0.12rem;
-}
-
-.rf-cmu-copy li::marker {
-  color: #344fc2;
-  font-size: 1.1em;
 }
 
 .rf-cmu-copy .katex-display {
@@ -170,36 +164,12 @@ body.laser-cursor #slide-container * {
 .rf-cmu-projection-slide .projection-marginal-copy > ul {
   margin: 0;
   padding-left: 1.35rem;
-  list-style: none;
-}
-
-.rf-cmu-projection-slide .rf-projection-copy > ul {
-  padding-left: 0;
 }
 
 .rf-cmu-projection-slide .rf-projection-copy > ul > li,
 .rf-cmu-projection-slide .projection-marginal-copy > ul > li {
-  position: relative;
   margin-bottom: 0.32rem;
   padding-left: 0.1rem;
-}
-
-.rf-cmu-projection-slide .rf-projection-copy > ul > li {
-  padding-left: 1.15rem;
-}
-
-.rf-cmu-projection-slide .rf-projection-copy > ul > li::before,
-.rf-cmu-projection-slide .projection-marginal-copy > ul > li::before {
-  position: absolute;
-  top: 0;
-  left: -1.05rem;
-  color: #3156b3;
-  font-weight: 700;
-  content: "-";
-}
-
-.rf-cmu-projection-slide .rf-projection-copy > ul > li::before {
-  left: 0;
 }
 
 .rf-cmu-projection-slide .rf-projection-copy .katex-display,
@@ -345,10 +315,6 @@ body.laser-cursor #slide-container * {
   padding-left: 0.2rem;
 }
 
-.signed-measures-points li::marker {
-  color: #3156b3;
-  font-size: 1.15em;
-}
 
 .signed-measures-points strong {
   color: #26334d;
