@@ -10,7 +10,10 @@ import {
   SKEW,
   TWIN,
   gaussianPdf,
+  histogramDensity,
+  lcg,
   quantileSeeds,
+  randn,
   signedDensity,
   simulateAdaptive,
   simulateTrajectories,
@@ -505,6 +508,7 @@ function sliceFor(wid, a) {
       srcAreaD,
       srcLineD,
       baseX,
+      rk,
       profileD,
       rsegs,
       zoneLabels,
@@ -516,11 +520,51 @@ function sliceFor(wid, a) {
   return slice
 }
 
+// ---- Empirical ensemble: many random source samples transported by the same
+// closed-form velocity field. Built asynchronously in chunks and cached per
+// (world, alpha); the right strip histograms the ensemble at the cursor time,
+// so the empirical density updates live against the analytic profile.
+const EMP_N = 2000
+const EMP_STEPS = 360
+const EMP_BINS = 84
+const empMemo = new Map()
+
+function ensureEnsemble(wid, a) {
+  const key = `${wid}|${a.toFixed(2)}`
+  if (empMemo.has(key)) return empMemo.get(key)
+  const su = WORLDS.find(w => w.id === wid).setup
+  const rand = lcg(97)
+  const seeds = []
+  for (let i = 0; i < EMP_N; i += 1) seeds.push(randn(rand))
+  const rec = { ready: false, times: null, paths: [] }
+  empMemo.set(key, rec)
+  const CHUNK = 125
+  let i = 0
+  const step = () => {
+    if (i >= EMP_N) {
+      rec.ready = true
+      scheduleDraw()
+      return
+    }
+    const part = simulateTrajectories(seeds.slice(i, i + CHUNK), a, su, EMP_STEPS)
+    if (!rec.times) rec.times = part.times
+    for (const p of part.paths) rec.paths.push(p)
+    i += CHUNK
+    if (rec.paths.length % 500 === 0) scheduleDraw()
+    setTimeout(step, 0)
+  }
+  setTimeout(step, 0)
+  return rec
+}
+
+const empVals = new Float64Array(EMP_N)
+const empDisp = new Float64Array(EMP_BINS)
+
 // ---- State ----------------------------------------------------------------------
 
 let worldId = 'paper'
 let alphaSel = 0.85
-const layers = { heat: true, zero: true, ghost: true, traj: true, pairs: false, strip: true, labels: false }
+const layers = { heat: true, zero: true, ghost: true, traj: true, pairs: false, strip: true, emp: true, labels: false }
 let slice = null
 // Smooth alpha morphs: commits snap the DATA, the visuals glide — the heat
 // and buffer curves crossfade, zero curves and the terminal profile are
@@ -643,6 +687,11 @@ mk('line', { x1: stripRight, y1: panelY, x2: stripRight, y2: panelY1, stroke: 'r
 const gStrip = mk('g')
 const stripBase = mk('line', { stroke: 'rgba(83, 96, 115, 0.45)', 'stroke-width': 0.9, y1: panelY, y2: panelY1 }, gStrip)
 const gZoneFills = mk('g', {}, gStrip)
+const gEmpBars = mk('g', {}, gStrip)
+const empBars = []
+for (let bI = 0; bI < EMP_BINS; bI += 1) {
+  empBars.push(mk('rect', { fill: PALETTE.sampleHist, opacity: 0.8, width: 0, height: 0 }, gEmpBars))
+}
 const profilePath = mk('path', { fill: 'none', stroke: '#202124', 'stroke-width': 1.6, 'stroke-linejoin': 'round' }, gStrip)
 const gBrackets = mk('g', { 'stroke-width': 1.2, 'stroke-opacity': 0.75 }, gStrip)
 
@@ -728,6 +777,20 @@ function applySlice() {
 
   stripBase.setAttribute('x1', g.baseX)
   stripBase.setAttribute('x2', g.baseX)
+  {
+    const [dLo, dHi] = slice.setup.domain
+    const y = slice.y
+    for (let bI = 0; bI < EMP_BINS; bI += 1) {
+      const x0 = dLo + (bI / EMP_BINS) * (dHi - dLo)
+      const x1 = dLo + ((bI + 1) / EMP_BINS) * (dHi - dLo)
+      const yT = y(x1)
+      empBars[bI].setAttribute('x', g.baseX)
+      empBars[bI].setAttribute('y', (yT + 0.35).toFixed(2))
+      empBars[bI].setAttribute('height', Math.max(0, y(x0) - yT - 0.7).toFixed(2))
+      empBars[bI].setAttribute('width', 0)
+    }
+    empDisp.fill(0)
+  }
   clearChildren(gZoneFills)
   for (const seg of g.rsegs) {
     mk('path', { d: seg.areaD, fill: ZONE_FILL[seg.type], 'fill-opacity': ZONE_LINE_OP[seg.type] }, gZoneFills)
@@ -779,6 +842,7 @@ function applyLayerVisibility() {
   show(gPairDots, layers.pairs)
   show(gFlash, layers.pairs)
   show(gStrip, layers.strip)
+  show(gEmpBars, layers.strip && layers.emp)
   show(gBrackets, layers.strip && layers.labels)
   const co = layers.pairs && layers.labels && slice && slice.geom.callout
   show(calloutPath, co)
@@ -817,6 +881,35 @@ function updateFrame() {
       trajDots[i].setAttribute('cy', y(xv))
       annMarks[i].setAttribute('visibility', 'hidden')
     }
+  }
+
+  if (layers.strip && layers.emp) {
+    const rec = ensureEnsemble(worldId, alphaSel)
+    const n = rec.paths.length
+    if (n >= 250 && rec.times) {
+      const li = rec.paths[0].length - 1
+      const k = Math.max(0, Math.min(li, Math.round(c * li)))
+      for (let i = 0; i < n; i += 1) empVals[i] = rec.paths[i][k]
+      const bins = histogramDensity(empVals.subarray(0, n), EMP_BINS, slice.setup.domain)
+      const rkS = g.rk
+      const wBlend = isRunning() ? 0.4 : 1
+      const maxW = RSTRIP_W + 26
+      for (let bI = 0; bI < EMP_BINS; bI += 1) {
+        empDisp[bI] += (bins[bI].density - empDisp[bI]) * wBlend
+        empBars[bI].setAttribute('width', Math.min(maxW, rkS * empDisp[bI]).toFixed(2))
+      }
+    }
+    // Analytic profile follows the cursor time on the same scale, so the
+    // histogram has its exact target at every t (they coincide at t = 1).
+    const aLive = blendW < 1 ? alphaAnim : alphaSel
+    const su = slice.setup
+    const [dLo, dHi] = su.domain
+    let d = ''
+    for (let i = 0; i <= 340; i += 1) {
+      const x = dLo + (i / 340) * (dHi - dLo)
+      d += (d ? 'L' : 'M') + (g.baseX + g.rk * signedDensity(x, Math.max(c, 1e-4), aLive, su)).toFixed(2) + ',' + y(x).toFixed(2)
+    }
+    profilePath.setAttribute('d', d)
   }
 
   const emCircles = gEmDots.childNodes
@@ -905,9 +998,13 @@ function posPct(el, x, y) {
   el.style.top = `${(y / H * 100).toFixed(3)}%`
 }
 
+function updateStripTitle() {
+  setMath(ovStripTitle, layers.emp ? '\\pi_t^{\\mathtt{sign}}' : '\\pi_1^{\\mathtt{sign}}')
+}
+
 function renderStaticMath() {
   setMath(ovSrc, '\\pi_0 = \\mathcal{N}(0,1)')
-  setMath(ovStripTitle, '\\pi_1^{\\mathtt{sign}}')
+  updateStripTitle()
   const om = mathHtml('\\Omega_t^0')
   if (om !== null) ovZeroChip.innerHTML = `zero set ${om}`
   setMath(ovT0, 't = 0', 't = 0')
@@ -1230,6 +1327,8 @@ function init() {
       const k = btn.dataset.layer
       layers[k] = !layers[k]
       btn.classList.toggle('on', layers[k])
+      if (k === 'emp' && !layers.emp) profilePath.setAttribute('d', slice.geom.profileD)
+      if (k === 'emp') updateStripTitle()
       applyLayerVisibility()
       updateOverlays()
       scheduleDraw()
@@ -1330,6 +1429,8 @@ window.__pg1d = {
       cached: memo.size,
       alphaAnim,
       blendW,
+      empReady: (empMemo.get(`${worldId}|${alphaSel.toFixed(2)}`) || {}).ready || false,
+      empPaths: ((empMemo.get(`${worldId}|${alphaSel.toFixed(2)}`) || {}).paths || []).length,
     }
   },
 }
