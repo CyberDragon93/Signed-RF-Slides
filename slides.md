@@ -1316,15 +1316,15 @@ Start from $Z_0\sim\pi_0$ and integrate forward. The histogram is the empirical 
 
 ---
 
-# Why? Trace the Dynamics Backward
+# Trace the Dynamics Backward
 
-<ChargedParticles1D mode="uniform" :height="430" autoplay />
+<ChargedParticles1D mode="uniform" :height="360" autoplay />
 
-<div class="mt-2"></div>
-
-Place particles uniformly on the terminal line and integrate the same ODE **backward**.
-Two fates: some reach $t=0$, collectively recovering the source $\pi_0$;
-the rest run into the **moving zero set** $\Omega_t^0$ and stop there, meeting in pairs.
+- Place charged particles and run the ODE **backward**.
+- **Negative particles:** all hit the moving zero set $\Omega_t^0$.
+- **Positive particles:** either
+  - reach $t=0$, collectively recovering $\pi_0$; or
+  - hit $\Omega_t^0$ and pair with negative particles.
 
 ---
 
@@ -1429,43 +1429,6 @@ Now restrict it to the reachable region: $\;\bar\pi_t(x) \coloneqq \pi_t^{\matht
 - Under standard regularity, it must coincide with the law of the ODE: $\;\pi_t^{\mathtt{signRF}} = \bar\pi_t$.
 
 ---
-disabled: true
----
-
-# Guarantees
-
-<div class="h-8"></div>
-
-**Nonpenetration** *(Prop.)* — under regularity and a nondegenerate zero set,
-source-initialized trajectories never reach $\Omega_t^0$: for every $t<1$,
-
-$$
-\pi_t^{\mathtt{signRF}}\!\left(\Omega_t^+\right) = 1.
-$$
-
-The mechanism is a Gaussian-source identity: on the zero set, the signed flux points strictly toward the positive side,
-
-$$
-\jmath_t^{\mathtt{sign}}
- \coloneqq
- (1+\alpha)\,\pi_t^+ v_t^+ - \alpha\,\pi_t^- v_t^-,
-\qquad
-\bigl(\nabla\pi_t^{\mathtt{sign}}\bigr)^{\!\top} \jmath_t^{\mathtt{sign}}
- =
- \frac{1-t}{t}\,\bigl\|\nabla\pi_t^{\mathtt{sign}}\bigr\|^2 \;>\; 0.
-$$
-
-**Sampling law** *(Thm.)* — signed mass is conserved along the flow map, giving
-
-$$
-\pi_t^{\mathtt{signRF}}(x)
- =
- \pi_t^{\mathtt{sign}}(x)\,\mathbf{1}\{x\in\Omega_t^r\},
-\qquad
-\int_{\Omega_t^r}\pi_t^{\mathtt{sign}}(x)\,\mathrm{d}x = 1.
-$$
-
----
 layout: intro
 ---
 
@@ -1519,7 +1482,16 @@ class: signed-rf-2d-playground-slide
 
 # Signed RF in 2D — Interactive Playground
 
-<Rf2DGuidance :height="420" autoplay />
+<div class="signed-rf-2d-playground-demo">
+  <Rf2DGuidance :height="440" autoplay />
+</div>
+
+<div class="signed-rf-2d-playground-notes">
+
+- **Upper panels:** constant guidance $v_t^{\mathrm{const}}=(1+\omega)v_t^+-\omega v_t^-.$
+- **Lower panels:** Signed RF with adaptive guidance $v_t^+ + \lambda_t^\alpha(x)(v_t^+-v_t^-).$
+
+</div>
 
 <div class="signed-rf-2d-playground-link">
   <a href="./playground/2d.html" target="_blank">Open the full playground ↗</a>
@@ -1531,8 +1503,20 @@ class: signed-rf-2d-playground-slide
   font-size: 1.85rem !important;
   white-space: nowrap;
 }
+.signed-rf-2d-playground-demo {
+  width: 92%;
+  margin: 0 auto;
+}
+.signed-rf-2d-playground-notes {
+  margin-top: -0.35rem;
+  font-size: 0.76rem;
+  line-height: 1.25;
+}
+.signed-rf-2d-playground-notes ul {
+  margin: 0;
+}
 .signed-rf-2d-playground-link {
-  margin-top: -0.2rem;
+  margin-top: -0.35rem;
   font-size: 0.78rem;
   text-align: right;
 }
@@ -1545,6 +1529,8 @@ class: signed-rf-2d-playground-slide
 }
 </style>
 
+---
+disabled: true
 ---
 
 # Constant vs Signed, in 2D
