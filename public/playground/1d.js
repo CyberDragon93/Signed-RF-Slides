@@ -1160,7 +1160,7 @@ function prewarmDetents() {
   if (prewarmed.has(worldId)) return
   prewarmed.add(worldId)
   const wid = worldId
-  const queue = ALPHA_DETENTS.filter(a => a >= 0.05 && a !== alphaSel)
+  const queue = ALPHA_DETENTS.filter(a => a !== alphaSel)
     .sort((a, b) => Math.abs(a - alphaSel) - Math.abs(b - alphaSel))
   const next = () => {
     const a = queue.shift()
@@ -1188,7 +1188,7 @@ function init() {
   // alpha slider: instrument-style integer scale under the track
   setFill(alphaRange)
   for (const v of [0, 1, 2, 3, 4]) {
-    const frac = (Math.max(v, 0.05) - 0.05) / (4 - 0.05)
+    const frac = v / 4
     const tk = document.createElement('span')
     tk.className = 'tk'
     tk.style.left = `${(frac * 100).toFixed(2)}%`
