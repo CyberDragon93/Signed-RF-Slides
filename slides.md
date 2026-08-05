@@ -1633,8 +1633,6 @@ disabled: true
 One framework — the negative branch is whatever you must avoid: a region, a dataset, a concept.
 
 ---
-disabled: true
----
 
 # Concept Suppression
 
@@ -1754,6 +1752,8 @@ Signed RF attains the lowest FID at every step count, under both solvers. At 32 
 
 </div>
 
+---
+disabled: true
 ---
 
 # KL-Regularized Flow RL Is Exponential Tilting
