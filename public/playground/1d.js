@@ -1185,14 +1185,19 @@ function init() {
     })
   }
 
-  // alpha slider + detent ticks
+  // alpha slider: instrument-style integer scale under the track
   setFill(alphaRange)
-  for (const d of ALPHA_DETENTS) {
-    if (d < 0.05 || d > 4) continue
-    const frac = (d - 0.05) / (4 - 0.05)
-    const dot = document.createElement('span')
-    dot.style.left = `${(frac * 100).toFixed(2)}%`
-    alphaTicks.appendChild(dot)
+  for (const v of [0, 1, 2, 3, 4]) {
+    const frac = (Math.max(v, 0.05) - 0.05) / (4 - 0.05)
+    const tk = document.createElement('span')
+    tk.className = 'tk'
+    tk.style.left = `${(frac * 100).toFixed(2)}%`
+    const line = document.createElement('i')
+    const label = document.createElement('b')
+    label.textContent = String(v)
+    tk.appendChild(line)
+    tk.appendChild(label)
+    alphaTicks.appendChild(tk)
   }
   alphaRange.addEventListener('input', () => {
     setFill(alphaRange)
