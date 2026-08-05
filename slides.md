@@ -653,8 +653,7 @@ One framework — the negative branch is whatever you must avoid: a region, a da
 
 <div class="mt-2 text-center" style="font-size: 0.82em; opacity: 0.75;">
 
-Same positive prompt in both rows (Z-Image, online ratio tracking); the negative prompt names the concept to suppress —
-the concept goes, pose and composition stay.
+Same positive prompt in both rows; the negative prompt names the concept — it goes, pose and composition stay.
 
 </div>
 
@@ -662,30 +661,46 @@ the concept goes, pose and composition stay.
 
 # Anti-Memorization on ImageNet
 
-<div class="mt-1"></div>
-
-<div class="flex justify-center">
-  <BaseImg src="figures/imagenet_memorization_examples.jpg" class="rounded shadow-sm" style="max-width: 63%;" />
+<div class="flex justify-center mt-1">
+  <div class="relative" style="width: 79%;">
+    <BaseImg src="figures/imagenet_memorization_examples.jpg" class="rounded shadow-sm w-full block" />
+    <div class="abs-label" style="top: 12.5%;">Base</div>
+    <div class="abs-label" style="top: 37.5%; opacity: 0.72;">top match</div>
+    <div class="abs-label abs-label-ours" style="top: 62.5%;">Signed RF</div>
+    <div class="abs-label" style="top: 87.5%; opacity: 0.72;">top match</div>
+  </div>
 </div>
 
-<div class="mt-2"></div>
+<style>
+.abs-label {
+  position: absolute;
+  right: 100%;
+  transform: translateY(-50%);
+  padding-right: 10px;
+  font-size: 0.72em;
+  font-weight: 650;
+  color: #536073;
+  white-space: nowrap;
+}
+.abs-label-ours { color: #253a88; }
+.memo-table td, .memo-table th { padding: 2px 12px !important; }
+</style>
 
-<div style="font-size: 0.7em;">
+<div class="mt-2 text-center" style="font-size: 0.75em; opacity: 0.8;">
 
-| Method | FID $\downarrow$ | IS $\uparrow$ | Prec. $\uparrow$ | Rec. $\uparrow$ | $P_{05}\uparrow$ | $P_{10}\uparrow$ | $P_{25}\uparrow$ | Mean $\uparrow$ |
-|---|---|---|---|---|---|---|---|---|
-| Base | 2.07 | 242.4 | 0.790 | **0.627** | 0.921 | 0.944 | 0.982 | 0.993 |
-| $\alpha=1.0$ | **2.03** | 246.0 | 0.796 | 0.624 | 0.939 | 0.962 | 0.992 | 1.024 |
-| $\alpha=3.0$ | 2.11 | **246.2** | **0.799** | 0.614 | 0.956 | 0.975 | 1.005 | 1.045 |
-| $\alpha=7.5$ | 2.47 | 245.9 | 0.797 | 0.600 | **0.964** | **0.987** | **1.020** | **1.066** |
-| SPELL-45 | 2.59 | 233.2 | 0.771 | 0.614 | 0.919 | 0.943 | 0.981 | 0.994 |
-| SPELL-50 | 7.41 | 189.7 | 0.680 | 0.563 | 0.940 | 0.963 | 1.003 | 1.049 |
+Same seed per column, each generation above its nearest training match — Base copies borders and watermarks; Signed RF ($\pi^-$ = training set) breaks the match.
 
 </div>
 
-<div class="mt-1 text-center" style="font-size: 0.75em; opacity: 0.75;">
+<div class="mt-1 flex justify-center memo-table" style="font-size: 0.62em;">
 
-$\pi^-$ = the training set (analytic flow). Left columns: 50K-sample quality; right columns: SSCD $L_2$ quantiles on high-risk seeds for class 248 (higher = less copying).
+| Method | FID $\downarrow$ | $P_{05}\uparrow$ | $P_{10}\uparrow$ | $P_{25}\uparrow$ | Mean $\uparrow$ |
+|---|---|---|---|---|---|
+| Base | 2.07 | 0.921 | 0.944 | 0.982 | 0.993 |
+| $\alpha=1.0$ | **2.03** | 0.939 | 0.962 | 0.992 | 1.024 |
+| $\alpha=7.5$ | 2.47 | **0.964** | **0.987** | **1.020** | **1.066** |
+| SPELL-45 | 2.59 | 0.919 | 0.943 | 0.981 | 0.994 |
+| SPELL-50 | 7.41 | 0.940 | 0.963 | 1.003 | 1.049 |
 
 </div>
 
@@ -693,15 +708,13 @@ $\pi^-$ = the training set (analytic flow). Left columns: 50K-sample quality; ri
 
 # ImageNet-256: Against Tuned Guidance
 
-<div class="h-6"></div>
+<div class="h-8"></div>
 
-All methods share the backbone (320 epochs, no VFM alignment), each with its own scale swept; best-FID protocol.
-
-<div class="grid grid-cols-2 gap-8 mt-4" style="font-size: 0.82em;">
+<div class="grid grid-cols-2 gap-10" style="font-size: 0.85em;">
 
 <div>
 
-**Euler sampler** — FID $\downarrow$ by NFE
+**Euler** — FID $\downarrow$
 
 | Method | 16 | 32 | 64 |
 |---|---|---|---|
@@ -715,28 +728,26 @@ All methods share the backbone (320 epochs, no VFM alignment), each with its own
 
 <div>
 
-**Second-order solvers** — FID $\downarrow$ by NFE
+**Second-order** — FID $\downarrow$
 
 | Method | 16 | 32 | 64 |
 |---|---|---|---|
 | CFG | 1.86 | 1.66 | 1.67 |
 | **Signed RF** | **1.52** | **1.39** | **1.36** |
 
-<div class="mt-3" style="font-size: 0.92em; opacity: 0.8;">
+<div class="mt-3" style="font-size: 0.9em; opacity: 0.75;">
 
-Reference: REPA — FID 1.42 at 250 NFE
-(800 epochs, DINOv2-aligned, tuned schedule).
-
-</div>
+REPA: 1.42 at 250 NFE<br>(800 epochs, DINOv2-aligned).
 
 </div>
 
 </div>
 
-<div class="mt-4" style="font-size: 0.9em;">
+</div>
 
-- Lowest FID at **every** evaluated NFE under matched tuning — with first- *and* second-order solvers.
-- At 32 NFE the second-order Signed RF (1.39) already beats CFG at 64 and REPA at 250 NFE.
+<div class="mt-6" style="font-size: 0.92em;">
+
+Lowest FID at **every** NFE under matched tuning — same 320-epoch backbone, each method's scale swept, best-FID protocol.
 
 </div>
 
