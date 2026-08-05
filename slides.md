@@ -387,17 +387,10 @@ class: exponential-tilting-slide
   Z_f=\mathbb E_{X\sim p_0}\!\left[e^{f(X)}\right].
   $$
 
-- **Avoidance stops at zero**
+- Avoidance can be represented by assigning zero probability, $p_f(x)=0$.
 
-  $$
-  p_f(x)\ge 0,
-  \qquad
-  f(x)\to-\infty
-  \ \Longrightarrow\
-  p_f(x)\to 0.
-  $$
-
-  Cannot express stronger avoidance beyond zero probability.
+- It cannot represent degrees of avoidance beyond complete exclusion.
+- In learning settings, it is difficult to distinguish missing data from explicit avoidance.
 
 - **Normalization is global**
 
@@ -405,10 +398,10 @@ class: exponential-tilting-slide
   Z_f=\mathbb E_{X\sim p_0}\!\left[e^{f(X)}\right].
   $$
 
-  Computing or estimating $Z_f$ adds optimization and learning burden.
+- Computing or estimating $Z_f$ introduces additional optimization and learning overhead.
 
 <style>
-.exponential-tilting-slide ul {
+.exponential-tilting-slide > ul {
   max-width: 900px;
   margin: 0.85rem auto 0;
   padding-left: 1.6rem;
@@ -417,12 +410,14 @@ class: exponential-tilting-slide
   line-height: 1.28;
   list-style: none;
 }
-.exponential-tilting-slide ul > li {
+
+.exponential-tilting-slide > ul > li {
   position: relative;
   margin-bottom: 1.4rem;
   padding-left: 0.35rem;
 }
-.exponential-tilting-slide ul > li::before {
+
+.exponential-tilting-slide > ul > li::before {
   position: absolute;
   top: 0;
   left: -1.15rem;
@@ -430,16 +425,38 @@ class: exponential-tilting-slide
   font-weight: 700;
   content: "-";
 }
-.exponential-tilting-slide ul > li strong {
+
+.exponential-tilting-slide > ul > li > ul {
+  max-width: none;
+  margin: 0.45rem 0 0;
+  padding-left: 1.35rem;
+  color: #6b7280;
+  font-size: 0.92em;
+  line-height: 1.3;
+  list-style: disc;
+}
+
+.exponential-tilting-slide > ul > li > ul > li {
+  margin-bottom: 0.25rem;
+  padding-left: 0.1rem;
+}
+
+.exponential-tilting-slide > ul > li > ul > li::marker {
+  color: #3156b3;
+}
+
+.exponential-tilting-slide > ul > li strong {
   color: #26334d;
   font-size: 1.1em;
 }
-.exponential-tilting-slide ul > li .katex-display {
+
+.exponential-tilting-slide > ul > li .katex-display {
   margin: 0.28rem 0 0.34rem;
   color: #26334d;
   font-size: 1.05em;
 }
-.exponential-tilting-slide ul > li:first-child .katex-display {
+
+.exponential-tilting-slide > ul > li:first-child .katex-display {
   margin: 0.4rem 0 0.55rem;
   color: #243f91;
   font-size: 1.14em;
