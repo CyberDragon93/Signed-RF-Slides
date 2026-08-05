@@ -163,10 +163,10 @@ const CHIPS = [
       </g>
     </svg>
 
-    <RfFigLabel :x="109" :y="8" :w="200" :vb-h="height">
+    <RfFigLabel :x="109" :y="3.3" :w="200" :vb-h="height">
       <div class="bb-math" :style="{ color: PALETTE.ink }" v-html="legendSigned"></div>
     </RfFigLabel>
-    <RfFigLabel :x="325" :y="8" :w="200" :vb-h="height">
+    <RfFigLabel :x="325" :y="3.3" :w="200" :vb-h="height">
       <div class="bb-math" :style="{ color: PALETTE.samplingDark }" v-html="legendFlow"></div>
     </RfFigLabel>
 

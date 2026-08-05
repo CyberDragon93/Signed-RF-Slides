@@ -821,7 +821,7 @@ class: buffer-zone-slide
 $$
 \displaystyle
 \textcolor{blue}{
-\pi_{t}^{flow}(x) = \pi_{t}^{sign}(x)\,
+\pi_{t}^{\mathtt{flow}}(x) = \pi_{t}^{\mathtt{sign}}(x)\,
 \mathbb{I}(x\in \Omega_t^r)}.
 $$
 
@@ -863,8 +863,8 @@ $$
   font-size: 0.86em;
 }
 .buffer-zone-copy .buffer-main-result .katex-display {
-  margin: 0.12rem 0 0.18rem;
-  font-size: 1.18em;
+  margin: -0.06rem 0 0.14rem;
+  font-size: 1.08em;
 }
 .buffer-zone-copy strong {
   color: #26334d;
