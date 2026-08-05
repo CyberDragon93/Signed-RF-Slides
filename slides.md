@@ -1802,7 +1802,7 @@ One framework — the negative branch is whatever you must avoid: a region, a da
 
 # ImageNet-256: Against Tuned Guidance
 
-<RfImagenetFid :height="445" />
+<RfImagenetFid :height="415" />
 
 <div class="mt-1" style="font-size: 0.76em; color: #536073; text-align: center;">
 
@@ -1812,8 +1812,8 @@ solid = Euler &nbsp;·&nbsp; dashed = second-order &nbsp;·&nbsp; one 320-epoch 
 
 <div class="mt-2" style="font-size: 0.9em;">
 
-- **The CFG pair, reused**: $\pi^+$ = the class-conditional flow, $\pi^-$ = the unconditional flow — nothing new to train.
-- **Lowest FID at every NFE, both solvers** — 1.39 at 32 steps, below CFG at 64 and REPA at 250.
+- $\pi^+$ is the class-conditional flow and $\pi^-$ the unconditional one — exactly the pair CFG already uses, so nothing new is trained.
+- Signed RF reaches the lowest FID at every step count under both solvers: 1.39 at 32 steps, better than CFG at 64 steps and REPA at 250.
 
 </div>
 
