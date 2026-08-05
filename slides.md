@@ -159,17 +159,6 @@ clicks: 2
 .rf-nutshell-reflow {
   top: 430px;
 }
-.rf-nutshell-copy ul {
-  margin: 0.05rem 0 0;
-  padding-left: 1.2rem;
-}
-.rf-nutshell-copy li {
-  margin-bottom: 0.34rem;
-  padding-left: 0.1rem;
-}
-.rf-nutshell-copy strong {
-  font-size: 1.08em;
-}
 .rf-nutshell-copy .katex-display {
   margin: 0.08rem 0;
   font-size: 0.88em;
@@ -225,6 +214,73 @@ clicks: 2
 -->
 
 ---
+class: rf-cartoon-redraw-slide
+disabled: true
+---
+
+# Rectified Flow in a Nutshell — Vue Redraw
+
+<div class="rf-cartoon-redraw-grid">
+  <figure>
+    <RfTransitionCartoon mode="coupling" :height="235" />
+    <figcaption>
+      <strong>Interpolation:</strong> a sampled coupling connects noise and data.
+    </figcaption>
+  </figure>
+  <figure>
+    <RfTransitionCartoon mode="flow" :height="235" />
+    <figcaption>
+      <strong>Causalization:</strong> the learned velocity defines a directed ODE flow.
+    </figcaption>
+  </figure>
+</div>
+
+<div class="rf-cartoon-redraw-takeaway">
+  Same endpoint roles; a lighter palette and trajectory language shared with the interactive Vue figures.
+</div>
+
+<style>
+.rf-cartoon-redraw-slide h1 {
+  margin-bottom: 0.75rem;
+}
+.rf-cartoon-redraw-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.3rem;
+  align-items: start;
+  width: 92%;
+  margin: 0.65rem auto 0;
+}
+.rf-cartoon-redraw-grid figure {
+  margin: 0;
+  text-align: center;
+}
+.rf-cartoon-redraw-grid figcaption {
+  max-width: 390px;
+  margin: 0.18rem auto 0;
+  color: #536073;
+  font-size: 0.96rem;
+  line-height: 1.2;
+}
+.rf-cartoon-redraw-grid figcaption strong {
+  color: #253a88;
+}
+.rf-cartoon-redraw-takeaway {
+  max-width: 780px;
+  margin: 1.15rem auto 0;
+  color: #303a49;
+  font-size: 1.08rem;
+  line-height: 1.2;
+  text-align: center;
+}
+</style>
+
+<!--
+[Sources]
+- Redrawn as Vue/SVG from the transition-cartoon roles in `rectified_flow_cmu_lecture_2026_slides/tex/flow_intro.tex`.
+-->
+
+---
 class: rf-cmu-projection-slide
 ---
 
@@ -248,7 +304,7 @@ class: rf-cmu-projection-slide
   \right].
   $$
 
-- The “mean field” velocity: Take the average direction whenever intersection happens.
+    - The “mean field” velocity: Take the average direction whenever intersection happens.
 
 </div>
 
@@ -310,6 +366,49 @@ class: rf-cmu-projection-slide
 - `rectified_flow_cmu_lecture_2026_slides/tex/two_point_flow.tex`, frames “From Interpolation to Generation,” “How Does Rewiring Actually Happen by Velocity Averaging?,” and “Marginal Preservation”
 - Original CMU lecture assets: `figures_ppt/intro_mean_velocity.png`, `figures/rewire_close_up.png`, `videos/flow1/traj0.png`, and `videos/flow0/traj3.png`
 - Intersection diagram rendered directly from the frame's original TikZ source
+-->
+
+---
+class: rf-projection-redraw-slide
+disabled: true
+---
+
+# From Interpolation to Generation — Vue Redraw
+
+<RfProjectionRedraw :height="455" />
+
+<div class="rf-projection-redraw-equation">
+
+$v_t^*(x)=\mathbb E[\dot X_t\mid X_t=x]$
+<span aria-hidden="true">⟹</span>
+same time-wise marginals, non-crossing ODE trajectories.
+
+</div>
+
+<style>
+.rf-projection-redraw-slide h1 {
+  margin-bottom: 0.18rem;
+}
+.rf-projection-redraw-slide .projection-redraw-wrap {
+  margin-top: -0.05rem;
+}
+.rf-projection-redraw-equation {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.2rem;
+  color: #303a49;
+  font-size: 1.02rem;
+}
+.rf-projection-redraw-equation .katex {
+  color: #253a88;
+}
+</style>
+
+<!--
+[Sources]
+- Redrawn as Vue/SVG from `rectified_flow_cmu_lecture_2026_slides/tex/two_point_flow.tex`, frames “From Interpolation to Generation,” “How Does Rewiring Actually Happen by Velocity Averaging?,” and “Marginal Preservation.”
 -->
 
 ---
@@ -403,11 +502,6 @@ class: exponential-tilting-slide
     - It cannot represent degrees of avoidance beyond complete exclusion.
     - In learning settings, it is difficult to distinguish missing data from explicit avoidance.
 
-**Normalization is global**
-
-  $$
-  Z_f=\mathbb E_{X\sim p_0}\!\left[e^{f(X)}\right].
-  $$
 
 - Computing or estimating $Z_f$ introduces additional optimization and learning overhead.
 
@@ -470,9 +564,9 @@ class: exponential-tilting-slide
 
 - We aim to sample from the **positive regions**, where $\pi^{\mathtt{sign}}(x)>0$.
 
-- The magnitude of a negative value quantifies the degree of avoidance—the amount of positive density needed to offset the negativity.
+- The negative magnitude measures avoidance: the positive density needed to offset it.
 
-- An important special case is the **signed mixture**
+- An simple construction is the **signed mixture**:
 
   $$
   \pi^{\mathtt{sign}}(x)
@@ -491,7 +585,6 @@ class: exponential-tilting-slide
   </div>
   <RfSigned1D mode="target" :height="265" :autoplay="false" />
 </div>
-
 
 ---
 class: warmup-mixture-slide
@@ -566,6 +659,7 @@ class: signed-mixture-rf-slide
 <div aria-hidden="true" style="height: 1.5em;"></div>
 
 - Regardless of theory, we get an  (singular) ODE.
+- Physicists use such tricks a lot.
 - Curious to run it anway, and see what it gives?
 
 ---
@@ -658,22 +752,57 @@ Explore live: <a href="./playground/1d.html" target="_blank">**1D playground ↗
 
 ---
 
-# Always the Positive Side
+# Signed Rectified Flow
 
 <RfSignedGallery :height="430" />
 
 <div class="mt-2"></div>
 
-- Source-initialized trajectories stay in the
-positive region $\Omega_t^+ \coloneqq \{\pi_t^{\mathtt{sign}}>0\}$ and never enter the negative region
-$\Omega_t^- \coloneqq \{\pi_t^{\mathtt{sign}}<0\}$.
+---
+class: tweedie-barrier-slide
+---
 
+# Tweedie's Formula
+
+<div class="tweedie-barrier-copy">
+
+- Assume $X_t=tX_1+(1-t)X_0$ with $X_0\sim\mathcal N(0,I)$ independent of $X_1$.
+
+- The standard Tweedie identities hold for signed RF:
+
+  $$
+  \boxed{
+  v_t^{\mathtt{signRF}}(x)
+  =\frac{x}{t}+\frac{1-t}{t}\,\nabla\log\pi_t^{\mathtt{sign}}(x)
+  }
+  \qquad
+  \text{where we define }
+  \nabla\log\pi_t(x)=\frac{\nabla\pi_t(x)}{\pi_t(x)}.
+  $$
+
+  on the positive side $\pi_t^{\mathtt{sign}}(x)>0$.
+
+- With this, we can show that along a trajectory $Z_t$, as $\pi_t^{\mathtt{sign}}(Z_t)\downarrow0$,
+
+  $$
+  \frac{\mathrm d}{\mathrm dt}\pi_t^{\mathtt{sign}}(Z_t)>0
+  \quad\Longrightarrow\quad
+  \frac{\mathrm d}{\mathrm dt}\log\pi_t^{\mathtt{sign}}(Z_t)>0.
+  $$
+
+  Hence, trajectories are repelled from the zero boundary and remain in the positive region $\Omega_t^+$.
+
+
+</div>
+
+<!--
+[Sources]
+- `Signed_Rectified_Flow_Overleaf_Paper/contents/appendix_theory.tex`, Gaussian-source Tweedie identity and nonpenetration proof near the signed zero set.
+-->
 
 ---
 class: buffer-zone-slide
 ---
-
-# The Buffer Zone
 
 <RfSignedBufferBalance :height="215" />
 
@@ -689,17 +818,28 @@ class: buffer-zone-slide
   - **Reachable zone** $\Omega_t^r \coloneqq \{x \colon \pi_t^{\mathtt{flow}}(x)>0\}\subseteq\Omega_t^+$.
   - **Buffer zone** $\Omega_t^b \coloneqq \Omega_t^+\setminus\Omega_t^r$: positive support not reached by the flow.
 
-- <span class="buffer-discrepancy">The discrepancy</span>: the densities agree where particles land, but the flow density removes both the positive buffer and the negative support:
+- **Main result**:
 
-  $$
-  \begin{aligned}
-  \pi_t^{\mathtt{flow}} &= \pi_t^{\mathtt{sign}} && \text{on }\Omega_t^r,
-  &\qquad \pi_t^{\mathtt{flow}} &= 0 && \text{on }\Omega_t^b\cup\Omega_t^-,\\[-0.1em]
-  {\color{#666666}\int_{\Omega_t^b}\pi_t^{\mathtt{sign}}(x)\,\mathrm{d}x}
-  &=
+<div class="buffer-main-result">
+
+$$
+\displaystyle
+\textcolor{blue}{\boxed{
+\pi_{t}^{flow}(x) = \pi_{t}^{sign}(x)
+\mathbb{I}(x\in \Omega_t^r)}}.
+$$
+
+</div>
+
+- For normalization, we must have
+
+$$
+\int_{\Omega_t^r}\pi_t^{\mathtt{sign}}(x) = 1, ~~~~
+~~~~~~
+A = {\color{#666666}\int_{\Omega_t^b}\pi_t^{\mathtt{sign}}(x)\,\mathrm{d}x}
+  =
   -{\color{#E34A92}\int_{\Omega_t^-}\pi_t^{\mathtt{sign}}(x)\,\mathrm{d}x}.
-  \end{aligned}
-  $$
+$$
 
 </div>
 
@@ -725,6 +865,10 @@ class: buffer-zone-slide
 .buffer-zone-copy .katex-display {
   margin: 0.04rem 0 0.08rem;
   font-size: 0.86em;
+}
+.buffer-zone-copy .buffer-main-result .katex-display {
+  margin: 0.12rem 0 0.18rem;
+  font-size: 1.18em;
 }
 .buffer-zone-copy strong {
   color: #26334d;
@@ -1191,22 +1335,6 @@ the rest run into the **moving zero set** $\Omega_t^0$ and stop there, meeting i
 
 ---
 
-# Two Objects, One Flow
-
-<div class="h-28"></div>
-
-By construction, the trajectory law $\pi_t^{\mathtt{signRF}}$ is a **valid probability distribution**.
-
-The signed marginal $\pi_t^{\mathtt{sign}}$ has unit total mass — but **may take negative values**.
-
-Once negative regions emerge, the two can no longer coincide globally.
-
-<div class="mt-6"></div>
-
-> Which part of the signed marginal is realized by the source-initialized flow?
-
----
-
 # Where the Trajectories Go
 
 <RegionDecomposition :height="300" />
@@ -1221,6 +1349,8 @@ $$
  \pi_t^{\mathtt{sign}}(x)\,\mathbf{1}\{x\in\Omega_t^r\}.
 $$
 
+---
+disabled: true
 ---
 
 # The Ghost Region
@@ -1243,6 +1373,8 @@ $$
 
 The positive mass stranded in the ghost region **exactly balances** the negative mass excluded from the sampling law.
 
+---
+disabled: true
 ---
 
 # Rectify, Literally
@@ -1805,14 +1937,132 @@ The guarantee follows the sign of $w$: avoiding a negative-reward region require
 
 ---
 
-# Core Message
+# Concept Suppression
+
+<div class="mt-1"></div>
+
+<div class="grid gap-x-3 gap-y-1 items-center" style="grid-template-columns: 6rem repeat(4, 1fr);">
+  <div></div>
+  <div class="text-center text-sm" style="font-weight: 650;">&ldquo;Mickey Mouse&rdquo;</div>
+  <div class="text-center text-sm" style="font-weight: 650;">&ldquo;trees &amp; grass&rdquo;</div>
+  <div class="text-center text-sm" style="font-weight: 650;">&ldquo;red / crimson&rdquo;</div>
+  <div class="text-center text-sm" style="font-weight: 650;">&ldquo;old white man&rdquo;</div>
+  <div class="text-sm text-right pr-2" style="opacity: 0.75;">Baseline CFG</div>
+  <BaseImg src="figures/concept/mouse-base.jpg" class="w-full rounded" />
+  <BaseImg src="figures/concept/greenery-base.jpg" class="w-full rounded" />
+  <BaseImg src="figures/concept/red-base.jpg" class="w-full rounded" />
+  <BaseImg src="figures/concept/man-base.jpg" class="w-full rounded" />
+  <div class="text-sm text-right pr-2" style="font-weight: 650; color: #253A88;">Signed RF</div>
+  <BaseImg src="figures/concept/mouse-ours.jpg" class="w-full rounded" />
+  <BaseImg src="figures/concept/greenery-ours.jpg" class="w-full rounded" />
+  <BaseImg src="figures/concept/red-ours.jpg" class="w-full rounded" />
+  <BaseImg src="figures/concept/man-ours.jpg" class="w-full rounded" />
+</div>
+
+<div class="mt-2 text-center" style="font-size: 0.82em; opacity: 0.75;">
+
+Both velocities come from one pretrained model (Z-Image): $v^+$ conditioned on the positive prompt, $v^-$ on the concept to remove; the density ratio is tracked online. Signed RF erases the concept while preserving the requested appearance, pose, and composition.
+
+</div>
+
+---
+
+# Anti-Memorization on ImageNet
+
+<div class="flex justify-center mt-1">
+  <div class="relative" style="width: 79%;">
+    <BaseImg src="figures/imagenet_memorization_examples.jpg" class="rounded shadow-sm w-full block" />
+    <div class="abs-label" style="top: 12.5%;">Base</div>
+    <div class="abs-label" style="top: 37.5%; opacity: 0.72;">top match</div>
+    <div class="abs-label abs-label-ours" style="top: 62.5%;">Signed RF</div>
+    <div class="abs-label" style="top: 87.5%; opacity: 0.72;">top match</div>
+  </div>
+</div>
+
+<style>
+.abs-label {
+  position: absolute;
+  right: 100%;
+  transform: translateY(-50%);
+  padding-right: 10px;
+  font-size: 0.72em;
+  font-weight: 650;
+  color: #536073;
+  white-space: nowrap;
+}
+.abs-label-ours { color: #253a88; }
+.memo-table th { color: #253a88; border-bottom: 1.5px solid rgba(37, 58, 136, 0.45) !important; }
+.memo-table tbody tr:nth-child(2),
+.memo-table tbody tr:nth-child(3) { background: rgba(73, 105, 226, 0.07) !important; }
+.memo-table td:first-child { font-weight: 650; }
+</style>
+
+<div class="mt-2 text-center" style="font-size: 0.75em; opacity: 0.8;">
+
+Each column shares one seed, and every generation sits above its nearest training image. The base model reproduces
+training data down to borders and watermarks. Take $\pi^-$ to be the training set itself, $\frac{1}{N}\sum_i \delta_{x^{(i)}}$:
+for a mixture of Diracs the RF velocity is available in closed form — the analytic flow — so the negative branch is
+computed from stored latents, with nothing to train. $\pi^+$ is the pretrained class-conditional flow.
+
+</div>
+
+<div class="mt-1 tight-table memo-table" style="font-size: 0.74em;">
+
+| Method | FID $\downarrow$ | $P_{05}\uparrow$ | $P_{10}\uparrow$ | $P_{25}\uparrow$ | Mean $\uparrow$ |
+|---|---|---|---|---|---|
+| Base | 2.07 | 0.921 | 0.944 | 0.982 | 0.993 |
+| $\alpha=1.0$ | **2.03** | 0.939 | 0.962 | 0.992 | 1.024 |
+| $\alpha=7.5$ | 2.47 | **0.964** | **0.987** | **1.020** | **1.066** |
+| SPELL-45 | 2.59 | 0.919 | 0.943 | 0.981 | 0.994 |
+| SPELL-50 | 7.41 | 0.940 | 0.963 | 1.003 | 1.049 |
+
+</div>
+
+---
+
+# ImageNet-256: Against Tuned Guidance
+
+<RfImagenetFid :height="430" />
+
+<div class="mt-2 text-center" style="font-size: 0.8em; opacity: 0.75;">
+
+$\pi^+$ = class-conditional, $\pi^-$ = unconditional (the CFG pair) &nbsp;·&nbsp; solid = Euler, dashed = second-order &nbsp;·&nbsp; same 320-epoch backbone, every scale swept, best-FID protocol.
+
+</div>
+
+<div class="mt-3" style="font-size: 0.92em;">
+
+Signed RF attains the lowest FID at every step count, under both solvers. At 32 steps it reaches 1.39 — below CFG at 64 steps and REPA at 250.
+
+</div>
+
+---
+
+# The Missing Negative Data: 2D Maze
+
+<div class="mt-2"></div>
+
+<div class="flex items-center justify-center gap-4 mt-6">
+  <BaseImg src="figures/pointmaze_trajectories.svg" style="width: 71%;" />
+  <BaseImg src="figures/pointmaze_pareto_front.svg" style="width: 25%;" />
+</div>
+
+<div class="mt-8" style="font-size: 0.95em;">
+
+- The demonstrations contain only feasible paths ($\pi^+$), so the planner has never seen a wall interior and crosses them freely (a). Signed RF supplies the missing negatives: $\pi^-$ = wall-interior points, with a trained $v^-$ and a ratio classifier.
+- Constant guidance buys safety with diversity: a weak scale leaves violations (b), a strong one collapses the paths onto a single route (<span>c</span>).
+- Signed RF eliminates wall crossings and keeps the full spread of feasible paths (d); the Pareto front (e) makes the trade-off explicit.
+
+</div>
+
+---
+
+# Thank You
 
 <div class="h-16"></div>
 
-Signed RF turns negative information into **distributional semantics**.
+- Rectified flow formally extended to the signed target $(1+\alpha)\,\pi^+ - \alpha\,\pi^-$
 
-- **One extrapolation** — the same RF formula, applied to the signed target $(1+\alpha)\,\pi^+ - \alpha\,\pi^-$
-- **A valid sampler** — the signed density is preserved on the reachable region, zero elsewhere
-- **Exclusion built in** — the zero set is a repulsive barrier; ghost mass balances negative mass
-- **A practical rule** — guidance with state-dependent scale $\lambda_t^{\alpha}(x)$, driven by the ratio $r_t(x)$
-- **Two estimators** — a ratio classifier or online tracking along the trajectory.
+- Yields sampling within the positive region of the signed mixture.
+
+- Yields an adaptive guidance algorithm for practical applications.
