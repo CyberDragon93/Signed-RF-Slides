@@ -127,20 +127,56 @@
 
 .rf-projection-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.62fr) minmax(220px, 0.72fr);
+  grid-template-columns: minmax(0, 1.72fr) minmax(180px, 0.56fr);
   gap: 1.2rem;
   align-items: start;
   margin-top: 0.12rem;
 }
 
+.rf-cmu-projection-slide .rf-projection-copy,
+.rf-cmu-projection-slide .projection-marginal-copy {
+  font-size: 1.07rem;
+  line-height: 1.2;
+}
+
+.rf-cmu-projection-slide .rf-projection-copy > ul,
+.rf-cmu-projection-slide .projection-marginal-copy > ul {
+  margin: 0;
+  padding-left: 1.35rem;
+  list-style: none;
+}
+
+.rf-cmu-projection-slide .rf-projection-copy > ul > li,
+.rf-cmu-projection-slide .projection-marginal-copy > ul > li {
+  position: relative;
+  margin-bottom: 0.32rem;
+  padding-left: 0.1rem;
+}
+
+.rf-cmu-projection-slide .rf-projection-copy > ul > li::before,
+.rf-cmu-projection-slide .projection-marginal-copy > ul > li::before {
+  position: absolute;
+  top: 0;
+  left: -1.05rem;
+  color: #3156b3;
+  font-weight: 700;
+  content: "-";
+}
+
+.rf-cmu-projection-slide .rf-projection-copy .katex-display,
+.rf-cmu-projection-slide .projection-marginal-copy .katex-display {
+  font-size: 1em;
+}
+
 .rf-mean-field-figures {
   display: grid;
   grid-template-columns: 1fr;
-  grid-template-rows: repeat(2, 145px);
-  gap: 0.7rem;
+  grid-template-rows: repeat(2, 116px);
+  gap: 0.55rem;
   align-items: center;
-  width: 100%;
-  margin: 0.28rem 0 0;
+  justify-self: end;
+  width: 88%;
+  margin: 0.42rem 0 0;
 }
 
 .rf-mean-field-figures img {
@@ -148,6 +184,55 @@
   width: 100%;
   height: 100%;
   object-fit: contain;
+}
+
+.projection-marginal-copy {
+  margin: 0.28rem 0.1rem 0;
+  color: #465168;
+  font-size: 1.07rem;
+  line-height: 1.2;
+}
+
+.projection-marginal-copy ul {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.projection-marginal-copy li {
+  margin: 0;
+}
+
+.projection-marginal-copy .katex-display {
+  margin: 0.08rem 0;
+  font-size: 1em;
+}
+
+.projection-marginal-examples {
+  display: grid;
+  grid-template-columns: 3.95fr 1.5fr 1.5fr;
+  gap: 0.25rem;
+  align-items: start;
+  width: 100%;
+  margin: 0.08rem auto 0;
+}
+
+.projection-marginal-examples figure {
+  margin: 0;
+  text-align: center;
+}
+
+.projection-marginal-examples img {
+  display: block;
+  width: 100%;
+  height: 124px;
+  object-fit: contain;
+}
+
+.projection-marginal-examples figcaption {
+  margin-top: 0.04rem;
+  color: rgba(48, 58, 73, 0.72);
+  font-size: 0.78rem;
+  line-height: 1.1;
 }
 
 .rf-rewire-closeup {
@@ -158,21 +243,48 @@
   object-fit: contain;
 }
 
-.rf-rewire-examples {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4rem;
-  align-items: center;
-  width: 68%;
-  height: 182px;
-  margin: 0.75rem auto 0;
+.marginal-preservation-slide h1 {
+  margin-bottom: 0.25rem;
 }
 
-.rf-rewire-examples img {
+.marginal-preservation-slide > ul {
+  margin-top: 0.1rem;
+}
+
+.marginal-preservation-slide > ul > li {
+  margin-bottom: 0.18rem;
+}
+
+.marginal-preservation-slide .katex-display {
+  margin: 0.2rem 0;
+}
+
+.marginal-preservation-examples {
+  display: grid;
+  grid-template-columns: 1.8fr 1fr 1fr;
+  gap: 1rem;
+  align-items: start;
+  width: 84%;
+  margin: 0.3rem auto 0;
+}
+
+.marginal-preservation-examples figure {
+  margin: 0;
+  text-align: center;
+}
+
+.marginal-preservation-examples img {
   display: block;
   width: 100%;
-  height: 100%;
+  height: 92px;
   object-fit: contain;
+}
+
+.marginal-preservation-examples figcaption {
+  margin-top: 0.08rem;
+  color: rgba(48, 58, 73, 0.72);
+  font-size: 0.72rem;
+  line-height: 1.1;
 }
 
 /* Signed-measure introduction: global styles keep Slidev HMR stable. */

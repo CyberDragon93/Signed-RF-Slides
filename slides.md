@@ -238,17 +238,13 @@ class: rf-cmu-projection-slide
 
 <div class="rf-cmu-copy rf-projection-copy">
 
-- Projecting the Interpolation Process to the ODE:
+- Projecting the Interpolation Process $\{X_t\}$ to the ODE $\{Z_t\}$:
 
   $$
   \min_v\;\mathbb E_{(X_0,X_1,t)}
-  \left[\left\|\dot X_t-v_t(X_t)\right\|^2\right].
-  $$
-
-- The explicit solution is
-
-  $$
-  v^*(x,t)
+  \left[\left\|\dot X_t-v_t(X_t)\right\|^2\right]
+  \quad\Longrightarrow\quad
+  v^*_t(x)
   =\mathbb E\!\left[
     {\color{#f47c20}\dot X_t}
     \;\middle|\;
@@ -273,15 +269,56 @@ class: rf-cmu-projection-slide
 
 </div>
 
+<div class="projection-marginal-copy">
+
+- $\{X_t\}$ and $\{Z_t\}$: different joint distributions, but the same time-wise marginals:
+
+  $$
+  \rho_t = \operatorname{Law}(X_t) = \operatorname{Law}(Z_t),
+  $$
+
+  where $\rho_t$ satisfies the **continuity equation**
+
+  $$
+  \boxed{\dot \rho_t = -\nabla\!\cdot(v_t\rho_t).}
+  $$
+
+</div>
+
+<div class="projection-marginal-examples">
+  <figure>
+    <BaseImg
+      src="figures/cmu/rf-rewire-close-up.png"
+      alt="Velocity averaging at crossings rewires intersecting trajectories into a non-crossing ODE flow"
+    />
+    <figcaption>Velocity averaging rewires crossings</figcaption>
+  </figure>
+  <figure>
+    <BaseImg
+      src="figures/cmu/rf-rewire-before.png"
+      alt="Original interpolation trajectories with crossed pairings"
+    />
+    <figcaption>Interpolation coupling</figcaption>
+  </figure>
+  <figure>
+    <BaseImg
+      src="figures/cmu/rf-rewire-after.png"
+      alt="Rewired ODE trajectories after velocity averaging"
+    />
+    <figcaption>ODE coupling — same marginals</figcaption>
+  </figure>
+</div>
+
 <!--
 [Sources]
-- `rectified_flow_cmu_lecture_2026_slides/tex/two_point_flow.tex`, frame “From Interpolation to Generation”
-- Original CMU lecture asset: `figures_ppt/intro_mean_velocity.png`
+- `rectified_flow_cmu_lecture_2026_slides/tex/two_point_flow.tex`, frames “From Interpolation to Generation,” “How Does Rewiring Actually Happen by Velocity Averaging?,” and “Marginal Preservation”
+- Original CMU lecture assets: `figures_ppt/intro_mean_velocity.png`, `figures/rewire_close_up.png`, `videos/flow1/traj0.png`, and `videos/flow0/traj3.png`
 - Intersection diagram rendered directly from the frame's original TikZ source
 -->
 
 ---
 class: rf-cmu-rewiring-slide
+disabled: true
 ---
 
 # How Does Rewiring Actually Happen by Velocity Averaging?
@@ -292,29 +329,14 @@ class: rf-cmu-rewiring-slide
 
 </div>
 
-<BaseImg
-  src="figures/cmu/rf-rewire-close-up.png"
-  alt="Velocity averaging at crossings rewires intersecting trajectories into a non-crossing ODE flow"
-  class="rf-rewire-closeup"
-/>
-
-<div class="rf-rewire-examples">
-  <BaseImg
-    src="figures/cmu/rf-rewire-before.png"
-    alt="Original interpolation trajectories with crossed pairings"
-  />
-  <BaseImg
-    src="figures/cmu/rf-rewire-after.png"
-    alt="Rewired ODE trajectories after velocity averaging"
-  />
-</div>
-
 <!--
 [Sources]
 - `rectified_flow_cmu_lecture_2026_slides/tex/two_point_flow.tex`, frame “How Does Rewiring Actually Happen by Velocity Averaging?”
-- Original CMU lecture assets: `figures/rewire_close_up.png`, `videos/flow1/traj0.png`, and `videos/flow0/traj3.png`
 -->
 
+---
+class: marginal-preservation-slide
+disabled: true
 ---
 
 # Marginal Preservation
@@ -333,17 +355,10 @@ class: rf-cmu-rewiring-slide
   v_t(x) = \mathbb E[\dot X_t \mid X_t=x].
   $$
 
-- $\{X_t\}$ and $\{Z_t\}$: different joint distributions, but the same time-wise marginals:
-
-  $$
-  \rho_t = \operatorname{Law}(X_t) = \operatorname{Law}(Z_t),
-  $$
-
-  where $\rho_t$ satisfies the **continuity equation**
-
-  $$
-  \dot \rho_t = -\nabla\!\cdot(v_t\rho_t).
-  $$
+<!--
+[Sources]
+- `rectified_flow_cmu_lecture_2026_slides/tex/two_point_flow.tex`, frame “Marginal Preservation”
+-->
 
 ---
 
