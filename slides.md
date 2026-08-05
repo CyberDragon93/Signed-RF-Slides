@@ -1665,13 +1665,28 @@ Both velocities come from one pretrained model (Z-Image): $v^+$ conditioned on t
 # Anti-Memorization on ImageNet
 
 <div class="flex justify-center mt-1">
-  <div class="relative" style="width: 79%;">
-    <BaseImg src="figures/imagenet_memorization_examples.jpg" class="rounded shadow-sm w-full block" />
+  <div class="relative" style="width: 78%;">
+    <BaseImg src="figures/imagenet_memorization_7col.jpg" class="rounded shadow-sm w-full block" />
     <div class="abs-label" style="top: 12.5%;">Base</div>
     <div class="abs-label" style="top: 37.5%; opacity: 0.72;">top match</div>
     <div class="abs-label abs-label-ours" style="top: 62.5%;">Signed RF</div>
     <div class="abs-label" style="top: 87.5%; opacity: 0.72;">top match</div>
   </div>
+</div>
+
+<div class="mt-1" style="font-size: 0.76em; color: #536073; text-align: center;">
+
+**Anti-memorization** — each column shares one seed; every generation sits above its nearest training image.
+Base reproduces its match down to borders and watermarks; Signed RF breaks the copy.
+
+</div>
+
+<div class="mt-1" style="font-size: 0.9em;">
+
+- **Negative branch is the training set itself**: $\pi^- = \frac{1}{N}\sum_i \delta_{x^{(i)}}$ over the class's stored training latents.
+- **Analytic flow** — for a mixture of Diracs, $v_t^-$ and $\pi_t^-$ are available in closed form: nothing to train.
+- **Positive branch** $\pi^+$ is the pretrained class-conditional flow; the ratio is tracked online along the trajectory.
+
 </div>
 
 <style>
@@ -1686,32 +1701,7 @@ Both velocities come from one pretrained model (Z-Image): $v^+$ conditioned on t
   white-space: nowrap;
 }
 .abs-label-ours { color: #253a88; }
-.memo-table th { color: #253a88; border-bottom: 1.5px solid rgba(37, 58, 136, 0.45) !important; }
-.memo-table tbody tr:nth-child(2),
-.memo-table tbody tr:nth-child(3) { background: rgba(73, 105, 226, 0.07) !important; }
-.memo-table td:first-child { font-weight: 650; }
 </style>
-
-<div class="mt-2 text-center" style="font-size: 0.75em; opacity: 0.8;">
-
-Each column shares one seed, and every generation sits above its nearest training image. The base model reproduces
-training data down to borders and watermarks. Take $\pi^-$ to be the training set itself, $\frac{1}{N}\sum_i \delta_{x^{(i)}}$:
-for a mixture of Diracs the RF velocity is available in closed form — the analytic flow — so the negative branch is
-computed from stored latents, with nothing to train. $\pi^+$ is the pretrained class-conditional flow.
-
-</div>
-
-<div class="mt-1 tight-table memo-table" style="font-size: 0.74em;">
-
-| Method | FID $\downarrow$ | $P_{05}\uparrow$ | $P_{10}\uparrow$ | $P_{25}\uparrow$ | Mean $\uparrow$ |
-|---|---|---|---|---|---|
-| Base | 2.07 | 0.921 | 0.944 | 0.982 | 0.993 |
-| $\alpha=1.0$ | **2.03** | 0.939 | 0.962 | 0.992 | 1.024 |
-| $\alpha=7.5$ | 2.47 | **0.964** | **0.987** | **1.020** | **1.066** |
-| SPELL-45 | 2.59 | 0.919 | 0.943 | 0.981 | 0.994 |
-| SPELL-50 | 7.41 | 0.940 | 0.963 | 1.003 | 1.049 |
-
-</div>
 
 ---
 
