@@ -18,7 +18,7 @@ const PY1 = computed(() => props.height - 58)
 
 const NFES = [16, 32, 64]
 const FID_LO = 1.25
-const FID_HI = 2.75
+const FID_HI = 2.5
 
 const HERO = '#3250BC'
 const HERO_DARK = '#253A88'
@@ -28,7 +28,6 @@ const REF = '#B23A6F'
 const SERIES = [
   { name: 'CFG', vals: [2.38, 1.87, 1.73], color: CTX, dash: '', w: 1.6, hero: false },
   { name: 'ADG', vals: [2.32, 2.00, 1.85], color: CTX, dash: '', w: 1.6, hero: false },
-  { name: 'CFG++', vals: [2.62, 1.71, 3.39], color: CTX, dash: '', w: 1.6, hero: false, clipped: true },
   { name: 'MG', vals: [1.85, 1.71, 1.60], color: CTX, dash: '', w: 1.6, hero: false },
   { name: 'CFG (2nd)', vals: [1.86, 1.66, 1.67], color: CTX, dash: '7 4', w: 1.6, hero: false },
   { name: 'Signed RF', vals: [1.82, 1.51, 1.41], color: HERO, dash: '', w: 2.6, hero: true },
@@ -39,7 +38,7 @@ const REPA = 1.42
 const x = i => PX0 + (i / (NFES.length - 1)) * (PX1 - PX0)
 const y = computed(() => v => PY1.value - ((v - FID_LO) / (FID_HI - FID_LO)) * (PY1.value - PY0))
 
-const gridVals = [1.5, 2.0, 2.5]
+const gridVals = [1.5, 1.75, 2.0, 2.25]
 
 // Polyline per series, clipping the segment that exits the top (CFG++ at 64).
 const shapes = computed(() => {
@@ -95,7 +94,7 @@ const labels = computed(() => {
       <!-- grid + y labels -->
       <g v-for="g in gridVals" :key="`g-${g}`">
         <line :x1="PX0 - 6" :y1="y(g)" :x2="PX1" :y2="y(g)" stroke="rgba(48,58,73,0.13)" stroke-width="1" />
-        <text :x="PX0 - 14" :y="y(g) + 4" text-anchor="end" class="ifid-tick">{{ g.toFixed(1) }}</text>
+        <text :x="PX0 - 14" :y="y(g) + 4" text-anchor="end" class="ifid-tick">{{ g.toFixed(2) }}</text>
       </g>
       <text :x="PX0 - 58" :y="(PY0 + PY1) / 2" class="ifid-axis" :transform="`rotate(-90 ${PX0 - 58} ${(PY0 + PY1) / 2})`" text-anchor="middle">FID ↓</text>
 
