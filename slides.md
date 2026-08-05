@@ -142,7 +142,7 @@ clicks: 2
 .rf-nutshell-copy {
   position: relative;
   height: 520px;
-  font-size: 1rem;
+  font-size: 1.07rem;
   line-height: 1.18;
 }
 .rf-nutshell-stage {
@@ -332,7 +332,7 @@ class: rf-cmu-projection-slide
   where $\rho_t$ satisfies the **continuity equation**
 
   $$
-  \boxed{\dot \rho_t = -\nabla\!\cdot(v_t\rho_t).}
+  \dot \rho_t = -\nabla\!\cdot(v_t\rho_t).
   $$
 
 </div>
@@ -347,15 +347,15 @@ class: rf-cmu-projection-slide
   </figure>
   <figure>
     <BaseImg
-      src="figures/cmu/rf-rewire-before.png"
-      alt="Original interpolation trajectories with crossed pairings"
+      src="figures/cmu/flow0.gif"
+      alt="Animated interpolation trajectories with crossed pairings"
     />
     <figcaption>Interpolation coupling</figcaption>
   </figure>
   <figure>
     <BaseImg
-      src="figures/cmu/rf-rewire-after.png"
-      alt="Rewired ODE trajectories after velocity averaging"
+      src="figures/cmu/flow1.gif"
+      alt="Animated rewired ODE trajectories after velocity averaging"
     />
     <figcaption>ODE coupling — same marginals</figcaption>
   </figure>
@@ -771,10 +771,8 @@ class: tweedie-barrier-slide
 - The standard Tweedie identities hold for signed RF:
 
   $$
-  \boxed{
   v_t^{\mathtt{signRF}}(x)
   =\frac{x}{t}+\frac{1-t}{t}\,\nabla\log\pi_t^{\mathtt{sign}}(x)
-  }
   \qquad
   \text{where we define }
   \nabla\log\pi_t(x)=\frac{\nabla\pi_t(x)}{\pi_t(x)}.
@@ -824,9 +822,9 @@ class: buffer-zone-slide
 
 $$
 \displaystyle
-\textcolor{blue}{\boxed{
-\pi_{t}^{flow}(x) = \pi_{t}^{sign}(x)
-\mathbb{I}(x\in \Omega_t^r)}}.
+\textcolor{blue}{
+\pi_{t}^{flow}(x) = \pi_{t}^{sign}(x)\,
+\mathbb{I}(x\in \Omega_t^r)}.
 $$
 
 </div>
@@ -848,7 +846,7 @@ $$
   margin: 0.05rem auto 0;
   max-width: 960px;
   color: #465168;
-  font-size: 0.91rem;
+  font-size: 1.07rem;
   line-height: 1.08;
 }
 .buffer-zone-copy ul {
@@ -918,9 +916,9 @@ $$
   $\pi_t^{\mathtt{flow}}$ matches $\pi_t^{\mathtt{sign}}$ on the reachable region:
 
   $$
-  \textcolor{blue}{\boxed{
+  \textcolor{blue}{
   \pi_t^{\mathtt{flow}}(x)
-  =\pi_t^{\mathtt{sign}}(x)\,\mathbb{I}(x\in\Omega_t^r)}}.
+  =\pi_t^{\mathtt{sign}}(x)\,\mathbb{I}(x\in\Omega_t^r)}.
   $$
 
 <div class="continuity-tv-optimal">
@@ -943,7 +941,7 @@ $$
   margin: 0.72rem auto 0;
   max-width: 1000px;
   color: #465168;
-  font-size: 1.02rem;
+  font-size: 1.07rem;
   line-height: 1.22;
 }
 .continuity-proof-copy > ul {

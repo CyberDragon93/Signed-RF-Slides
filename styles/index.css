@@ -270,7 +270,7 @@ body.laser-cursor #slide-container * {
   max-width: 850px;
   margin: 0.42rem auto -0.08rem;
   color: #465168;
-  font-size: 1.02rem;
+  font-size: 1.07rem;
   line-height: 1.18;
 }
 
@@ -354,7 +354,7 @@ body.laser-cursor #slide-container * {
   max-width: 945px;
   margin: 0.2rem auto 0;
   color: #465168;
-  font-size: 0.96rem;
+  font-size: 1.07rem;
   line-height: 1.16;
 }
 
@@ -369,7 +369,7 @@ body.laser-cursor #slide-container * {
   padding-top: 0.55rem;
   border-top: 1px solid rgba(49, 86, 179, 0.22);
   color: #26334d;
-  font-size: 1.02rem;
+  font-size: 1.07rem;
   font-weight: 700;
   text-align: center;
 }
