@@ -1619,7 +1619,7 @@ One framework — the negative branch is whatever you must avoid: a region, a da
   <div class="text-center text-sm" style="font-weight: 650;">&ldquo;Mickey Mouse&rdquo;</div>
   <div class="text-center text-sm" style="font-weight: 650;">&ldquo;trees &amp; grass&rdquo;</div>
   <div class="text-center text-sm" style="font-weight: 650;">&ldquo;red / crimson&rdquo;</div>
-  <div class="text-center text-sm" style="font-weight: 650;">&ldquo;old white man&rdquo;</div>
+  <div class="text-center text-sm" style="font-weight: 650;">&ldquo;older White male&rdquo;</div>
   <div class="text-sm text-right pr-2" style="opacity: 0.75;">Baseline CFG</div>
   <BaseImg src="figures/concept/mouse-base.jpg" class="w-full rounded" />
   <BaseImg src="figures/concept/greenery-base.jpg" class="w-full rounded" />
