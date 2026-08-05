@@ -1399,6 +1399,8 @@ $$
   region, separated from $\Omega_t^-$ by the ghost region.
 
 ---
+disabled: true
+---
 
 # Why the Density Matches
 
