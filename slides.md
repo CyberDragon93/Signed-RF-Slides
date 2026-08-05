@@ -707,46 +707,17 @@ Same seed per column, each generation above its nearest training match — Base 
 
 # ImageNet-256: Against Tuned Guidance
 
-<div class="h-8"></div>
+<RfImagenetFid :height="430" />
 
-<div class="grid grid-cols-2 gap-10 tight-table" style="font-size: 0.85em;">
+<div class="mt-2 text-center" style="font-size: 0.8em; opacity: 0.75;">
 
-<div>
-
-**Euler** — FID $\downarrow$
-
-| Method | 16 | 32 | 64 |
-|---|---|---|---|
-| CFG | 2.38 | 1.87 | 1.73 |
-| ADG | 2.32 | 2.00 | 1.85 |
-| CFG++ | 2.62 | 1.71 | 3.39 |
-| MG | 1.85 | 1.71 | 1.60 |
-| **Signed RF** | **1.82** | **1.51** | **1.41** |
+solid = Euler &nbsp;·&nbsp; dashed = second-order solvers &nbsp;·&nbsp; same 320-epoch backbone, every method's scale swept, best-FID protocol.
 
 </div>
 
-<div>
+<div class="mt-3" style="font-size: 0.92em;">
 
-**Second-order** — FID $\downarrow$
-
-| Method | 16 | 32 | 64 |
-|---|---|---|---|
-| CFG | 1.86 | 1.66 | 1.67 |
-| **Signed RF** | **1.52** | **1.39** | **1.36** |
-
-<div class="mt-3" style="font-size: 0.9em; opacity: 0.75;">
-
-REPA: 1.42 at 250 NFE<br>(800 epochs, DINOv2-aligned).
-
-</div>
-
-</div>
-
-</div>
-
-<div class="mt-6" style="font-size: 0.92em;">
-
-Lowest FID at **every** NFE under matched tuning — same 320-epoch backbone, each method's scale swept, best-FID protocol.
+Lowest FID at **every** NFE, with first- *and* second-order solvers — at 32 NFE (1.39) already below CFG at 64 and REPA at 250.
 
 </div>
 
