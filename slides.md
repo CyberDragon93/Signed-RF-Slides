@@ -369,6 +369,105 @@ class: rf-cmu-projection-slide
 -->
 
 ---
+class: ot-bridge-slide
+---
+
+# From Interpolation to Optimal Transport
+
+<div class="ot-bridge-copy">
+
+- **Rectification lowers every convex displacement cost.** For $\textcolor{blue}{\textbf{any}}$ convex function $c:\mathbb R^d\to\mathbb R$,
+
+  $$
+  (Z_0,Z_1)=\mathtt{Rectify}(X_0,X_1)
+  \quad\Longrightarrow\quad
+  \mathbb E\!\left[c(Z_1-Z_0)\right]
+  \leq
+  \mathbb E\!\left[c(X_1-X_0)\right],
+  $$
+
+  The endpoint marginals are preserved.
+
+
+- **$c$-Rectified Flow for Optimal Transport.**
+  - Tailor the rectification procedure to a specific cost $c$ by imposing the cost-aware gradient-field constraint
+    $v_t=\nabla c^*(\nabla f_t)$.
+  - For $c(u)=\tfrac12\|u\|^2$, this reduces to $v_t=\nabla f_t$, with $f_t$ obtained by solving
+    $\min_{f_t}\;\mathbb E\!\left[\left\|\dot X_t-\nabla f_t(X_t)\right\|^2\right].$
+  - Under suitable regularity conditions, iterative $c$-Rectify converges to the $c$-optimal coupling.
+
+</div>
+
+<figure class="ot-paper-shot">
+  <figcaption>Wang, Xu, Liu & Zhou (2026) · arXiv:2608.02487</figcaption>
+  <div class="ot-paper-crop">
+    <BaseImg
+      src="figures/paper/c-rectified-flow-paper.png"
+      alt="Title and author list of Computational and Statistical Guarantees of the c-Rectified Flow"
+    />
+  </div>
+</figure>
+
+<style>
+.ot-bridge-copy {
+  margin: 0.35rem auto 0;
+  max-width: 960px;
+  color: #465168;
+  font-size: 0.91rem;
+  line-height: 1.15;
+}
+.ot-bridge-copy > ul {
+  margin: 0;
+  padding-left: 1.35rem;
+}
+.ot-bridge-copy li {
+  margin-bottom: 0.25rem;
+}
+.ot-bridge-copy .katex-display {
+  margin: 0.1rem 0 0.14rem;
+  color: #243f91;
+  font-size: 0.91em;
+}
+.ot-bridge-copy strong {
+  color: #26334d;
+}
+.ot-paper-shot {
+  width: 920px;
+  margin: 0.9rem auto 0;
+  text-align: center;
+}
+.ot-paper-crop {
+  height: 230px;
+  overflow: hidden;
+  border: 1px solid #d6dce8;
+  border-radius: 0.28rem;
+  box-shadow: 0 4px 14px rgba(31, 49, 91, 0.12);
+  background: #fff;
+}
+.ot-paper-crop img {
+  display: block;
+  width: 100%;
+  height: auto !important;
+  max-width: none;
+}
+.ot-paper-shot figcaption {
+  margin: 0 0 0.25rem;
+  color: #3157c8;
+  font-size: 0.78rem;
+  font-family: inherit;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 1.1;
+}
+</style>
+
+<!--
+[Sources]
+- Leda Wang, Zhehao Xu, Qiang Liu, and Harrison H. Zhou, “Computational and Statistical Guarantees of the c-Rectified Flow,” arXiv:2608.02487v1, 2026. https://arxiv.org/abs/2608.02487
+- Paper screenshot supplied by the user from the cited arXiv manuscript.
+-->
+
+---
 class: rf-projection-redraw-slide
 disabled: true
 ---
@@ -1427,34 +1526,48 @@ Now restrict it to the reachable region: $\;\bar\pi_t(x) \coloneqq \pi_t^{\matht
 - Under standard regularity, it must coincide with the law of the ODE: $\;\pi_t^{\mathtt{flow}} = \bar\pi_t$.
 
 ---
+class: adaptive-guidance-slide
+---
 
-# Guidance Form
+# Signed RF as Adaptive Guidance
 
-<div class="h-20"></div>
-
-Define the density ratio and the guidance direction
-
-$$
-r_t(x) \coloneqq \frac{\pi_t^-(x)}{\pi_t^+(x)},
-\qquad
-\Delta v_t(x) \coloneqq v_t^+(x) - v_t^-(x).
-$$
-
-Wherever $\pi_t^{\mathtt{sign}}(x)\neq 0$, the Signed RF velocity acts as guidance with a **state-dependent scale**:
+- Signed RF steers the ODE through an adaptive extrapolation:
 
 $$
 v_t^{\mathtt{signRF}}(x)
  =
  v_t^+(x)
  +
- \lambda_t^{\alpha}(x)\,\Delta v_t(x),
-\qquad
-\lambda_t^{\alpha}(x)
+\textcolor{blue}{\lambda_t^{\alpha}(x)\,(v_t^+(x) - v_t^-(x))},
+$$
+where the coefficient is determined by the local density ratio:
+$$
+\textcolor{blue}{\lambda_t^{\alpha}(x)
  =
- \frac{\alpha\, r_t(x)}{(1+\alpha) - \alpha\, r_t(x)}.
+ \frac{\alpha\, r_t(x)}{(1+\alpha) - \alpha\, r_t(x)}},
+\qquad
+\textcolor{blue}{r_t(x) \coloneqq \frac{\pi_t^-(x)}{\pi_t^+(x)}}.
 $$
 
-Two ingredients: the branch velocities $v_t^{\pm}$ and the density ratio $r_t(x)$.
+<div class="adaptive-guidance-callout">
+
+<div class="adaptive-guidance-callout-title">The guidance strength adapts to position</div>
+
+- **Inside the positive region:** $\lambda_t^\alpha(x)>0$. In practice, we use $\hat \lambda = \max(\lambda_t^\alpha(x), ~\epsilon)$.
+- **Near the boundary:** $\lambda_t^\alpha(x)$ becomes large as $(1+\alpha)-\alpha r_t(x)\to 0$.
+- **Deep inside $\pi_t^+$:** $r_t(x)\approx 0$, so $\lambda_t^\alpha(x)\approx 0$.
+
+</div>
+
+- By contrast, classifier-free guidance (CFG) uses a constant extrapolation coefficient:
+
+$$
+v_t^{\mathtt{cfg}}(x)
+ =
+ v_t^+(x)
+ +
+\textcolor{blue}{\lambda^{\mathtt{cfg}}\,(v_t^+(x) - v_t^-(x))},
+$$
 
 ---
 class: signed-rf-2d-playground-slide
@@ -1466,12 +1579,11 @@ class: signed-rf-2d-playground-slide
   <Rf2DGuidance :height="440" autoplay />
 </div>
 
-<div class="signed-rf-2d-playground-notes">
 
-- **Upper panels:** constant guidance $v_t^{\mathrm{const}}=(1+\omega)v_t^+-\omega v_t^-.$
-- **Lower panels:** Signed RF with adaptive guidance $v_t^+ + \lambda_t^\alpha(x)(v_t^+-v_t^-).$
+- **Upper panels:** constant guidance: $v_t^+ + \lambda^{\mathtt{cfg}} (v_t^+ - v_t^-).$
+- **Lower panels:** Signed RF with adaptive guidance: $v_t^+ + \lambda_t^\alpha(x)(v_t^+-v_t^-).$
 
-</div>
+- \textcolor{blue}{The adaptive $\lambda$ makes signed RF stays well with $\pi^+$ while avoiding $\pi^-$.}
 
 <div class="signed-rf-2d-playground-link">
   <a href="./playground/2d.html" target="_blank">Open the full playground ↗</a>
@@ -1614,22 +1726,19 @@ One framework — the negative branch is whatever you must avoid: a region, a da
 
 <div class="mt-1"></div>
 
-<div class="grid gap-x-3 gap-y-1 items-center" style="grid-template-columns: 6rem repeat(4, 1fr);">
+<div class="grid gap-x-3 gap-y-1 items-center" style="grid-template-columns: 6rem repeat(3, 1fr); width: 78%; margin: 0 auto;">
   <div></div>
   <div class="text-center text-sm" style="font-weight: 650;">&ldquo;Mickey Mouse&rdquo;</div>
   <div class="text-center text-sm" style="font-weight: 650;">&ldquo;trees &amp; grass&rdquo;</div>
   <div class="text-center text-sm" style="font-weight: 650;">&ldquo;red / crimson&rdquo;</div>
-  <div class="text-center text-sm" style="font-weight: 650;">&ldquo;old white man&rdquo;</div>
   <div class="text-sm text-right pr-2" style="opacity: 0.75;">Baseline CFG</div>
   <BaseImg src="figures/concept/mouse-base.jpg" class="w-full rounded" />
   <BaseImg src="figures/concept/greenery-base.jpg" class="w-full rounded" />
   <BaseImg src="figures/concept/red-base.jpg" class="w-full rounded" />
-  <BaseImg src="figures/concept/man-base.jpg" class="w-full rounded" />
   <div class="text-sm text-right pr-2" style="font-weight: 650; color: #253A88;">Signed RF</div>
   <BaseImg src="figures/concept/mouse-ours.jpg" class="w-full rounded" />
   <BaseImg src="figures/concept/greenery-ours.jpg" class="w-full rounded" />
   <BaseImg src="figures/concept/red-ours.jpg" class="w-full rounded" />
-  <BaseImg src="figures/concept/man-ours.jpg" class="w-full rounded" />
 </div>
 
 <div class="mt-1" style="font-size: 0.76em; color: #536073; text-align: center;">

@@ -381,6 +381,55 @@ body.laser-cursor #slide-container * {
   white-space: nowrap;
 }
 
+/* Adaptive guidance: one compact callout linking density ratio to steering. */
+.adaptive-guidance-slide h1 {
+  margin-bottom: 0.35rem;
+}
+
+.adaptive-guidance-slide {
+  color: #465168;
+  font-size: 1.02rem;
+  line-height: 1.16;
+}
+
+.adaptive-guidance-slide .katex-display {
+  margin: 0.42rem 0;
+  color: #243f91;
+}
+
+.adaptive-guidance-callout {
+  max-width: 900px;
+  margin: 0.9rem auto;
+  padding: 0.55rem 0.9rem 0.48rem;
+  border: 1px solid rgba(49, 86, 179, 0.28);
+  border-left: 4px solid #4969e2;
+  border-radius: 8px;
+  background: rgba(73, 105, 226, 0.055);
+}
+
+.adaptive-guidance-callout-title {
+  margin-bottom: 0.28rem;
+  color: #26334d;
+  font-weight: 700;
+}
+
+.adaptive-guidance-callout ul {
+  margin: 0;
+  padding-left: 1.35rem;
+}
+
+.adaptive-guidance-callout li {
+  margin: 0.18rem 0;
+}
+
+.adaptive-guidance-callout strong {
+  color: #243f91;
+}
+
+.adaptive-guidance-cfg-label {
+  margin-top: 0.12rem;
+}
+
 /* Slides never scroll/pan: any overflow past the slide box is clipped
    (the theme's .content-wrapper ships as overflow-auto). */
 .slidev-layout .content-wrapper,
