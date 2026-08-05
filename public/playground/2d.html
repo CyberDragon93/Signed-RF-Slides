@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Signed Rectified Flow · 2D playground</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <link rel="stylesheet" href="playground.css">
+  <style>
+    /* Page-specific: layered stage + panel-title overlay + motion row rhythm. */
+    #svBase {
+      width: 100%;
+      display: block;
+      height: auto;
+    }
+
+    .g2d-layer {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    .g2d-titles {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      font-size: 12.5px; /* rescaled by JS with stage width */
+    }
+
+    .g2d-title {
+      position: absolute;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      color: #303a49;
+      font-weight: 650;
+      line-height: 1.2;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .g2d-title .katex {
+      font-size: 1.04em;
+    }
+
+    .pg-slider-row .pg-readout .katex {
+      font-size: 1em;
+    }
+
+    #speedChips {
+      flex-wrap: nowrap;
+    }
+  </style>
+</head>
+<body>
+  <header class="pg-header">
+    <div class="pg-title">Signed Rectified Flow <span class="pg-title-sub">· 2D playground</span></div>
+    <nav class="pg-nav">
+      <a href="../">slides</a>
+      <a href="1d.html">1D playground</a>
+      <a href="https://arxiv.org/abs/2607.18516">paper</a>
+    </nav>
+  </header>
+
+  <main class="pg-main">
+    <div class="pg-stage" id="stage">
+      <svg id="svBase" role="img" aria-label="Signed RF 2D guidance sweep"></svg>
+      <canvas id="cv" class="g2d-layer"></canvas>
+      <svg id="svTop" class="g2d-layer"></svg>
+      <div class="g2d-titles" id="titles"></div>
+    </div>
+
+    <aside class="pg-controls" id="controls">
+      <div class="pg-group">
+        <div class="pg-group-label">world</div>
+        <div class="pg-chips" id="worldChips"></div>
+      </div>
+
+      <div class="pg-group">
+        <div class="pg-group-label">display</div>
+        <div class="pg-chips" id="displayChips">
+          <button type="button" class="pg-chip pg-toggle on" data-layer="bg">background</button>
+          <button type="button" class="pg-chip pg-toggle on" data-layer="grid">grid</button>
+          <button type="button" class="pg-chip pg-toggle on" data-layer="marks">violation marks</button>
+        </div>
+      </div>
+
+      <div class="pg-group">
+        <div class="pg-group-label">motion</div>
+        <div class="pg-btn-row">
+          <button type="button" class="pg-play" id="playBtn" aria-label="play or pause"></button>
+          <div class="pg-chips" id="speedChips">
+            <button type="button" class="pg-chip" data-speed="0.5">0.5x</button>
+            <button type="button" class="pg-chip on" data-speed="1">1x</button>
+            <button type="button" class="pg-chip" data-speed="2">2x</button>
+          </div>
+        </div>
+        <div class="pg-slider-row">
+          <input type="range" class="pg-range" id="timeSlider" min="0" max="1000" value="1000" style="--fill: 100%" aria-label="time">
+          <div class="pg-readout" id="timeReadout">t = 1.00</div>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+
+  <script type="module" src="2d.js"></script>
+</body>
+</html>

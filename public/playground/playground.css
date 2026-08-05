@@ -1,0 +1,330 @@
+/* ==========================================================================
+   Signed RF playgrounds — shared design system.
+   One visual language with the deck: cream paper, KaTeX_Main serif,
+   ultramarine + magenta, hairline panels, pill controls.
+   ========================================================================== */
+
+:root {
+  --bg: #fdfbf7;
+  --ink: #303a49;
+  --muted: #536073;
+  --faint: rgba(48, 58, 73, 0.52);
+  --prim: #3250bc;
+  --prim-light: #4969e2;
+  --prim-dark: #253a88;
+  --mag: #e34a92;
+  --mag-dark: #9d2d64;
+  --panel: #fbfcff;
+  --panel-border: #d6ddf3;
+  --chip-border: #c9d2e8;
+  --chip-on: #eaf0ff;
+  --track: #d6ddf3;
+  --hairline: rgba(48, 58, 73, 0.16);
+  --serif: 'KaTeX_Main', 'STIX Two Text', Georgia, serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 16px;
+}
+
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---- Header ------------------------------------------------------------- */
+
+header.pg-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 22px 28px 14px;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.pg-title {
+  font-size: 21px;
+  font-weight: 700;
+  color: var(--prim);
+  letter-spacing: 0;
+}
+
+.pg-title .pg-title-sub {
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 16px;
+}
+
+nav.pg-nav {
+  display: flex;
+  gap: 18px;
+  font-size: 13.5px;
+  white-space: nowrap;
+}
+
+nav.pg-nav a {
+  color: var(--muted);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  padding-bottom: 1px;
+}
+
+nav.pg-nav a:hover {
+  color: var(--prim-dark);
+  border-bottom-color: var(--prim-light);
+}
+
+/* ---- Main layout ---------------------------------------------------------- */
+
+main.pg-main {
+  flex: 1 0 auto;
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 16px 28px 48px;
+}
+
+.pg-stage {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  box-shadow: 0 3px 10px rgba(27, 42, 74, 0.1);
+  overflow: hidden;
+}
+
+.pg-stage canvas,
+.pg-stage svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.pg-stage .pg-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* ---- Control panel --------------------------------------------------------- */
+
+aside.pg-controls {
+  flex: 0 0 272px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  font-size: 13.5px;
+}
+
+.pg-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pg-group-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: lowercase;
+  color: var(--faint);
+}
+
+.pg-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pg-chip {
+  appearance: none;
+  font-family: var(--serif);
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--muted);
+  background: #ffffff;
+  border: 1px solid var(--chip-border);
+  border-radius: 12px;
+  padding: 3.5px 11px 4.5px;
+  cursor: pointer;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+.pg-chip:hover {
+  border-color: var(--prim-dark);
+}
+
+.pg-chip.on {
+  background: var(--chip-on);
+  border: 1.4px solid var(--prim-dark);
+  color: var(--prim-dark);
+  padding: 3.1px 10.6px 4.1px;
+}
+
+/* Layer toggles: same pill, with a state dot. */
+.pg-toggle::before {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-right: 7px;
+  background: transparent;
+  border: 1.4px solid var(--chip-border);
+  vertical-align: 1px;
+}
+
+.pg-toggle.on::before {
+  background: var(--prim-light);
+  border-color: var(--prim-dark);
+}
+
+/* ---- Slider row -------------------------------------------------------------- */
+
+.pg-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pg-slider-row .pg-readout {
+  min-width: 74px;
+  text-align: right;
+  color: var(--prim-dark);
+  font-size: 13.5px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+input[type='range'].pg-range {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: 1 1 auto;
+  height: 26px;
+  margin: 0;
+  background: transparent;
+  --fill: 50%;
+  cursor: pointer;
+  touch-action: none;
+}
+
+input[type='range'].pg-range::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(to right, var(--prim-light) var(--fill), var(--track) var(--fill));
+}
+
+input[type='range'].pg-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: -6px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2.2px solid var(--prim-dark);
+  box-shadow: 0 1px 3px rgba(27, 42, 74, 0.22);
+}
+
+input[type='range'].pg-range::-moz-range-track {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--track);
+}
+
+input[type='range'].pg-range::-moz-range-progress {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--prim-light);
+}
+
+input[type='range'].pg-range::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2.2px solid var(--prim-dark);
+}
+
+/* ---- Buttons -------------------------------------------------------------------- */
+
+.pg-btn-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pg-btn {
+  appearance: none;
+  font-family: var(--serif);
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--muted);
+  background: #ffffff;
+  border: 1px solid var(--chip-border);
+  border-radius: 12px;
+  padding: 4px 13px 5px;
+  cursor: pointer;
+}
+
+.pg-btn:hover {
+  border-color: var(--prim-dark);
+  color: var(--prim-dark);
+}
+
+.pg-play {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid var(--prim-dark);
+  background: #ffffff;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.pg-play svg {
+  display: block;
+}
+
+/* KaTeX inside controls */
+aside.pg-controls .katex {
+  font-size: 1.05em;
+}
+
+/* ---- Narrow screens ------------------------------------------------------------------ */
+
+@media (max-width: 860px) {
+  main.pg-main {
+    flex-direction: column;
+  }
+
+  aside.pg-controls {
+    flex-basis: auto;
+    width: 100%;
+  }
+}
