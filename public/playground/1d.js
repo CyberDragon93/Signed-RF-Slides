@@ -261,6 +261,44 @@ function buildZones1(a, su, frontiers, reachLo, reachHi) {
   return segs
 }
 
+// Time-t zone segmentation for the live strip: the same classification as
+// buildZones1, with the reach envelope and wedge gaps read off the exact
+// boundary curves at time t. At t = 1 it reproduces buildZones1.
+function buildZonesAt(t, a, su, frontiers, extL, extR) {
+  const [lo, hi] = su.domain
+  const gaps = []
+  for (const f of frontiers) {
+    const gl = frontAt(f.left, t)
+    const gh = frontAt(f.right, t)
+    if (Number.isFinite(gl) && Number.isFinite(gh)) gaps.push([gl, gh])
+  }
+  const reachLo = frontAt(extL, t)
+  const reachHi = frontAt(extR, t)
+  const typeOf = (x) => {
+    if (signedDensity(x, t, a, su) < 0) return 'neg'
+    if (Number.isFinite(reachLo) && x < reachLo) return 'ghost'
+    if (Number.isFinite(reachHi) && x > reachHi) return 'ghost'
+    for (const [gl, gh] of gaps) {
+      if (x >= gl && x <= gh) return 'ghost'
+    }
+    return 'reach'
+  }
+  const n = 320
+  const segs = []
+  let cur = null
+  for (let i = 0; i <= n; i += 1) {
+    const x = lo + (i / n) * (hi - lo)
+    const ty = typeOf(x)
+    if (!cur || cur.type !== ty) {
+      cur = { type: ty, x0: x, x1: x }
+      segs.push(cur)
+    } else {
+      cur.x1 = x
+    }
+  }
+  return segs
+}
+
 // Heatmap: pointwise signed density with reach-aware colouring — blue where
 // the density is positive AND the point is reachable at that time, magenta
 // where it is negative, and PURE WHITE over the ghost region (positive but
@@ -511,6 +549,7 @@ function sliceFor(wid, a) {
       rk,
       profileD,
       rsegs,
+      zoneCtx: { frontiers, extL, extR },
       zoneLabels,
       labels,
       callout,
@@ -910,6 +949,23 @@ function updateFrame() {
       d += (d ? 'L' : 'M') + (g.baseX + g.rk * signedDensity(x, Math.max(c, 1e-4), aLive, su)).toFixed(2) + ',' + y(x).toFixed(2)
     }
     profilePath.setAttribute('d', d)
+
+    // The zone fills follow the same live profile, so the coloured
+    // background tracks the cursor exactly like the curve; at t = 1 they
+    // coincide with the terminal fills.
+    const tv = Math.max(c, 1e-4)
+    const zc = g.zoneCtx
+    clearChildren(gZoneFills)
+    for (const seg of buildZonesAt(tv, aLive, su, zc.frontiers, zc.extL, zc.extR)) {
+      const nS = Math.max(12, Math.round(((seg.x1 - seg.x0) / (dHi - dLo)) * 340))
+      let areaD = `M${g.baseX},${y(seg.x0).toFixed(2)}`
+      for (let i = 0; i <= nS; i += 1) {
+        const x = seg.x0 + (i / nS) * (seg.x1 - seg.x0)
+        areaD += `L${(g.baseX + g.rk * signedDensity(x, tv, aLive, su)).toFixed(2)},${y(x).toFixed(2)}`
+      }
+      areaD += `L${g.baseX},${y(seg.x1).toFixed(2)}Z`
+      mk('path', { d: areaD, fill: ZONE_FILL[seg.type], 'fill-opacity': ZONE_LINE_OP[seg.type] }, gZoneFills)
+    }
   }
 
   const emCircles = gEmDots.childNodes
@@ -1327,7 +1383,13 @@ function init() {
       const k = btn.dataset.layer
       layers[k] = !layers[k]
       btn.classList.toggle('on', layers[k])
-      if (k === 'emp' && !layers.emp) profilePath.setAttribute('d', slice.geom.profileD)
+      if (k === 'emp' && !layers.emp) {
+        profilePath.setAttribute('d', slice.geom.profileD)
+        clearChildren(gZoneFills)
+        for (const seg of slice.geom.rsegs) {
+          mk('path', { d: seg.areaD, fill: ZONE_FILL[seg.type], 'fill-opacity': ZONE_LINE_OP[seg.type] }, gZoneFills)
+        }
+      }
       if (k === 'emp') updateStripTitle()
       applyLayerVisibility()
       updateOverlays()
