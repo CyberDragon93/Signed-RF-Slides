@@ -8,6 +8,7 @@ const props = defineProps({
   height: { type: Number, default: 455 },
   autoplay: { type: Boolean, default: true },
   showMarginals: { type: Boolean, default: true },
+  showRectifyArrow: { type: Boolean, default: false },
 })
 
 const width = 900
@@ -486,6 +487,16 @@ onUnmounted(() => {
           <stop offset="0%" stop-color="#4969E2" stop-opacity="0.28" />
           <stop offset="100%" stop-color="#4969E2" stop-opacity="0.05" />
         </linearGradient>
+        <marker
+          id="mpRectifyArrow"
+          markerWidth="9"
+          markerHeight="9"
+          refX="8"
+          refY="4.5"
+          orient="auto"
+        >
+          <path d="M 0 0 L 9 4.5 L 0 9 Z" fill="#3156B3" />
+        </marker>
       </defs>
 
       <g v-for="panel in [layout.leftTop, layout.rightTop]" :key="`top-panel-${panel.x}`">
@@ -511,6 +522,24 @@ onUnmounted(() => {
         <line :x1="panel.x" :y1="panel.y + panel.h" :x2="panel.x + panel.w" :y2="panel.y + panel.h" stroke="#253A88" stroke-opacity="0.22" />
         <line :x1="panel.x" :y1="panel.y" :x2="panel.x" :y2="panel.y + panel.h" stroke="#253A88" stroke-opacity="0.22" />
         <line :x1="timeToX(panel, t)" :y1="panel.y + 4" :x2="timeToX(panel, t)" :y2="panel.y + panel.h - 2" stroke="#172B78" stroke-width="1.6" stroke-dasharray="5 5" />
+      </g>
+
+      <g v-if="props.showRectifyArrow" class="mp-rectify-arrow">
+        <line
+          :x1="layout.leftTop.x + layout.leftTop.w + 7"
+          :y1="layout.leftTop.y + layout.leftTop.h / 2"
+          :x2="layout.rightTop.x - 10"
+          :y2="layout.rightTop.y + layout.rightTop.h / 2"
+          stroke="#3156B3"
+          stroke-width="2.2"
+          marker-end="url(#mpRectifyArrow)"
+        />
+        <text
+          :x="(layout.leftTop.x + layout.leftTop.w + layout.rightTop.x) / 2"
+          :y="layout.leftTop.y + layout.leftTop.h / 2 - 10"
+          text-anchor="middle"
+          class="mp-rectify-label"
+        >Rectify</text>
       </g>
 
       <g>
@@ -771,6 +800,13 @@ onUnmounted(() => {
 
 .mp-slider {
   cursor: pointer;
+}
+
+.mp-rectify-label {
+  fill: #3156b3;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: KaTeX_Main, "Latin Modern Roman", "Times New Roman", serif;
 }
 
 .mp-panel-title-html {

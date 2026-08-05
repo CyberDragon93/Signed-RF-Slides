@@ -43,11 +43,13 @@ const ALPHA0 = DENSITY.alpha
 const domain = WORLD.domain
 const uid = `cp1d-${cpUidCounter++}`
 const panelX = 104
-const panelW = 756
+const panelW = 640
 const panelY = 54
 const stripX = 22
 const stripW = 70
 const stripRight = stripX + stripW
+const RSTRIP_X = 764
+const RSTRIP_W = 104
 const SWEEP = 7.0 // seconds, t: 1 -> 0
 const HOLD = 1.6 // seconds at t = 0 (print-freeze covers exports; keep the live loop moving)
 const CYCLE = SWEEP + HOLD
@@ -57,6 +59,8 @@ const SEED_LO = -3.9
 const SEED_HI = 3.9
 const PAIR_DT = 0.10
 const PAIR_DX = 0.14
+const NEGATIVE_TRACE = '#8B5CF6'
+const POSITIVE_BOUNDARY_TRACE = '#2F9D72'
 
 const isClassified = computed(() => props.mode !== 'uniform')
 
@@ -241,12 +245,19 @@ const tX = d3.scaleLinear().domain([0, 1]).range([panelX, panelX + panelW])
 const yScale = computed(() => d3.scaleLinear()
   .domain(domain)
   .range([panelY + layout.value.panelH, panelY]))
+const targetChargeX = panelX + panelW + (RSTRIP_X - panelX - panelW) / 2
+const targetCharges = computed(() => [
+  { id: 'positive-upper', sign: '+', cy: yScale.value(2.55), fill: PALETTE.sampling },
+  { id: 'negative', sign: '−', cy: yScale.value(0), fill: PALETTE.negative },
+  { id: 'positive-lower', sign: '+', cy: yScale.value(-2.45), fill: PALETTE.sampling },
+])
 const slider = computed(() => ({ x: 150, y: layout.value.sliderY, w: 185 }))
 const aSlider = computed(() => ({ x: 545, y: layout.value.sliderY, w: 185 }))
 const alphaReadout = computed(() => mathHtml(`\\alpha = ${alphaSel.value.toFixed(2)}`))
 
 // ---- KaTeX labels -----------------------------------------------------------
 const sourceLabel = mathHtml('\\pi_0=\\mathcal{N}(0,1)')
+const targetLabel = mathHtml('\\pi_1^{\\mathtt{sign}}')
 const zeroChipHtml = `zero set ${mathHtml('\\Omega_t^0')}`
 const ghostChipHtml = 'ghost boundary'
 const legendClassifiedHtml = [
@@ -305,7 +316,11 @@ const trajShapes = computed(() => {
   return data.trajs.map((tr) => {
     const d = trajPathD(tr, ys)
     if (!isClassified.value) {
-      return { id: tr.id, d, color: PALETTE.traj, w: 1.0, op: 0.55, dash: null, glow: false }
+      if (tr.fate === 'source') {
+        return { id: tr.id, d, color: PALETTE.traj, w: 1.0, op: 0.5, dash: null, glow: false }
+      }
+      const color = tr.charge > 0 ? POSITIVE_BOUNDARY_TRACE : NEGATIVE_TRACE
+      return { id: tr.id, d, color, w: 1.55, op: 0.88, dash: null, glow: false }
     }
     if (tr.fate === 'source') {
       return { id: tr.id, d, color: PALETTE.sampling, w: 1.1, op: 0.55, dash: null, glow: false }
@@ -323,7 +338,9 @@ const terminalDots = computed(() => {
   return data.trajs.map((tr) => {
     let fill = PALETTE.traj
     let edge = '#FFFFFF'
-    if (isClassified.value) {
+    if (!isClassified.value && tr.fate === 'annihilated') {
+      fill = tr.charge > 0 ? POSITIVE_BOUNDARY_TRACE : NEGATIVE_TRACE
+    } else if (isClassified.value) {
       fill = tr.fate === 'source' ? PALETTE.trajMarkerFill : (tr.charge > 0 ? PALETTE.buffer : PALETTE.negative)
       edge = tr.fate === 'source' ? PALETTE.trajMarkerEdge : '#FFFFFF'
     }
@@ -349,7 +366,13 @@ const uniformMarkers = computed(() => {
   const ys = yScale.value
   return data.trajs
     .filter(tr => tr.fate === 'annihilated')
-    .map(tr => ({ id: tr.id, t: tr.tEnd, cx: tX(tr.tEnd), cy: ys(tr.xEnd) }))
+    .map(tr => ({
+      id: tr.id,
+      t: tr.tEnd,
+      cx: tX(tr.tEnd),
+      cy: ys(tr.xEnd),
+      stroke: tr.charge > 0 ? POSITIVE_BOUNDARY_TRACE : NEGATIVE_TRACE,
+    }))
 })
 
 // classified: 12-dot split-event ring (top half magenta, bottom half grey).
@@ -462,6 +485,12 @@ const curveLabels = computed(() => {
 // ---- Source strip: pi_0 density bulging left --------------------------------
 const xGrid = d3.range(181).map(i => domain[0] + (i / 180) * (domain[1] - domain[0]))
 const srcScale = d3.scaleLinear().domain([0, 0.42]).range([0, 58])
+const sourceCharge = computed(() => ({
+  cx: stripRight - 0.5 * srcScale(gaussianPdf(0, 0, 1)),
+  cy: yScale.value(0),
+  fill: PALETTE.sampling,
+  sign: '+',
+}))
 const srcLine = computed(() => d3.line()
   .x(x => stripRight - srcScale(gaussianPdf(x, 0, 1)))
   .y(x => yScale.value(x))
@@ -471,6 +500,47 @@ const srcArea = computed(() => d3.area()
   .x1(x => stripRight - srcScale(gaussianPdf(x, 0, 1)))
   .y(x => yScale.value(x))
   .curve(d3.curveCatmullRom.alpha(0.5))(xGrid))
+
+// ---- Right strip: terminal signed target density ---------------------------
+// Mirror the terminal-density view in RfPairEmission, but retain only the
+// intrinsic sign split here: positive density in blue, negative in magenta.
+const targetStrip = computed(() => {
+  const ys = yScale.value
+  const [dLo, dHi] = domain
+  const a = alphaSel.value
+  const nG = 240
+  let maxAbs = 1e-9
+  for (let i = 0; i <= nG; i += 1) {
+    const x = dLo + (i / nG) * (dHi - dLo)
+    maxAbs = Math.max(maxAbs, Math.abs(signedDensity(x, 1, a, WORLD)))
+  }
+
+  const baseX = RSTRIP_X + 34
+  const scale = (RSTRIP_W - 40) / maxAbs
+  const sAt = x => signedDensity(x, 1, a, WORLD)
+  const cuts = [dLo, ...zeroCrossings(1, a, WORLD), dHi]
+    .filter((x, i, arr) => i === 0 || Math.abs(x - arr[i - 1]) > 1e-5)
+
+  const segs = []
+  for (let i = 0; i < cuts.length - 1; i += 1) {
+    const x0 = cuts[i]
+    const x1 = cuts[i + 1]
+    if (x1 - x0 < 1e-5) continue
+    const points = d3.range(51).map(j => x0 + (j / 50) * (x1 - x0))
+    const type = sAt(0.5 * (x0 + x1)) < 0 ? 'negative' : 'positive'
+    segs.push({
+      type,
+      line: d3.line()
+        .x(x => baseX + scale * sAt(x))
+        .y(x => ys(x))(points),
+      area: d3.area()
+        .x0(baseX)
+        .x1(x => baseX + scale * sAt(x))
+        .y(x => ys(x))(points),
+    })
+  }
+  return { baseX, segs }
+})
 
 // ---- Heatmap (schema.py alpha recipe) on an offscreen canvas -----------------
 // classified: 3 zones (reachable blue / ghost buffer / negative magenta);
@@ -590,7 +660,9 @@ const dots = computed(() => {
   for (const tr of data.trajs) {
     if (tr.fate === 'annihilated' && c <= tr.tEnd) continue
     const dot = { id: tr.id, cx: tX(c), cy: ys(xAtBackward(tr, c)), sign: '', fill: PALETTE.traj, edge: '#FFFFFF', r: 3.6, sw: 1 }
-    if (isClassified.value) {
+    if (!isClassified.value && tr.fate === 'annihilated') {
+      dot.fill = tr.charge > 0 ? POSITIVE_BOUNDARY_TRACE : NEGATIVE_TRACE
+    } else if (isClassified.value) {
       if (tr.fate === 'source') {
         dot.fill = PALETTE.trajMarkerFill
         dot.edge = PALETTE.trajMarkerEdge
@@ -632,7 +704,8 @@ const flashes = computed(() => {
   } else {
     for (const tr of data.trajs) {
       if (tr.fate !== 'annihilated') continue
-      ring(`uf-${tr.id}`, tr.tEnd, tr.xEnd, PALETTE.ink, 4, 18, 2)
+      const color = tr.charge > 0 ? POSITIVE_BOUNDARY_TRACE : NEGATIVE_TRACE
+      ring(`uf-${tr.id}`, tr.tEnd, tr.xEnd, color, 4, 18, 2)
     }
   }
   return out
@@ -781,6 +854,16 @@ onUnmounted(() => {
         :x1="stripRight" :y1="panelY" :x2="stripRight" :y2="panelY + layout.panelH"
         stroke="#253A88" stroke-width="1" stroke-opacity="0.35"
       />
+      <g>
+        <circle
+          :cx="sourceCharge.cx" :cy="sourceCharge.cy" r="8.5"
+          :fill="sourceCharge.fill" stroke="#FFFFFF" stroke-width="1.5"
+        />
+        <text
+          :x="sourceCharge.cx" :y="sourceCharge.cy" class="cp-target-charge"
+          text-anchor="middle" dominant-baseline="central"
+        >{{ sourceCharge.sign }}</text>
+      </g>
 
       <!-- Main (t, x) panel -->
       <rect
@@ -853,7 +936,7 @@ onUnmounted(() => {
           :key="`um-${m.id}`"
           v-show="cursor <= m.t"
           :cx="m.cx" :cy="m.cy" r="2.8"
-          fill="#FFFFFF" stroke="#202124" stroke-width="1"
+          fill="#FFFFFF" :stroke="m.stroke" stroke-width="1.4"
         />
         <g v-for="pm in pairMarkers" :key="pm.key">
           <g v-show="cursor <= pm.t">
@@ -903,6 +986,37 @@ onUnmounted(() => {
         :x="panelX" :y="panelY" :width="panelW" :height="layout.panelH"
         rx="8" fill="none" stroke="#D6DDF3" stroke-width="1"
       />
+
+      <!-- Terminal signed target density: positive rightward, negative leftward -->
+      <line
+        :x1="targetStrip.baseX" :y1="panelY"
+        :x2="targetStrip.baseX" :y2="panelY + layout.panelH"
+        stroke="#536073" stroke-width="0.9" stroke-opacity="0.45"
+      />
+      <template v-for="(seg, si) in targetStrip.segs" :key="`target-${si}`">
+        <path
+          :d="seg.area"
+          :fill="seg.type === 'positive' ? PALETTE.sampling : PALETTE.negative"
+          fill-opacity="0.2"
+        />
+        <path
+          :d="seg.line" fill="none"
+          :stroke="seg.type === 'positive' ? PALETTE.sampling : PALETTE.negative"
+          stroke-width="1.7" stroke-linecap="butt"
+        />
+      </template>
+
+      <!-- Charge symbols linking the terminal density to the particle picture -->
+      <g v-for="charge in targetCharges" :key="`target-charge-${charge.id}`">
+        <circle
+          :cx="targetChargeX" :cy="charge.cy" r="8.5"
+          :fill="charge.fill" stroke="#FFFFFF" stroke-width="1.5"
+        />
+        <text
+          :x="targetChargeX" :y="charge.cy" class="cp-target-charge"
+          text-anchor="middle" dominant-baseline="central"
+        >{{ charge.sign }}</text>
+      </g>
 
       <!-- Callouts: the same event read backward and forward (classified) -->
       <g v-for="cb in callouts" :key="cb.key">
@@ -980,6 +1094,11 @@ onUnmounted(() => {
       <div class="cp-src-label" v-html="sourceLabel"></div>
     </RfFigLabel>
 
+    <!-- Terminal signed target density -->
+    <RfFigLabel :x="RSTRIP_X" :y="panelY - 30" :w="RSTRIP_W" :vb-h="height">
+      <div class="cp-target-label" v-html="targetLabel"></div>
+    </RfFigLabel>
+
     <!-- White-backed chip labels near the boundary curves -->
     <RfFigLabel
       v-for="lb in curveLabels"
@@ -1037,10 +1156,31 @@ onUnmounted(() => {
   font-size: 1.05em;
 }
 
+.cp-target-label {
+  color: #202124;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.cp-target-label :deep(.katex) {
+  font-size: 1.05em;
+}
+
 .cp-charge {
   fill: #ffffff;
   font-size: 13px;
   font-weight: 800;
+  user-select: none;
+  pointer-events: none;
+}
+
+.cp-target-charge {
+  fill: #ffffff;
+  font-size: 13px;
+  font-weight: 850;
   user-select: none;
   pointer-events: none;
 }

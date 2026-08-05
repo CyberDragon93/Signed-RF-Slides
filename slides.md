@@ -34,202 +34,863 @@ themeConfig:
 
 Negativity-Controlled Generation
 
+<div class="title-author">Qiang Liu</div>
+
+<style>
+.title-author {
+  margin-top: 2rem;
+  color: #3156b3;
+  font-size: 1.15rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+</style>
+
+---
+clicks: 2
 ---
 
-# Causalization by $L^2$ Fitting
+# Rectified Flow in a Nutshell
 
-<MarginalPreservationDemo :height="285" :show-marginals="false" autoplay />
+<div class="rf-nutshell-grid">
+<div class="rf-nutshell-copy">
 
-- Couple $X_0\sim\pi_0$ and $X_1\sim\pi_1$, then interpolate
-  $X_t=(1-t)X_0+tX_1$.
+<div class="rf-nutshell-stage rf-nutshell-intro">
 
-- **Causalize** the interpolation by fitting the velocity field that minimizes
+- **Coupling:** Sample from a noise–data pair $(X_0,X_1)$.
 
-$$
-\int_0^1
-\mathbb{E}_{(X_0,X_1)}
-\left[
-  \left\|\dot X_t-v_t(X_t)\right\|^2
-\right]\mathrm dt,
-\qquad
-\dot X_t=X_1-X_0.
-$$
+- **Interpolation:** Construct interpolation:
 
-The minimizer is $v_t^{\mathrm{RF}}(x)=\mathbb{E}\!\left[X_1-X_0\mid X_t=x\right]$,
-which defines the causal ODE $\dot Z_t=v_t^{\mathrm{RF}}(Z_t)$.
+  $$
+  X_t=tX_1+(1-t)X_0.
+  $$
+
+</div>
+
+<div v-if="$clicks >= 1" class="rf-nutshell-stage rf-nutshell-causalization">
+
+- **Causalization:** Convert interpolation to a causal process:
+
+  $$
+  \dot Z_t=v_t(Z_t)
+  $$
+
+  by minimizing:
+
+  $$
+  \min_v\int_0^1
+  \mathbb E_{(X_0,X_1)}
+  \!\left[\left\|{\color{#274bdb}\dot X_t}-v_t(X_t)\right\|^2\right]\,\mathrm dt,
+  $$
+
+  where $\color{#274bdb}{\dot X_t=X_1-X_0}$ are the line directions.
+
+</div>
+
+<div v-if="$clicks >= 2" class="rf-nutshell-stage rf-nutshell-reflow">
+
+- **Reflow:** Simulate ODE $\dot Z_t=v_t(Z_t)$ to obtain new couplings $(Z_0,Z_1)$. <span class="rf-nutshell-repeat">**Repeat.**</span>
+
+</div>
+
+</div>
+
+<div class="rf-nutshell-visuals">
+  <div class="rf-nutshell-visual-slot">
+    <RfNutshellAnimation
+      sequence="nutshell-interpolation"
+      alt="Animated interpolation coupling between noise and data distributions"
+    />
+  </div>
+  <div class="rf-nutshell-visual-slot">
+    <RfNutshellAnimation
+      v-if="$clicks >= 1"
+      sequence="nutshell-rf1"
+      alt="Animated causalized trajectories between the marginals"
+    />
+  </div>
+  <div class="rf-nutshell-visual-slot">
+    <RfNutshellAnimation
+      v-if="$clicks >= 2"
+      sequence="nutshell-rf2"
+      alt="Animated straighter trajectories after reflow"
+    />
+  </div>
+  <BaseImg
+    v-if="$clicks < 2"
+    src="figures/cmu/rf-nutshell-interpolation-cartoon.png"
+    alt="Interpolation transition cartoon"
+    class="rf-nutshell-cartoon rf-nutshell-cartoon-interpolation"
+  />
+  <BaseImg
+    v-if="$clicks === 1"
+    src="figures/cmu/rf-nutshell-flow-cartoon.png"
+    alt="Causal flow transition cartoon"
+    class="rf-nutshell-cartoon rf-nutshell-cartoon-flow"
+  />
+</div>
+</div>
+
+<style>
+.rf-nutshell-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.92fr) minmax(230px, 0.76fr);
+  gap: 1rem;
+  align-items: start;
+  margin-top: 0.1rem;
+}
+.rf-nutshell-copy {
+  position: relative;
+  height: 520px;
+  font-size: 1rem;
+  line-height: 1.18;
+}
+.rf-nutshell-stage {
+  position: absolute;
+  left: 0;
+  right: 0;
+}
+.rf-nutshell-intro {
+  top: 0;
+}
+.rf-nutshell-causalization {
+  top: 139px;
+}
+.rf-nutshell-reflow {
+  top: 430px;
+}
+.rf-nutshell-copy ul {
+  margin: 0.05rem 0 0;
+  padding-left: 1.2rem;
+}
+.rf-nutshell-copy li {
+  margin-bottom: 0.34rem;
+  padding-left: 0.1rem;
+}
+.rf-nutshell-copy li::marker {
+  color: #344fc2;
+  font-size: 1.2em;
+}
+.rf-nutshell-copy strong {
+  font-size: 1.08em;
+}
+.rf-nutshell-copy .katex-display {
+  margin: 0.08rem 0;
+  font-size: 0.88em;
+}
+.rf-nutshell-causalization .katex-display:nth-of-type(2) {
+  font-size: 0.78em;
+}
+.rf-nutshell-repeat {
+  color: #274bdb;
+}
+.rf-nutshell-visuals {
+  position: relative;
+  display: grid;
+  grid-template-rows: repeat(3, 144px);
+  gap: 10px;
+  align-content: start;
+  height: 452px;
+  margin-top: -0.2rem;
+}
+.rf-nutshell-visual-slot {
+  position: relative;
+  z-index: 1;
+  min-height: 0;
+}
+.rf-nutshell-visual-slot .rf-nutshell-animation {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.rf-nutshell-cartoon {
+  position: absolute;
+  left: 50%;
+  z-index: 3;
+  display: block;
+  width: 122px;
+  height: auto;
+  transform: translateX(-50%);
+  filter: drop-shadow(0 1px 1px rgba(15, 23, 42, 0.08));
+}
+.rf-nutshell-cartoon-interpolation {
+  top: 125px;
+}
+.rf-nutshell-cartoon-flow {
+  top: 279px;
+}
+</style>
+
+<!--
+[Sources]
+- `rectified_flow_cmu_lecture_2026_slides/tex/flow_intro.tex`, frame “Rectified Flow in a Nutshell”
+- Original CMU lecture assets: 20-frame interpolation, causalization, and reflow sequences at 5 fps, plus `interp_demo.png` and `flow_demo.png`
+-->
+
+---
+class: rf-cmu-projection-slide
+---
+
+# From Interpolation to Generation
+
+<div class="rf-projection-layout">
+
+<div class="rf-cmu-copy rf-projection-copy">
+
+- Projecting the Interpolation Process to the ODE:
+
+  $$
+  \min_v\;\mathbb E_{(X_0,X_1,t)}
+  \left[\left\|\dot X_t-v_t(X_t)\right\|^2\right].
+  $$
+
+- The explicit solution is
+
+  $$
+  v^*(x,t)
+  =\mathbb E\!\left[
+    {\color{#f47c20}\dot X_t}
+    \;\middle|\;
+    {\color{#f47c20}X_t}=x
+  \right].
+  $$
+
+- The “mean field” velocity: Take the average direction whenever intersection happens.
+
+</div>
+
+<div class="rf-mean-field-figures">
+  <BaseImg
+    src="figures/cmu/rf-velocity-intersection.png"
+    alt="Two crossing interpolation velocities and their mean direction"
+  />
+  <BaseImg
+    src="figures/cmu/rf-intro-mean-velocity.png"
+    alt="Many interpolation directions whose conditional average defines the local ODE velocity"
+  />
+</div>
+
+</div>
+
+<!--
+[Sources]
+- `rectified_flow_cmu_lecture_2026_slides/tex/two_point_flow.tex`, frame “From Interpolation to Generation”
+- Original CMU lecture asset: `figures_ppt/intro_mean_velocity.png`
+- Intersection diagram rendered directly from the frame's original TikZ source
+-->
+
+---
+class: rf-cmu-rewiring-slide
+---
+
+# How Does Rewiring Actually Happen by Velocity Averaging?
+
+<div class="rf-cmu-copy rf-rewiring-copy">
+
+- How Does Averaging Velocity Lead to Trajectory Rewiring?
+
+</div>
+
+<BaseImg
+  src="figures/cmu/rf-rewire-close-up.png"
+  alt="Velocity averaging at crossings rewires intersecting trajectories into a non-crossing ODE flow"
+  class="rf-rewire-closeup"
+/>
+
+<div class="rf-rewire-examples">
+  <BaseImg
+    src="figures/cmu/rf-rewire-before.png"
+    alt="Original interpolation trajectories with crossed pairings"
+  />
+  <BaseImg
+    src="figures/cmu/rf-rewire-after.png"
+    alt="Rewired ODE trajectories after velocity averaging"
+  />
+</div>
+
+<!--
+[Sources]
+- `rectified_flow_cmu_lecture_2026_slides/tex/two_point_flow.tex`, frame “How Does Rewiring Actually Happen by Velocity Averaging?”
+- Original CMU lecture assets: `figures/rewire_close_up.png`, `videos/flow1/traj0.png`, and `videos/flow0/traj3.png`
+-->
 
 ---
 
 # Marginal Preservation
 
-<MarginalPreservationDemo :height="455" autoplay />
+- **Interpolation Process** $\{X_t\}$ $\longrightarrow$ **ODE Process** $\{Z_t\}$
 
-- **Causalization preserves every marginal**:
+  $$
+  \boldsymbol Z = \mathtt{Rectify}(\boldsymbol X).
+  $$
 
-$$
-\{Z_t\}=\mathtt{Rectify}\{X_t\}
-\quad\Longrightarrow\quad
-\operatorname{Law}(Z_t)=\operatorname{Law}(X_t),
-\qquad t\in[0,1].
-$$
+- For a time-differentiable process $\{X_t\}$, its rectified flow $\{Z_t\}$ is the ODE process $
+  \dot Z_t = v_t(Z_t)$, $Z_0 = X_0,$
+  with
 
----
+  $$
+  v_t(x) = \mathbb E[\dot X_t \mid X_t=x].
+  $$
 
-# Training Objective
+- $\{X_t\}$ and $\{Z_t\}$: different joint distributions, but the same time-wise marginals:
 
-<div class="h-40"></div>
+  $$
+  \rho_t = \operatorname{Law}(X_t) = \operatorname{Law}(Z_t),
+  $$
 
-In practice, the optimal velocity is approximated by a neural network $v_t^\theta$ trained with
+  where $\rho_t$ satisfies the **continuity equation**
 
-$$
-\mathcal{L}(\theta)
- =
-\int_0^1
-\mathbb{E}
-\left[
-  \left\|
-    v_t^\theta(X_t) - (X_1-X_0)
-  \right\|^2
-\right]
-\mathrm{d}t.
-$$
-
-One network, one regression — the baseline everything that follows builds on.
+  $$
+  \dot \rho_t = -\nabla\!\cdot(v_t\rho_t).
+  $$
 
 ---
 
-# Convex Mixture Target
+# Learning Preferences
 
-<ConvexMixture1D :height="355" autoplay />
+- Today: Incorporate positive and negative preferences into generative models.
 
-- **Convex setting**: draw the target $X_1$ from a branch lottery, then run the usual RF construction.
+<PreferencePointPanels :height="365" />
 
+<div class="preference-motivation-question">
+  <strong>Applications:</strong> copyright protection, safety constraints, and anti-memorization.
+</div>
+
+<style>
+.preference-motivation-question {
+  max-width: 790px;
+  margin: 0.05rem auto 0;
+  color: #26334d;
+  font-size: 1.26rem;
+  line-height: 1.25;
+  text-align: center;
+}
+</style>
+
+<!--
+[Sources]
+- Signed Rectified Flow: Negativity-Controlled Generation, arXiv:2607.18516 — experiments on IP protection, nudity prevention, anti-memorization, and PointMaze navigation.
+-->
+
+---
+class: exponential-tilting-slide
+---
+
+# Exponential Tilting
+
+- A common preference mechanism reweights a base law $p_0$ by a score $f$:
+
+  $$
+  p_f(x)=\frac{p_0(x)e^{f(x)}}{Z_f},
+  \qquad
+  Z_f=\mathbb E_{X\sim p_0}\!\left[e^{f(X)}\right].
+  $$
+
+- **Avoidance stops at zero**
+
+  $$
+  p_f(x)\ge 0,
+  \qquad
+  f(x)\to-\infty
+  \ \Longrightarrow\
+  p_f(x)\to 0.
+  $$
+
+  Cannot express stronger avoidance beyond zero probability.
+
+- **Normalization is global**
+
+  $$
+  Z_f=\mathbb E_{X\sim p_0}\!\left[e^{f(X)}\right].
+  $$
+
+  Computing or estimating $Z_f$ adds optimization and learning burden.
+
+<style>
+.exponential-tilting-slide ul {
+  max-width: 900px;
+  margin: 0.85rem auto 0;
+  padding-left: 1.6rem;
+  color: #4b5568;
+  font-size: 1.14rem;
+  line-height: 1.28;
+  list-style: none;
+}
+.exponential-tilting-slide ul > li {
+  position: relative;
+  margin-bottom: 1.4rem;
+  padding-left: 0.35rem;
+}
+.exponential-tilting-slide ul > li::before {
+  position: absolute;
+  top: 0;
+  left: -1.15rem;
+  color: #3156b3;
+  font-weight: 700;
+  content: "-";
+}
+.exponential-tilting-slide ul > li strong {
+  color: #26334d;
+  font-size: 1.1em;
+}
+.exponential-tilting-slide ul > li .katex-display {
+  margin: 0.28rem 0 0.34rem;
+  color: #26334d;
+  font-size: 1.05em;
+}
+.exponential-tilting-slide ul > li:first-child .katex-display {
+  margin: 0.4rem 0 0.55rem;
+  color: #243f91;
+  font-size: 1.14em;
+}
+</style>
+
+---
+
+# Signed Measures
+
+<div class="signed-measures-points">
+
+- A signed density may take **negative values**.
+
+- A value $\pi^{\mathtt{sign}}(x)<0$ indicates negative preference at $x$.
+
+- We aim to sample from the **positive regions**, where $\pi^{\mathtt{sign}}(x)>0$.
+
+- The magnitude of a negative value quantifies the degree of avoidance—the amount of positive density needed to offset the negativity.
+
+- An important special case is the **signed mixture**
+
+  $$
+  \pi^{\mathtt{sign}}(x)
+  =
+  (1+\alpha)\,\pi_1^+(x)
+  -
+  \alpha\,\pi_1^-(x),
+  \qquad \alpha\ge 0.
+  $$
+
+</div>
+
+<div class="signed-measures-visual">
+  <div v-click class="signed-measures-question">
+    How can we “sample” from a signed measure?
+  </div>
+  <RfSigned1D mode="target" :height="265" :autoplay="false" />
+</div>
+
+
+---
+class: warmup-mixture-slide
+---
+
+# Warm up: Rectified Flow for standard mixtures.
+
+- Assume the target distribution is a mixture:
 $$
 \pi_1^{\mathtt{mix}}
+=
+(1-\omega)\,\pi_1^+
++
+\omega\,\pi_1^-,
+\qquad 0\le \omega\le 1.
+$$
+
+- The mixture RF velocity field is determined by the components via
+
+  $$
+  {\color{#2f855a}v_t^{\mathtt{mix}}(x)}
   =
-  (1-\omega)\pi_1^+ + \omega\pi_1^-,
-  \qquad \omega\in[0,1].
-$$
+  \frac{
+  (1-\omega)\,{\color{#3156b3}\pi_t^+(x)}\,{\color{#2f855a}v_t^+(x)}
+  +
+  \omega\,{\color{#3156b3}\pi_t^-}\,{\color{#2f855a}v_t^-(x)}
+  }{
+  (1-\omega)\,{\color{#3156b3}\pi_t^+(x)}
+  +
+  \omega\,{\color{#3156b3}\pi_t^-(x)}}
+  $$
 
-Still an ordinary probability target — no sign in sight yet.
+  - ${\color{#2f855a}v_t^\pm}$ are the RF velocity fields for rectified flows with targets ${\color{#3156b3}\pi_1^\pm}$.
+
+  - ${\color{#3156b3}\pi_t^\pm}$ are the corresponding path marginals at time $t$.
+
+
+
+---
+class: signed-mixture-rf-slide
+---
+
+# Rectified Flow for Signed Mixture
+
+- Let us formally substitute ${\color{#c43d4d}\omega=-\alpha}$, even though it may not "make sense":
+
+  $$
+  {\color{#c43d4d}\pi_1^{\mathtt{sign}}}
+  =
+  {\color{#c43d4d}(1+\alpha)}\,{\color{#3156b3}\pi_1^+}
+  {\color{#c43d4d}-\alpha}\,{\color{#3156b3}\pi_1^-},
+  \qquad {\color{#c43d4d}\alpha\ge 0}.
+  $$
+
+- The mixture RF velocity field is determined by the components via
+
+  $$
+  {\color{#2f855a}v_t^{{\color{#c43d4d}\mathtt{sign}}}(x)}
+  =
+  \frac{
+  {\color{#c43d4d}(1+\alpha)}\,{\color{#3156b3}\pi_t^+(x)}\,{\color{#2f855a}v_t^+(x)}
+  {\color{#c43d4d}-\alpha}\,{\color{#3156b3}\pi_t^-}\,{\color{#2f855a}v_t^-(x)}
+  }{
+  {\color{#c43d4d}(1+\alpha)}\,{\color{#3156b3}\pi_t^+(x)}
+  {\color{#c43d4d}-\alpha}\,{\color{#3156b3}\pi_t^-(x)}}
+  $$
+
+  - ${\color{#2f855a}v_t^\pm}$ are the RF velocity fields for rectified flows with targets ${\color{#3156b3}\pi_1^\pm}$.
+
+  - ${\color{#3156b3}\pi_t^\pm}$ are the corresponding path marginals of $X_t^\pm = t X_1^\pm + (1-t) X_0$ at time $t$.
+
+<div aria-hidden="true" style="height: 1.5em;"></div>
+
+- Regardless of theory, we get an  (singular) ODE.
+- Curious to run it anway, and see what it gives?
 
 ---
 
-# RF Velocity Under a Mixture Target
+# Signed Rectified Flow 
 
-<div class="h-4"></div>
+<BaseImg
+  src="figures/paper/signed_density_evolution.png"
+  alt="Figure 2 showing signed-density evolution across time"
+  style="display: block; width: 94%; margin: 0.1rem auto 0.3rem;"
+/>
 
-From $X_t=(1-t)X_0+tX_1$,
+<RfSigned1D mode="overlay" :height="285" autoplay />
 
-$$
-v_t^{\mathrm{RF}}(x)
-=\mathbb{E}\!\left[X_1-X_0\mid X_t=x\right]
-=\mathbb{E}\!\left[\frac{X_1-X_t}{1-t}\,\middle|\,X_t=x\right].
-$$
+<div class="mt-1"></div>
 
-Define the source coefficient $w_t(X_1,x)\coloneqq\pi_0\!\left((x-tX_1)/(1-t)\right)$.
+- We obtain a **truncated distribution inside the positive support**. 
+- Wherever samples land, **the histogram matches $\pi_t^{\mathtt{sign}}$ exactly**.
 
-Then
-
-$$
-v_t^{\mathrm{RF}}(x)
-=
-\frac{\mathbb{E}_{\pi_1}\!\left[w_t(X_1,x)\,(X_1-x)/(1-t)\right]}
-     {\mathbb{E}_{\pi_1}\!\left[w_t(X_1,x)\right]}.
-$$
-
-For a mixture $\pi_1^{\mathtt{mix}}=(1-\omega)\pi_1^+ + \omega\pi_1^-$,
-
-$$
-v_t^{\mathtt{mix}}(x)
-=
-\frac{
-(1-\omega)\,\mathbb{E}_{\pi_1^+}\!\left[w_t\,(X_1-x)/(1-t)\right]
-+\omega\,\mathbb{E}_{\pi_1^-}\!\left[w_t\,(X_1-x)/(1-t)\right]
-}{
-(1-\omega)\,\mathbb{E}_{\pi_1^+}\!\left[w_t\right]
-+\omega\,\mathbb{E}_{\pi_1^-}\!\left[w_t\right]
-}.
-$$
-
-
-Let $(\pi_t^\pm,v_t^\pm)$ denote the RF marginal and velocity induced by $\pi_1^\pm$. Since $\mathbb{E}_{\pi_1^\pm}[w_t]=(1-t)^d\pi_t^\pm(x)$,
-
-$$
-v_t^{\mathtt{mix}}(x)
-=
-\frac{(1-\omega)\pi_t^+(x)v_t^+(x)+\omega\pi_t^-(x)v_t^-(x)}
-     {(1-\omega)\pi_t^+(x)+\omega\pi_t^-(x)}.
-$$
 
 ---
 
-# Pool Two RF Populations
+# Signed Rectified Flow 
 
-<div class="h-12"></div>
+<RfSigned1D mode="overlay" world="density" :height="285" autoplay />
 
-Imagine a large batch of particles:
+<div class="mt-2"></div>
 
-- a fraction $1-\omega$ follows the $+$ branch;
-- a fraction $\omega$ follows the $-$ branch.
 
-At time $t$, the two groups have histograms $\pi_t^+$ and $\pi_t^-$. Pooling them gives
+- The purple curve marks the zero set (boundary) of the signed density:
+
+  $$
+  {\color{#E34A92}
+  \Omega_t^0
+  = \left\{x \colon \pi_t^{\mathtt{sign}}(x)=0\right\}},
+  \qquad
+  \pi_t^{\mathtt{sign}}(x)
+  = (1+\alpha)\pi_t^+(x)-\alpha\pi_t^-(x).
+  $$
+
+---
+
+# Always the Positive Side
+
+<RfSignedGallery :height="430" />
+
+<div class="mt-2"></div>
+
+- Source-initialized trajectories stay in the
+positive region $\Omega_t^+ \coloneqq \{\pi_t^{\mathtt{sign}}>0\}$ and never enter the negative region
+$\Omega_t^- \coloneqq \{\pi_t^{\mathtt{sign}}<0\}$.
+
+
+---
+class: buffer-zone-slide
+---
+
+# The Buffer Zone
+
+<RfSignedBufferBalance :height="215" />
+
+<div class="buffer-zone-copy">
+
+- **Signed measure** $\pi_t^{\mathtt{sign}}=(1+\alpha)\pi_t^+-\alpha\pi_t^-$: a unit-mass density that may take negative values.
+
+  - **Positive support** $\Omega_t^+ \coloneqq \{x \colon \pi_t^{\mathtt{sign}}(x)>0\}$.
+  - **Negative support** $\Omega_t^- \coloneqq \{x \colon \pi_t^{\mathtt{sign}}(x)<0\}$.
+
+- **Particle distribution** $\pi_t^{\mathtt{flow}}\ge 0$: the law of $Z_t$ transported by $\dot Z_t=v_t(Z_t)$.
+
+  - **Reachable zone** $\Omega_t^r \coloneqq \{x \colon \pi_t^{\mathtt{flow}}(x)>0\}\subseteq\Omega_t^+$.
+  - **Buffer zone** $\Omega_t^b \coloneqq \Omega_t^+\setminus\Omega_t^r$: positive support not reached by the flow.
+
+- <span class="buffer-discrepancy">The discrepancy</span>: the densities agree where particles land, but the flow density removes both the positive buffer and the negative support:
+
+  $$
+  \begin{aligned}
+  \pi_t^{\mathtt{flow}} &= \pi_t^{\mathtt{sign}} && \text{on }\Omega_t^r,
+  &\qquad \pi_t^{\mathtt{flow}} &= 0 && \text{on }\Omega_t^b\cup\Omega_t^-,\\[-0.1em]
+  {\color{#666666}\int_{\Omega_t^b}\pi_t^{\mathtt{sign}}(x)\,\mathrm{d}x}
+  &=
+  -{\color{#E34A92}\int_{\Omega_t^-}\pi_t^{\mathtt{sign}}(x)\,\mathrm{d}x}.
+  \end{aligned}
+  $$
+
+</div>
+
+<style>
+.buffer-zone-copy {
+  margin: 0.05rem auto 0;
+  max-width: 960px;
+  color: #465168;
+  font-size: 0.91rem;
+  line-height: 1.08;
+}
+.buffer-zone-copy ul {
+  margin: 0;
+  padding-left: 1.35rem;
+}
+.buffer-zone-copy ul ul {
+  margin: 0.02rem 0 0.05rem;
+  padding-left: 1.6rem;
+}
+.buffer-zone-copy li {
+  margin-bottom: 0.11rem;
+}
+.buffer-zone-copy .katex-display {
+  margin: 0.04rem 0 0.08rem;
+  font-size: 0.86em;
+}
+.buffer-zone-copy strong {
+  color: #26334d;
+}
+.buffer-discrepancy {
+  color: #9d2d64;
+  font-weight: 750;
+}
+</style>
+
+---
+disabled: true
+---
+
+# Start with a Standard Mixture
+
+<div class="standard-mixture-equation">
 
 $$
-\pi_t^{\mathtt{mix}}
+\pi_1^{\omega}
 =
-(1-\omega)\pi_t^+ + \omega\pi_t^-.
+(1-\omega)\,\pi_1^+
++
+\omega\,\pi_1^-,
+\qquad 0\le \omega\le 1.
 $$
 
-The velocity from the previous slide is exactly their **local mass-weighted average**: where more $+$ particles are present it is closer to $v_t^+$, and where more $-$ particles are present it is closer to $v_t^-$.
+</div>
 
-So one ODE driven by $v_t^{\mathtt{mix}}$ moves the pooled cloud exactly as the two groups move together:
+<ConvexMixture1D :height="365" autoplay />
+
+<div class="standard-mixture-caption">
+Choose the + branch with probability 1−ω and the − branch with probability ω.
+</div>
+
+<style>
+.standard-mixture-equation .katex-display {
+  margin: 0.65rem 0 0.15rem;
+  color: #243f91;
+  font-size: 1.12em;
+}
+.standard-mixture-caption {
+  margin-top: 0.15rem;
+  color: #465168;
+  font-size: 1rem;
+  text-align: center;
+}
+</style>
+
+---
+disabled: true
+---
+
+# RF Mixes Velocities Locally
+
+<div class="mixture-decomp-lead">
+Each branch has its own RF pair: (πₜ⁺, vₜ⁺) and (πₜ⁻, vₜ⁻).
+</div>
+
+<div class="mixture-decomp-main">
 
 $$
-Z_0\sim\pi_0
-\quad\Longrightarrow\quad
-Z_t\sim\pi_t^{\mathtt{mix}},
+v_t^{\omega}(x)
+=
+\underbrace{
+\frac{(1-\omega)\,\pi_t^+(x)}{\pi_t^{\omega}(x)}
+}_{\displaystyle \gamma_t^+(x)}
+v_t^+(x)
++
+\underbrace{
+\frac{\omega\,\pi_t^-(x)}{\pi_t^{\omega}(x)}
+}_{\displaystyle \gamma_t^-(x)}
+v_t^-(x).
+$$
+
+</div>
+
+<div class="mixture-decomp-density">
+
+$$
+\pi_t^{\omega}(x)
+=
+(1-\omega)\,\pi_t^+(x)
++
+\omega\,\pi_t^-(x),
 \qquad
-Z_1\sim\pi_1^{\mathtt{mix}}.
+\gamma_t^+(x)+\gamma_t^-(x)=1.
 $$
 
-For $\omega\in[0,1]$, this is an ordinary probability flow. What changes when $\omega<0$?
+</div>
+
+<div class="mixture-decomp-takeaway">
+At each (t, x), the <b>denser branch contributes more</b> to the mixture velocity.
+</div>
+
+<style>
+.mixture-decomp-lead {
+  max-width: 820px;
+  margin: 1.35rem auto 0;
+  color: #4a556b;
+  font-size: 1.02rem;
+  text-align: center;
+}
+.mixture-decomp-main .katex-display {
+  margin: 2.1rem 0 1.6rem;
+  color: #243f91;
+  font-size: 1.13em;
+}
+.mixture-decomp-density .katex-display {
+  margin: 0;
+  color: #37445c;
+  font-size: 0.96em;
+}
+.mixture-decomp-takeaway {
+  max-width: 825px;
+  margin: 2.15rem auto 0;
+  padding-top: 0.8rem;
+  border-top: 1px solid #d9e0ef;
+  color: #37445c;
+  font-size: 1.02rem;
+  text-align: center;
+}
+</style>
 
 ---
-layout: intro
+disabled: true
 ---
 
-# Signed Mixtures
+# Formally, Replace ω by −α
 
-Take the same RF formula, but extrapolate beyond convexity.
+<div class="signed-preference-bridge">Extrapolate the ordinary mixture beyond convex weights.</div>
 
----
-
-# The Signed Target
-
-<RfSignedEquation :height="320" autoplay />
-
-Set $\omega=-\alpha$ with $\alpha>0$. The terminal target becomes
+<div class="signed-preference-equation">
 
 $$
 \pi_1^{\mathtt{sign}}(x)
- \coloneqq
- (1+\alpha)\,\pi_1^+(x)
- -
- \alpha\,\pi_1^-(x).
+=
+(1+\alpha)\,\pi_1^+(x)
+-
+\alpha\,\pi_1^-(x),
+\qquad \alpha\ge 0.
 $$
 
-Unit total mass — but it need not be nonnegative.
+</div>
+
+<div class="signed-preference-key">
+<div><span class="signed-preference-plus">π₁⁺</span><b>preferred examples</b></div>
+<div><span class="signed-preference-minus">π₁⁻</span><b>unwanted examples</b></div>
+<div><span class="signed-preference-alpha">α</span><b>avoidance strength</b></div>
+</div>
+
+<RfSignedEquation :height="285" autoplay />
+
+<div class="signed-preference-footer">
+<div><b>Negative mass:</b> active repulsion beyond zero probability.</div>
+<div><b>But:</b> unit total mass does not make this a probability law.</div>
+</div>
+
+<style>
+.signed-preference-bridge {
+  margin-top: 0.55rem;
+  color: #4b5568;
+  font-size: 1rem;
+  text-align: center;
+}
+.signed-preference-equation .katex-display {
+  margin: 0.2rem 0 0.35rem;
+  color: #243f91;
+  font-size: 1.08em;
+}
+.signed-preference-key {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.7rem;
+  max-width: 790px;
+  margin: 0 auto 0.25rem;
+  color: #4b5568;
+  font-size: 0.95rem;
+  text-align: center;
+}
+.signed-preference-key span {
+  display: inline-block;
+  min-width: 2.7rem;
+  margin-right: 0.35rem;
+  font-size: 1.05rem;
+  font-weight: 750;
+}
+.signed-preference-plus {
+  color: #3156b3;
+}
+.signed-preference-minus {
+  color: #c6536a;
+}
+.signed-preference-alpha {
+  color: #6d4db5;
+}
+.signed-preference-footer {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  max-width: 850px;
+  margin: 0.3rem auto 0;
+  color: #37445c;
+  font-size: 0.92rem;
+  line-height: 1.25;
+  text-align: center;
+}
+.signed-preference-footer > div {
+  padding: 0.42rem 0.65rem;
+  border: 1px solid #d9e0ef;
+  border-radius: 8px;
+  background: #f7f9ff;
+}
+.signed-preference-footer > div:last-child {
+  border-color: #d8e7d6;
+  background: #f6fbf5;
+}
+</style>
 
 ---
+disabled: true
+---
 
-# The Signed RF Velocity
+# It Still Defines an ODE
 
-<div class="h-10"></div>
+<div class="signed-ode-lead">Apply the same decomposition formula with ω = −α:</div>
 
-Everything is linear in the target. Set $\omega=-\alpha$: the marginal stays signed,
-$\pi_t^{\mathtt{sign}} = (1+\alpha)\,\pi_t^+ - \alpha\,\pi_t^-$ for every $t\in[0,1]$,
-and the mixture velocity becomes **the signed flux over the signed density**:
+<div class="signed-ode-velocity">
 
 $$
 v_t^{\mathtt{signRF}}(x)
@@ -245,62 +906,75 @@ v_t^{\mathtt{signRF}}(x)
  }.
 $$
 
-- Well defined away from the **zero set** $\Omega_t^0 \coloneqq \{x:\pi_t^{\mathtt{sign}}(x)=0\}$ — singular on it.
-- Sample with the source-initialized ODE $\dot Z_t = v_t^{\mathtt{signRF}}(Z_t)$, $Z_0\sim\pi_0$, and write
-  $\pi_t^{\mathtt{signRF}}$ for the law of $Z_t$ — a safe start, since $\pi_0^{\mathtt{sign}}=(1+\alpha)\,\pi_0-\alpha\,\pi_0=\pi_0>0$.
+</div>
+
+<div class="signed-ode-system">
+
+$$
+\dot Z_t=v_t^{\mathtt{signRF}}(Z_t),
+\qquad Z_0\sim\pi_0.
+$$
+
+</div>
+
+<div class="signed-ode-caution">
+<b>Formal only:</b> the denominator may vanish, so this is not yet guaranteed to be a valid probability flow.
+</div>
+
+<div class="signed-ode-conclusion">
+Away from the zero set, however, it is a concrete ODE that we can integrate numerically.
+</div>
+
+<style>
+.signed-ode-lead {
+  margin-top: 1.3rem;
+  color: #4b5568;
+  font-size: 1.05rem;
+  text-align: center;
+}
+.signed-ode-velocity .katex-display {
+  margin: 1.5rem 0 1.25rem;
+  color: #243f91;
+  font-size: 1.02em;
+}
+.signed-ode-system .katex-display {
+  margin: 0;
+  color: #26334d;
+  font-size: 1.03em;
+}
+.signed-ode-caution,
+.signed-ode-conclusion {
+  max-width: 835px;
+  margin-right: auto;
+  margin-left: auto;
+  font-size: 1rem;
+  line-height: 1.3;
+  text-align: center;
+}
+.signed-ode-caution {
+  margin-top: 1.55rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e3d6dc;
+  color: #8a3c55;
+}
+.signed-ode-conclusion {
+  margin-top: 0.6rem;
+  color: #3156b3;
+  font-weight: 650;
+}
+</style>
 
 ---
-layout: intro
+disabled: true
 ---
 
-# What Does It Sample?
-
-The signed density is not itself a probability law, but the ODE trajectory law is.
-
----
-
-# Just Run It
+# Here Is What Happens
 
 <RfSigned1D mode="simulate" :height="440" autoplay />
 
 <div class="mt-2"></div>
 
-Simulate $\dot Z_t = v_t^{\mathtt{signRF}}(Z_t)$ from $Z_0\sim\pi_0$ — just trajectories and their **empirical density**,
-shown against the two ingredients $\pi_1^+$ and $\pi_1^-$ (dashed).
-
----
-
-# Overlay the Signed Marginal
-
-<RfSigned1D mode="overlay" :height="440" autoplay />
-
-<div class="mt-2"></div>
-
-- The magenta curve is the **zero set** $\Omega_t^0$ — trajectories approach it, then bend away.
-- Wherever samples land, the histogram matches $\pi_t^{\mathtt{sign}}$ **exactly**; where it is negative, nothing lands.
-
----
-
-# Always the Positive Side
-
-<RfSignedGallery :height="430" />
-
-<div class="mt-2"></div>
-
-Different branches, different $\alpha$ — one rule: source-initialized trajectories stay in the
-positive region $\Omega_t^+ \coloneqq \{\pi_t^{\mathtt{sign}}>0\}$ and never enter the negative region
-$\Omega_t^- \coloneqq \{\pi_t^{\mathtt{sign}}<0\}$.
-
----
-
-# The Working Example
-
-<RfSigned1D mode="overlay" world="density" :height="440" autoplay />
-
-<div class="mt-2"></div>
-
-From here on, one world — the paper's setting: a three-mode $\pi_1^+$ with $\pi_1^-$ sitting in the middle.
-Trajectories fork around the negative wedge, and the histogram still matches $\pi_t^{\mathtt{sign}}$ on both sides.
+Start from $Z_0\sim\pi_0$ and integrate forward. The histogram is the empirical law of the trajectories.
 
 <div class="mt-2 text-center" style="font-size: 0.85em; opacity: 0.7;">
 
@@ -328,9 +1002,8 @@ the rest run into the **moving zero set** $\Omega_t^0$ and stop there, meeting i
 
 <div class="mt-2"></div>
 
-- **Reachable particles** — transported from $\pi_0$ by the flow: exactly the Signed RF samples.
-- **Ghost $+$ and negative $-$ particles** — the boundary $\Omega_t^0$ *creates* $\pm$ pairs that fly forward —
-  **dark particles**, invisible to the source-initialized sampler. Run backward, they annihilate in pairs where they were born.
+- **Noise $\to$ data:** We would recover the full signed target if the zero boundary emitted paired positive and negative particles at the correct rates.
+- **In practice:** An ordinary sampler cannot generate negative-probability particles. This is why the buffer and negative regions contain no sampled particles.
 
 ---
 
@@ -924,4 +1597,4 @@ Signed RF turns negative information into **distributional semantics**.
 - **A valid sampler** — the signed density is preserved on the reachable region, zero elsewhere
 - **Exclusion built in** — the zero set is a repulsive barrier; ghost mass balances negative mass
 - **A practical rule** — guidance with state-dependent scale $\lambda_t^{\alpha}(x)$, driven by the ratio $r_t(x)$
-- **Two estimators** — a ratio classifier or online tracking along the trajectory
+- **Two estimators** — a ratio classifier or online tracking along the trajectory.

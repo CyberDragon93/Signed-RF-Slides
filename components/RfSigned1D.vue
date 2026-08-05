@@ -55,8 +55,9 @@ function mathHtml(tex) {
 }
 
 // ---------------------------------------------------------------- shared UI state
-// The density world defaults to the paper's alpha = 0.85.
-const ALPHA_INIT = props.mode === 'target' || WORLD === DENSITY ? 0.85 : 1.0
+// The standalone signed-measure target opens at maximum avoidance strength;
+// the density-world evolution modes retain the paper's alpha = 0.85.
+const ALPHA_INIT = props.mode === 'target' ? 2.0 : WORLD === DENSITY ? 0.85 : 1.0
 const alphaLive = ref(ALPHA_INIT)
 // Eased copy of alpha: detent switches morph the whole figure continuously
 // instead of jumping. Cheap analytic curves recompute from alphaAnim per
@@ -72,7 +73,7 @@ const morphW = computed(() => {
   if (from === to) return 1
   return clamp((alphaAnim.value - from) / (to - from), 0, 1)
 })
-const committedAlpha = ref(WORLD === DENSITY ? 0.85 : 1.0)
+const committedAlpha = ref(ALPHA_INIT)
 const tCur = ref(1.0)
 const alphaManual = ref(false)
 const tManual = ref(false)
@@ -866,7 +867,7 @@ function handlePointerUp() {
 }
 
 // ---------------------------------------------------------------- autoplay
-const TG_PHASE0 = Math.asin((0.85 - 1.025) / 0.975)
+const TG_PHASE0 = Math.asin((ALPHA_INIT - 1.025) / 0.975)
 const EV_SWEEP = 7.0
 // Print-freeze guarantees deterministic exports, so the live hold can stay
 // short — a long park at t=1 reads as "the animation ended".
