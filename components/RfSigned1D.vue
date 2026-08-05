@@ -85,13 +85,13 @@ let commitTimer = 0
 // ======================================================================
 // mode="target"  — paper_1d_density.py panel (c), DENSITY setup at t=1
 // ======================================================================
-const TG_X0 = 130
-const TG_W = 640
+const TG_X0 = 190
+const TG_W = 520
 const TG_Y0 = 36
 const TG_ALPHA_LO = 0.05
 const TG_ALPHA_HI = 2.0
 const tgY1 = computed(() => props.height - 64)
-const tgSlider = computed(() => ({ x: 316, y: props.height - 29, w: 280 }))
+const tgSlider = computed(() => ({ x: 330, y: props.height - 29, w: 240 }))
 
 const tgGrid = d3.range(0, 421).map(i => DENSITY.domain[0] + (i / 420) * (DENSITY.domain[1] - DENSITY.domain[0]))
 const tgXScale = d3.scaleLinear().domain(DENSITY.domain).range([TG_X0 + 14, TG_X0 + TG_W - 14])
@@ -124,10 +124,10 @@ const tgShapes = computed(() => {
     pos: d3.area().x(x => xs(x)).y0(ys(0)).y1(x => ys(Math.max(0, signed(x))))(tgGrid),
     neg: d3.area().x(x => xs(x)).y0(ys(0)).y1(x => ys(Math.min(0, signed(x))))(tgGrid),
     labels: {
-      // Anchor the (1+a)pi+ label in the empty pocket left of the visible
-      // dashed-blue bump (near x~0), not on the left hump where the dashed
-      // curve hides under the signed curve.
-      plus: { x: xs(-1.72), y: clamp(ys(0.34) - 13, TG_Y0 + 4, tgY1.value - 26) },
+      // Anchor the (1+a)pi+ label above the left hump's shoulder, riding the
+      // peak as alpha scales it: left of x~-3.4 every curve is ~0 at any
+      // alpha, so the label never collides with a stroke.
+      plus: { x: xs(-3.62), y: clamp(ys((1 + a) * tgPlusPdf(-2.45)) - 28, TG_Y0 + 4, tgY1.value - 26) },
       minus: { x: xs(0.98) + 4, y: clamp(ys(a * tgMinusPdf(0.98)) - 26, TG_Y0 + 4, tgY1.value - 26) },
       signed: { x: xs(2.78) + 16, y: clamp(ys(Math.max(signed(2.78), 0)) - 14, TG_Y0 + 4, tgY1.value - 26) },
     },
@@ -1199,7 +1199,7 @@ onUnmounted(() => {
     <!-- HTML label overlays (moved out of the SVG; see RfFigLabel.vue) -->
     <template v-if="isTargetMode">
       <RfFigLabel :x="tgShapes.labels.plus.x" :y="tgShapes.labels.plus.y" :w="118" :vb-h="height">
-        <div class="srf-math" :style="{ color: PALETTE.samplingDark }" v-html="tgLabelPlus"></div>
+        <div class="srf-math" :style="{ color: PALETTE.samplingDark, textAlign: 'right' }" v-html="tgLabelPlus"></div>
       </RfFigLabel>
       <RfFigLabel :x="tgShapes.labels.minus.x" :y="tgShapes.labels.minus.y" :w="70" :vb-h="height">
         <div class="srf-math" :style="{ color: PALETTE.negativeDark }" v-html="tgLabelMinus"></div>

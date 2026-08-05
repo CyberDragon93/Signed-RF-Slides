@@ -566,7 +566,7 @@ class: exponential-tilting-slide
 
 - The negative magnitude measures avoidance: the positive density needed to offset it.
 
-- An simple construction is the **signed mixture**:
+- A simple construction is the **signed mixture**:
 
   $$
   \pi^{\mathtt{sign}}(x)
@@ -583,7 +583,7 @@ class: exponential-tilting-slide
   <div v-click class="signed-measures-question">
     How can we “sample” from a signed measure?
   </div>
-  <RfSigned1D mode="target" :height="265" :autoplay="false" />
+  <RfSigned1D mode="target" :height="295" :autoplay="false" />
 </div>
 
 ---
