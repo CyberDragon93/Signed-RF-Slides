@@ -714,7 +714,7 @@ class: signed-barrier-slide
 
 - **No crossing.** Since $\pi_0^{\mathtt{sign}}=\pi_0>0$, source trajectories start in $\Omega_0^+$; the repulsive singularity keeps them in $\Omega_t^+$ and out of $\Omega_t^-$.
 
-<div class="mt-2 text-center" style="font-size: 0.85em; opacity: 0.7;">
+<div style="position: absolute; top: 2.55rem; right: 3.2rem; font-size: 0.82em; opacity: 0.75;">
 
 Explore live: <a href="./playground/1d.html" target="_blank">**1D playground ↗**</a>
 
