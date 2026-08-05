@@ -607,24 +607,68 @@ class: signed-mixture-rf-slide
 
 
 ---
+class: signed-barrier-slide
+---
 
-# Signed Rectified Flow 
+# The Zero Set Is a Singular Barrier
 
-<RfSigned1D mode="overlay" world="density" :height="285" autoplay />
+<RfSigned1D mode="overlay" world="density" :height="270" autoplay />
 
-<div class="mt-2"></div>
+<div class="mt-1"></div>
 
-
-- The purple curve marks the zero set (boundary) of the signed density:
+- **Zero set.** The purple boundary marks where the signed density vanishes:
 
   $$
-  {\color{#E34A92}
-  \Omega_t^0
-  = \left\{x \colon \pi_t^{\mathtt{sign}}(x)=0\right\}},
+  {\color{#E34A92}{\Omega_t^0}}
+  = \left\{x:\pi_t^{\mathtt{sign}}(x)=0\right\},
   \qquad
   \pi_t^{\mathtt{sign}}(x)
   = (1+\alpha)\pi_t^+(x)-\alpha\pi_t^-(x).
   $$
+
+- **Singular wall.** The signed density is the velocity denominator, so $v_t^{\mathtt{signRF}}$ is singular on $\Omega_t^0$:
+
+  $$
+  v_t^{\mathtt{signRF}}(x)
+  =
+  \frac{
+    (1+\alpha)\pi_t^+(x)v_t^+(x)-\alpha\pi_t^-(x)v_t^-(x)
+  }{
+    \underbrace{\pi_t^{\mathtt{sign}}(x)}_{\to 0\text{ on }\Omega_t^0}
+  },
+  $$
+
+- **No crossing.** Since $\pi_0^{\mathtt{sign}}=\pi_0>0$, source trajectories start in $\Omega_0^+$; the repulsive singularity keeps them in $\Omega_t^+$ and out of $\Omega_t^-$.
+
+<style>
+.signed-barrier-slide h1 {
+  margin-bottom: 0.12rem;
+}
+.signed-barrier-slide > ul {
+  max-width: 920px;
+  margin: 0.2rem auto 0;
+  color: #465168;
+  font-size: 1.02rem;
+  line-height: 1.2;
+}
+.signed-barrier-slide > ul > li {
+  margin-bottom: 0.34rem;
+}
+.signed-barrier-slide > ul > li strong {
+  color: #26334d;
+}
+.signed-barrier-slide .katex-display {
+  margin: 0.12rem 0 0.16rem;
+  color: #243f91;
+  font-size: 0.95em;
+}
+</style>
+
+<!--
+[Sources]
+- `Signed_Rectified_Flow_Overleaf_Paper/contents/methods.tex`, paragraph “Rectified Flow for Signed Mixtures” and Eq. `eq:signed_rf_velocity`.
+- `Signed_Rectified_Flow_Overleaf_Paper/contents/appendix_theory.tex`, positivity-preservation argument for source-initialized trajectories.
+-->
 
 ---
 
