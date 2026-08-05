@@ -1310,13 +1310,11 @@ Explore live: <a href="./playground/1d.html" target="_blank">**1D playground ↗
 
 # Trace the Dynamics Backward
 
-<ChargedParticles1D mode="uniform" :height="360" autoplay />
+<ChargedParticles1D mode="uniform" :height="430" autoplay />
 
 - Place charged particles and run the ODE **backward**.
 - **Negative particles:** all hit the moving zero set $\Omega_t^0$.
-- **Positive particles:** either
-  - reach $t=0$, collectively recovering $\pi_0$; or
-  - hit $\Omega_t^0$ and pair with negative particles.
+- **Positive particles:** either reach $t=0$, collectively recovering $\pi_0$, or hit $\Omega_t^0$ and pair with negative particles.
 
 ---
 
