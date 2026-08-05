@@ -1231,7 +1231,7 @@ class: signed-rf-2d-playground-slide
 
 # Signed RF in 2D — Interactive Playground
 
-<Rf2DGuidance :height="420" autoplay />
+<Rf2DGuidance :height="440" autoplay />
 
 <div class="signed-rf-2d-playground-link">
   <a href="./playground/2d.html" target="_blank">Open the full playground ↗</a>
@@ -1652,7 +1652,9 @@ $$
 - The exponential Flow-RL weight $e^{r/\beta}$ is strictly positive, so it can only downweight low- or negative-reward regions; a signed weight can make them theoretically unsampled.
 
 <div class="mt-3 text-center" style="font-size: 0.78em; opacity: 0.68;">
+
 The guarantee follows the sign of $w$: avoiding a negative-reward region requires mapping that region to negative weight.
+
 </div>
 
 ---
