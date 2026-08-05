@@ -924,7 +924,7 @@ $$
 This is one of the **total-variation-optimal** nonnegative approximations:
 
 $$
-\pi_t^{\mathtt{signRF}}
+\pi_t^{\mathtt{flow}}
 \;\in\;
 \arg\min_{\rho\in\mathcal P}\;
 \mathrm{TV}\!\left(\rho,\;\pi_t^{\mathtt{sign}}\right).
@@ -1342,11 +1342,11 @@ hide: true
 <RegionDecomposition :height="300" />
 
 - **Stay positive**: trajectories remain in $\Omega_t^+$, never entering $\Omega_t^-$ — but they occupy only a subset,
-  the **reachable region** $\Omega_t^r \coloneqq \operatorname{supp}(\pi_t^{\mathtt{signRF}})$.
+  the **reachable region** $\Omega_t^r \coloneqq \operatorname{supp}(\pi_t^{\mathtt{flow}})$.
 - **Rectification**: on $\Omega_t^r$, the sampled density coincides *exactly* with the signed marginal:
 
 $$
-\pi_t^{\mathtt{signRF}}(x)
+\pi_t^{\mathtt{flow}}(x)
  =
  \pi_t^{\mathtt{sign}}(x)\,\mathbf{1}\{x\in\Omega_t^r\}.
 $$
@@ -1362,7 +1362,7 @@ disabled: true
 The unreached part of the positive region is the **ghost region**:
 $\;\Omega_t^g \coloneqq \Omega_t^+ \setminus \Omega_t^r$.
 
-Both $\pi_t^{\mathtt{signRF}}$ and $\pi_t^{\mathtt{sign}}$ carry unit total mass, so
+Both $\pi_t^{\mathtt{flow}}$ and $\pi_t^{\mathtt{sign}}$ carry unit total mass, so
 
 $$
 \int_{\Omega_t^r} \pi_t^{\mathtt{sign}}(x)\,\mathrm{d}x = 1
@@ -1389,7 +1389,7 @@ keep $\pi_t^{\mathtt{sign}}$ on the reachable region, zero elsewhere.
 This is one of the **total-variation-optimal** nonnegative approximations:
 
 $$
-\pi_t^{\mathtt{signRF}}
+\pi_t^{\mathtt{flow}}
 \;\in\;
 \arg\min_{\rho\in\mathcal P}\;
 \mathrm{TV}\!\left(\rho,\;\pi_t^{\mathtt{sign}}\right).
@@ -1422,7 +1422,7 @@ Now restrict it to the reachable region: $\;\bar\pi_t(x) \coloneqq \pi_t^{\matht
 
 - $\Omega_t^r$ is transported by the same flow — its moving boundary carries **no additional flux**.
 - Hence $\bar\pi_t$ satisfies the same continuity equation *and* is a valid probability density.
-- Under standard regularity, it must coincide with the law of the ODE: $\;\pi_t^{\mathtt{signRF}} = \bar\pi_t$.
+- Under standard regularity, it must coincide with the law of the ODE: $\;\pi_t^{\mathtt{flow}} = \bar\pi_t$.
 
 ---
 
