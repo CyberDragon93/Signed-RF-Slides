@@ -109,23 +109,38 @@ const loupeBoundary = computed(() => {
   return { stroke: d, fill }
 })
 
-// velocity arrows on the positive side: length encodes |v| (log-compressed),
-// direction is the actual sign of v — repulsion away from the wall.
+// Normalized direction field of the signed-RF flow on the positive side:
+// each arrow is the unit tangent of (dt, dx) = (1, v) in screen space, so
+// lengths never explode — near the wall the arrows simply turn vertical.
+// Magnitude is carried by shade instead: darker = larger log-magnitude.
+function shade(mag) {
+  const u = Math.min(1, Math.log1p(mag) / Math.log1p(300))
+  const mix = (a, b) => Math.round(a + (b - a) * u)
+  return `rgb(${mix(169, 22)}, ${mix(189, 39)}, ${mix(242, 122)})`
+}
+
 const arrows = computed(() => {
   const lp = loupe.value
+  const s = lp.r * 1.35
+  const st = s / (SRC.t1 - SRC.t0)
+  const sx = s / (SRC.x1 - SRC.x0)
+  const L = 16.5
   const out = []
-  const offs = [0.07, 0.24, 0.5, 0.9]
-  for (const dt of [-0.065, 0, 0.065]) {
-    const t = TC + dt
+  for (let i = 0; i < 6; i += 1) {
+    const t = SRC.t0 + ((i + 0.5) / 6) * (SRC.t1 - SRC.t0)
     const xb = upperRootAt(t)
-    for (const d of offs) {
-      const x = xb + d
-      if (x > SRC.x1 - 0.06) continue
+    for (let j = 0; j < 6; j += 1) {
+      const x = SRC.x0 + ((j + 0.5) / 6) * (SRC.x1 - SRC.x0)
+      if (x < xb + 0.05) continue
       const v = signedVelocity(x, t, ALPHA, DENSITY)
       const mag = Math.abs(v)
-      const len = 6 + 30 * Math.min(1, Math.log1p(mag) / Math.log1p(220))
+      let dx = st
+      let dy = -sx * v
+      const n = Math.hypot(dx, dy)
+      dx = (dx / n) * (L / 2)
+      dy = (dy / n) * (L / 2)
       const [px, py] = loupeMap(t, x, lp)
-      out.push({ x: px, y: py, len, up: v > 0, mag })
+      out.push({ x1: px - dx, y1: py - dy, x2: px + dx, y2: py + dy, dx, dy, color: shade(mag) })
     }
   }
   return out
@@ -140,7 +155,7 @@ const srcBox = computed(() => {
 })
 
 const labelZero = mathHtml('\\Omega_t^0')
-const labelBlow = mathHtml('\\|v_t^{\\mathtt{signRF}}\\|\\to\\infty')
+const labelBlow = `unit arrows &nbsp;\u00b7&nbsp; darker = larger ${mathHtml('\\|v_t\\|')}`
 const labelT = 'time t'
 </script>
 
@@ -191,16 +206,13 @@ const labelT = 'time t'
         <path :d="loupeBoundary.stroke" fill="none" :stroke="PALETTE.negative" stroke-width="2.4" />
         <g v-for="(a, i) in arrows" :key="`ar-${i}`">
           <line
-            :x1="a.x" :y1="a.y" :x2="a.x" :y2="a.up ? a.y - a.len : a.y + a.len"
-            :stroke="PALETTE.traj" stroke-width="2" stroke-linecap="round"
+            :x1="a.x1" :y1="a.y1" :x2="a.x2" :y2="a.y2"
+            :style="{ stroke: a.color }" stroke-width="2" stroke-linecap="round"
           />
           <path
-            :d="a.up
-              ? `M${a.x - 3.4},${a.y - a.len + 4.6} L${a.x},${a.y - a.len} L${a.x + 3.4},${a.y - a.len + 4.6}`
-              : `M${a.x - 3.4},${a.y + a.len - 4.6} L${a.x},${a.y + a.len} L${a.x + 3.4},${a.y + a.len - 4.6}`"
-            fill="none" :stroke="PALETTE.traj" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+            :d="`M${a.x2 - (a.dx * 0.42 - a.dy * 0.3)},${a.y2 - (a.dy * 0.42 + a.dx * 0.3)} L${a.x2},${a.y2} L${a.x2 - (a.dx * 0.42 + a.dy * 0.3)},${a.y2 - (a.dy * 0.42 - a.dx * 0.3)}`"
+            fill="none" :style="{ stroke: a.color }" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
           />
-          <circle :cx="a.x" :cy="a.y" r="1.9" :fill="PALETTE.traj" />
         </g>
       </g>
       <!-- rim + handle: the magnifying glass -->
@@ -215,7 +227,7 @@ const labelT = 'time t'
     <RfFigLabel :x="tx(0.4) - 30" :y="xy(upperRootAt(0.42)) - 26" :w="60" :vb-h="height">
       <div class="twz-math twz-center" :style="{ color: PALETTE.negativeDark }" v-html="labelZero"></div>
     </RfFigLabel>
-    <RfFigLabel :x="loupe.cx - 78" :y="loupe.cy + loupe.r - 26" :w="156" :vb-h="height">
+    <RfFigLabel :x="loupe.cx - 110" :y="loupe.cy + loupe.r + 4" :w="220" :vb-h="height">
       <div class="twz-math twz-center" :style="{ color: PALETTE.samplingDark }" v-html="labelBlow"></div>
     </RfFigLabel>
   </div>
