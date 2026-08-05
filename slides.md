@@ -1593,24 +1593,6 @@ where $s_t^{\pm}=\nabla\log\pi_t^{\pm}$ are the branch scores.
 - Integrate jointly with the Signed RF ODE; recover $r_t(Z_t)=\exp(u_t)$ along the way.
 
 ---
-
-# Stabilization
-
-<div class="h-36"></div>
-
-The singular denominator is meaningful mathematics — finite Euler steps are not.
-
-$$
-(1+\alpha)-\alpha\,r_t(Z_t)
-\;\;\leadsto\;\;
-\max\bigl((1+\alpha)-\alpha\,r_t(Z_t),\;\varepsilon\bigr),
-\qquad
-\lambda_t^{\alpha} \;\le\; \lambda_{\max}.
-$$
-
-A simple practical modification, empirically robust to moderate choices of the cap $\lambda_{\max}$.
-
----
 disabled: true
 ---
 
@@ -1935,3 +1917,21 @@ The guarantee follows the sign of $w$: avoiding a negative-reward region require
 - Yields sampling within the positive region of the signed mixture.
 
 - Yields an adaptive guidance algorithm for practical applications.
+
+---
+
+# Stabilization
+
+<div class="h-36"></div>
+
+The singular denominator is meaningful mathematics — finite Euler steps are not.
+
+$$
+(1+\alpha)-\alpha\,r_t(Z_t)
+\;\;\leadsto\;\;
+\max\bigl((1+\alpha)-\alpha\,r_t(Z_t),\;\varepsilon\bigr),
+\qquad
+\lambda_t^{\alpha} \;\le\; \lambda_{\max}.
+$$
+
+A simple practical modification, empirically robust to moderate choices of the cap $\lambda_{\max}$.
